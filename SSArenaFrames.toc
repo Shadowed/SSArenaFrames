@@ -1,0 +1,17 @@
+## Interface: 20200
+## Title: SSArena Frames
+## Version: $Revision: 252 $
+## Notes: Unit frames for arenas
+## SavedVariables: SSAFDB
+## OptionalDeps: LibStub, OptionHouse, HousingAuthority, AceComm-2.0
+
+lib\Dongle.lua
+lib\OptionHouse.lua
+lib\HousingAuthority.lua
+lib\LibSharedMedia-2.0.lua
+
+localization.enUS.lua
+localization.deDE.lua
+localization.frFR.lua
+
+SSArenaFrames.lua
