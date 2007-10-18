@@ -41,7 +41,7 @@ function SSAF:Initialize()
 			petBarColor = { r = 0.20, g = 1.0, b = 0.20 },
 			position = { x = 300, y = 600 },
 			attributes = {
-				{ modifier = "", button = "", text = "/target <name>" },
+				{ modifier = "", button = "", text = "/target *name" },
 			}
 		}
 	}
@@ -117,6 +117,7 @@ end
 function SSAF:Reload()
 	if( not self.db.profile.locked ) then
 		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
+
 			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player")})
 			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), maxHealth = UnitHealthMax("player")})
 
@@ -160,7 +161,7 @@ function SSAF:Reload()
 
 	end
 	
-	if( self.moduleEnabled ) then
+	if( activeBF ~= -1 and ( #(enemies) > 0 or #(enemyPets) > 0 ) ) then
 		self:UpdateEnemies()
 	end
 end
@@ -285,7 +286,7 @@ end
 -- like health or dying
 function SSAF:UpdateRow(enemy, id)
 	self.rows[id]:SetValue(enemy.health)
-	self.rows[id].healthText:SetText((enemy.health / enemy.maxHealth) * 100)
+	self.rows[id].healthText:SetText(((enemy.health / enemy.maxHealth) * 100) .. "%")
 	
 	if( enemy.isDead ) then
 		self.rows[id]:SetAlpha(0.75)
@@ -297,7 +298,7 @@ end
 -- Update the entire frame and everything in it
 function SSAF:UpdateEnemies()
 	if( not self.frame ) then
-		return
+		self:CreateFrame()
 	end
 	
 	-- Can't update in combat of course
@@ -405,7 +406,7 @@ function SSAF:UpdateEnemies()
 		row.classTexture:Hide()
 		
 		row:SetMinMaxValues(0, enemy.maxHealth)
-		row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.arena.petBarColor.b, 1.0)
+		row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.petBarColor.b, 1.0)
 		
 		-- Quick update
 		self:UpdateRow(enemy, id)
@@ -605,7 +606,7 @@ function SSAF:CreateFrame()
 
 	-- Moving the frame
 	self.frame:SetScript("OnMouseDown", function(self)
-		if( not self.db.profile.locked ) then
+		if( not SSAF.db.profile.locked ) then
 			self.isMoving = true
 			self:StartMoving()
 		end
@@ -616,8 +617,8 @@ function SSAF:CreateFrame()
 			self.isMoving = nil
 			self:StopMovingOrSizing()
 
-			self.db.profile.position.x = self:GetLeft()
-			self.db.profile.position.y = self:GetTop()
+			SSAF.db.profile.position.x = self:GetLeft()
+			SSAF.db.profile.position.y = self:GetTop()
 		end
 	end)	
 	
@@ -653,7 +654,7 @@ function SSAF:CreateFrame()
 		self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 	end
 	
-	self.frame.rows = {}
+	self.rows = {}
 end
 
 -- Create a single row
@@ -912,7 +913,7 @@ function SSAF:CreateUI()
 		{ group = L["Color"], text = L["Name/health font color"], type = "color", var = "fontColor"},
 				
 		{ group = L["Frame"], text = L["Lock arena frame"], type = "check", var = "locked"},
-		{ group = L["Frame"], format = L["Frame Scale: %d%%"], min = 0.0, max = 2.0, type = "slider", var = "scale"}
+		{ group = L["Frame"], format = L["Frame Scale: %d%%"], manualInput = true, min = 0.0, max = 2.0, type = "slider", var = "scale"}
 	}
 
 	-- Update the dropdown incase any new textures were added
