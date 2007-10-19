@@ -12,6 +12,7 @@ SSAFLocals = {
 	["[%d/%d] %s's pet, %s %s"] = "[%d/%d] %s's pet, %s %s",
 	["[%d/%d] %s's pet, %s"] = "[%d/%d] %s's pet, %s",
 
+	["%s's %s"] = "%s's %s",
 	["([a-zA-Z]+)%'s Minion"] = "([a-zA-Z]+)%'s Minion",
 	
 	["Pet"] = "Pet",
@@ -34,7 +35,34 @@ SSAFLocals = {
 	["Display"] = "Display",
 	["None"] = "None",
 	["Outline"] = "Outline",
-	["Thick Outline"] = "Thick Outline",
+	["Thick outline"] = "Thick outline",
+	
+	["Modifiers"] = "Modifiers",
+	["Macro Text"] = "Macro Text",
+	
+	["Command to execute when clicking the frame using the above modifier/mouse button"] = "Command to execute when clicking the frame using the above modifier/mouse button",
+	
+	
+	["All"] = "All",
+	["CTRL"] = "CTRL",
+	["SHIFT"] = "SHIFT",
+	["ALT"] = "ALT",
+	
+	["Any button"] = "Any button",
+	["Left button"] = "Left button",
+	["Right button"] = "Right button",
+	["Middle button"] = "Middle button",
+	["Button 4"] = "Button 4",
+	["Button 5"] = "Button 5",
+	
+	["Modifier key"] = "Modifier key",
+	["Mouse button"] = "Mouse button",
+	
+	["Click Actions"] = "Click Actions",
+	["Action #%d"] = "Action #%d",
+	
+	["Enable macro case"] = "Enable macro case",
+	["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."] = "Enables the macro text entered to be ran on the specified modifier key and mouse button combo.",
 	
 	["Report enemies to battleground chat"] = "Report enemies to battleground chat",
 	["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."] = "Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy.",
