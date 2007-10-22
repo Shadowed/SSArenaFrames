@@ -69,13 +69,13 @@ function SSAF:Initialize()
 	HouseAuthority = LibStub("HousingAuthority-1.2")
 	
 	local OHObj = OptionHouse:RegisterAddOn("Arena Frames", nil, "Amarand", "r" .. tonumber(string.match("$Revision: 252 $", "(%d+)") or 1))
-	OHObj:RegisterCategory(L["General"], self, "CreateUI")
+	OHObj:RegisterCategory(L["General"], self, "CreateUI", nil, 1)
 	
 	-- We don't want anything to show for this
-	OHObj:RegisterCategory(L["Click Actions"], function() return CreateFrame("Frame") end)
+	OHObj:RegisterCategory(L["Click Actions"], function() return CreateFrame("Frame") end, nil, nil, 2)
 
 	for i=1, 10 do
-		OHObj:RegisterSubCategory(L["Click Actions"], string.format(L["Action #%d"], i), function() return self:CreateAttributeUI(i) end)
+		OHObj:RegisterSubCategory(L["Click Actions"], string.format(L["Action #%d"], i), function() return self:CreateAttributeUI(i) end, nil, nil, i)
 	end
 end
 
@@ -950,7 +950,7 @@ function SSAF:CreateUI()
 		{ group = L["General"], text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
 		
 		{ group = L["Display"], text = L["Health bar texture"], type = "dropdown", list = {{"Interface\\TargetingFrame\\UI-StatusBar", "Blizzard"}}, var = "healthTexture"},
-		{ group = L["Display"], text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick putline"]}}, var = "fontOutline"},
+		{ group = L["Display"], text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
 
 		{ group = L["Color"], text = L["Pet health bar color"], type = "color", var = "petBarColor"},
 		{ group = L["Color"], text = L["Name/health font color"], type = "color", var = "fontColor"},
