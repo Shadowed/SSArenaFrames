@@ -822,7 +822,6 @@ function SSAF:TranslateClass(class)
 	return nil
 end
 
---[[
 -- Deal with the stupid people using memo
 -- YOU DONT NEED IT'S USELESS FOR ARENA MODS
 function SSAF:ADDON_LOADED(event, addon)
@@ -832,31 +831,27 @@ function SSAF:ADDON_LOADED(event, addon)
 		AceComm:SetCommPrefix("SSAF")
 		AceComm:RegisterComm("Gladiator", "BATTLEGROUND")
 		AceComm:RegisterComm("Proximo", "GROUP")
-		Acecomm:RegisterComm("ControlArena", "GROUP")
+		AceComm:RegisterComm("ControlArena", "GROUP")
 		AceComm:RegisterMemoizations("Add", "Discover",
 		"Druid", "Hunter", "Mage", "Paladin", "Priest", "Rogue", "Shaman", "Warlock", "Warrior",
 		"DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST", "SHAMAN", "ROGUE", "WARLOCK", "WARRIOR")
 		
 		-- Arena mod #19634871
 		function AceComm.OnCommReceive:Discover(prefix, sender, distribution, name, class, health)
-			DEFAULT_CHAT_FRAME:AddMessage("New Comm found " .. tostring(name) .. ":" .. tostring(class))
 			SSAF:EnemyData(event, name, nil, nil, class)
 		end
 		
 		-- Gladiator
 		function AceComm.OnCommReceive:Add(prefix, sender, distribution, name, class, health, talents)
-			DEFAULT_CHAT_FRAME:AddMessage("New Comm found " .. tostring(name) .. ":" .. tostring(class))
 			SSAF:EnemyData(event, name, nil, nil, class)
 		end
 
 		-- Proximo
 		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana)
-			DEFAULT_CHAT_FRAME:AddMessage("New Comm found " .. tostring(name) .. ":" .. tostring(class))
-			SSAF:EnemyData(event, name, nil, nil, class)
+			SSAF:EnemyData(event, name, nil, nil, SSAF:TranslateClass(class))
 		end
 	end
 end
-]]
 
 -- Sync with other addons
 function SSAF:CHAT_MSG_ADDON(event, prefix, msg, type, author)
