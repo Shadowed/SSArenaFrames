@@ -37,6 +37,7 @@ SSAFLocals = {
 	["Outline"] = "Outline",
 	["Thick outline"] = "Thick outline",
 	
+	["Enable"] = "Enable",
 	["Modifiers"] = "Modifiers",
 	["Macro Text"] = "Macro Text",
 	

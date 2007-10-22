@@ -41,7 +41,10 @@ function SSAF:Initialize()
 			petBarColor = { r = 0.20, g = 1.0, b = 0.20 },
 			position = { x = 300, y = 600 },
 			attributes = {
-				{ modifier = "", button = "", text = "/target *name" },
+				-- Valid modifiers: shift, ctrl, alt
+				-- LeftButton/RightButton/MiddleButton/Button4/Button5
+				-- All numbered from left -> right as 1 -> 5
+				{ enabled = true, modifier = "", button = "", text = "/target *name" },
 			}
 		}
 	}
@@ -67,6 +70,13 @@ function SSAF:Initialize()
 	
 	local OHObj = OptionHouse:RegisterAddOn("Arena Frames", nil, "Amarand", "r" .. tonumber(string.match("$Revision: 252 $", "(%d+)") or 1))
 	OHObj:RegisterCategory(L["General"], self, "CreateUI")
+	
+	-- We don't want anything to show for this
+	OHObj:RegisterCategory(L["Click Actions"], function() return CreateFrame("Frame") end)
+
+	for i=1, 10 do
+		OHObj:RegisterSubCategory(L["Click Actions"], string.format(L["Action #%d"], i), function() return self:CreateAttributeUI(i) end)
+	end
 end
 
 function SSAF:JoinedArena()
@@ -303,7 +313,7 @@ function SSAF:UpdateEnemies()
 	
 	-- Can't update in combat of course
 	if( InCombatLockdown() ) then
-		SSPVP:RegisterOOCUpdate("UpdateEnemies")
+		self:RegisterOOCUpdate("UpdateEnemies")
 		return
 	end
 		
@@ -781,8 +791,7 @@ function SSAF:EnemyDied(event, name)
 	end
 end
 
--- Most arena mods are incredibly evil, and don't use class token
--- so, we need to translate it from evil class -> token class
+-- Deal with the fact that ArenaLiveFrames doesn't send class tokens
 function SSAF:TranslateClass(class)
 	for classToken, className in pairs(L["CLASSES"]) do
 		if( className == class ) then
@@ -793,8 +802,9 @@ function SSAF:TranslateClass(class)
 	return nil
 end
 
--- Deal with the annoying people who use AceComm
 --[[
+-- Deal with the stupid people using memo
+-- YOU DONT NEED IT'S USELESS FOR ARENA MODS
 function SSAF:ADDON_LOADED(event, addon)
 	if( not AceComm and AceLibrary and LibStub:GetLibrary("AceComm-2.0", true) ) then
 		AceComm = AceLibrary("AceAddon-2.0"):new("AceComm-2.0")
@@ -802,7 +812,16 @@ function SSAF:ADDON_LOADED(event, addon)
 		AceComm:SetCommPrefix("SSAF")
 		AceComm:RegisterComm("Gladiator", "BATTLEGROUND")
 		AceComm:RegisterComm("Proximo", "GROUP")
-		AceComm:RegisterMemoizations("Add", "TeamInfo", "Health", "Death", "Druid", "Hunter", "Mage", "Paladin", "Priest", "Rogue", "Shaman", "Warlock", "Warrior")
+		Acecomm:RegisterComm("ControlArena", "GROUP")
+		AceComm:RegisterMemoizations("Add", "Discover",
+		"Druid", "Hunter", "Mage", "Paladin", "Priest", "Rogue", "Shaman", "Warlock", "Warrior",
+		"DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST", "SHAMAN", "ROGUE", "WARLOCK", "WARRIOR")
+		
+		-- Arena mod #19634871
+		function AceComm.OnCommReceive:Discover(prefix, sender, distribution, name, class, health)
+			DEFAULT_CHAT_FRAME:AddMessage("New Comm found " .. tostring(name) .. ":" .. tostring(class))
+			SSAF:EnemyData(event, name, nil, nil, class)
+		end
 		
 		-- Gladiator
 		function AceComm.OnCommReceive:Add(prefix, sender, distribution, name, class, health, talents)
@@ -907,7 +926,7 @@ function SSAF:CreateUI()
 		{ group = L["General"], text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
 		
 		{ group = L["Display"], text = L["Health bar texture"], type = "dropdown", list = {{"Interface\\TargetingFrame\\UI-StatusBar", "Blizzard"}}, var = "healthTexture"},
-		{ group = L["Display"], text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick Outline"]}}, var = "fontOutline"},
+		{ group = L["Display"], text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick putline"]}}, var = "fontOutline"},
 
 		{ group = L["Color"], text = L["Pet health bar color"], type = "color", var = "petBarColor"},
 		{ group = L["Color"], text = L["Name/health font color"], type = "color", var = "fontColor"},
@@ -934,3 +953,30 @@ function SSAF:CreateUI()
 	return frame
 end
 
+function SSAF:AttribSet(var, value)
+	-- Not created yet, set to default
+	if( not self.db.profile[var[1]][var[2]] ) then
+		self.db.profile[var[1]][var[2]] = { enabled = false, text = "/target *name", modifier = "", button = "" }
+	end
+	
+	self.db.profile[var[1]][var[2]][var[3]] = value
+end
+
+function SSAF:AttribGet(var)
+	if( not self.db.profile[var[1]][var[2]] ) then
+		return nil
+	end
+	
+	return self.db.profile[var[1]][var[2]][var[3]]
+end
+
+function SSAF:CreateAttributeUI(attributeID)
+	local config = {
+		{ group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "text"}},
+		{ group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "", var = {"attributes", attributeID, "modifier"}},
+		{ group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "", var = {"attributes", attributeID, "button"}},
+		{ group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
+	}
+	
+	return HouseAuthority:CreateConfiguration(config, {set = "AttribSet", get = "AttribGet", onSet = "Reload", handler = self})
+end

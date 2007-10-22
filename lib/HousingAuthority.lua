@@ -1,5 +1,5 @@
 local major = "HousingAuthority-1.2"
-local minor = tonumber(string.match("$Revision: 252 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 271 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 local HAInstance, oldRevision = LibStub:NewLibrary(major, minor)
@@ -336,7 +336,7 @@ end
 -- INPUT BOX
 local function inputShown(self)
 	if( not self.data.numeric ) then
-		self:SetText(getValue(self.parent, self.data))
+		self:SetText(getValue(self.parent, self.data) or "")
 	else
 		self:SetNumber(getValue(self.parent, self.data))
 	end
@@ -566,8 +566,8 @@ local HouseAuthority = {}
 local configs = {}
 local id = 0
 
-local methods = { "GetFrame", "InjectUIObject", "UpdateDropdown", "CreateConfiguration", "CreateButton", "CreateGroup", "CreateLabel", "CreateDropdown", "CreateColorPicker", "CreateInput", "CreateSlider", "CreateCheckBox" }
-local widgetList = {["label"] = "CreateLabel", ["check"] = "CreateCheckBox", ["input"] = "CreateInput", ["dropdown"] = "CreateDropdown", ["color"] = "CreateColorPicker", ["slider"] = "CreateSlider", ["group"] = "CreateGroup", ["button"] = "CreateButton",}
+local methods = { "CreateEditBox", "GetFrame", "InjectUIObject", "UpdateDropdown", "CreateConfiguration", "CreateButton", "CreateGroup", "CreateLabel", "CreateDropdown", "CreateColorPicker", "CreateInput", "CreateSlider", "CreateCheckBox" }
+local widgetList = {["label"] = "CreateLabel", ["check"] = "CreateCheckBox", ["editbox"] = "CreateEditBox", ["input"] = "CreateInput", ["dropdown"] = "CreateDropdown", ["color"] = "CreateColorPicker", ["slider"] = "CreateSlider", ["group"] = "CreateGroup", ["button"] = "CreateButton",}
 
 -- Extract the configuration obj from a frame
 function HouseAuthority:GetObject(frame)
@@ -975,6 +975,7 @@ function HouseAuthority.UpdateDropdown(config, data)
 	
 	for _, widget in pairs(config.widgets) do
 		if( widget.data.type == "dropdown" and type(data.var) == type(widget.data.var) ) then
+			
 			if( type(data.var) == "table" ) then
 				local matches = 0
 				local rows = 0
@@ -1041,6 +1042,94 @@ function HouseAuthority.CreateDropdown(config, data)
 
 	table.insert(config.widgets, button)
 	return button
+end
+
+local editBackdrop = {
+	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+	edgeSize = 16,
+	tileSize = 16,
+	tile = true,
+	insets = { left = 5, right = 5, top = 5, bottom = 5 },
+}
+
+function HouseAuthority.CreateEditBox(config, data)
+	argcheck(data, 2, "table")
+	argcheck(data.text, "text", "string", "nil")
+	argcheck(data.var, "var", "string", "number", "table")
+	argcheck(data.default, "defwqault", "number", "string", "nil")
+	argcheck(data.numeric, "numeric", "boolean", "nil")
+	argcheck(data.maxChars, "maxChars", "number", "nil")
+	argcheck(data.maxBytes, "maxBytes", "number", "nil")
+	argcheck(data.error, "error", "string", "nil")
+	argcheck(data.help, "help", "string", "nil")
+	argcheck(data.width, "width", "number", "nil")
+	argcheck(data.height, "height", "number", "nil")
+	assert(3, config and configs[config.id], string.format(L["MUST_CALL"], "CreateEditBox"))
+	
+	validateFunctions(configs[config.id], data)	
+
+	config = configs[config.id]
+	config.editNum = (config.editNum or 0) + 1
+
+	-- Backdrop
+	local frame = CreateFrame("Frame", nil, config.frame)
+	frame:SetWidth((286 or data.width) + 31)
+	frame:SetHeight((85 or data.height) + 9)
+	frame:SetBackdrop(editBackdrop)
+	frame:SetBackdropColor(0.0, 0.0, 0.0, 1.0)
+	frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
+
+	frame.yPos = 10
+	frame.parent = config
+	frame.data = data
+	frame:Hide()
+	
+	if( data.text ) then
+		local text = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+		text:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, 12)
+		text:SetText(data.text)
+	end
+
+	-- Scroll frame
+	local scroll = CreateFrame("ScrollFrame", "HAEditScrollID" .. config.id .. "Num" .. config.editNum, frame, "UIPanelScrollFrameTemplate")
+	scroll:SetWidth(286 or data.width)
+	scroll:SetHeight(85 or data.height)
+	scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
+	
+	scroll.parent = config
+	scroll.data = data
+	
+
+	--scroll:SetPoint("TOPLEFT", OptionHouse:GetFrame("addon"), "TOPLEFT", 190, -105)
+	--scroll:SetPoint("BOTTOMRIGHT", OptionHouse:GetFrame("addon"), "BOTTOMRIGHT", -35, 40)
+
+	-- Create the actual edit box
+	local editBox = CreateFrame("EditBox", nil, scroll)
+	editBox.parent = config
+	editBox.data = data
+	editBox:SetPoint("TOPLEFT", scroll, "TOPLEFT", 3, -3)
+	editBox:SetHeight(data.height or 286)
+	editBox:SetWidth(data.width or 85)
+	editBox:SetScript("OnShow", inputShown)
+	editBox:SetScript("OnTextChanged", inputChanged)
+	editBox:SetScript("OnEscapePressed", inputClearFocus)
+	editBox:SetMultiLine(true)
+	editBox:SetAutoFocus(false)
+	editBox:SetNumeric(data.numeric)
+	editBox:SetFontObject(data.fontObj or GameFontHighlightSmall)
+	
+	
+	if( data.maxChars ) then
+		editBox:SetMaxLetters(data.maxLetters)
+	end
+	if( data.maxBytes ) then
+		editBox:SetMaxBytes(data.maxBytes)
+	end
+	
+	scroll:SetScrollChild(editBox)
+	table.insert(config.widgets, frame)
+	return scroll
 end
 
 -- Lets you inject a custom UI object so you can use HA along side
@@ -1181,7 +1270,7 @@ function HouseAuthority:CreateConfiguration(data, frameData)
 		elseif( widget.type and widgetList[widget.type] ) then
 			handler[widgetList[widget.type]](handler, widget)
 		else
-			error(string.format(L["INVALID_WIDGETTYPE"], widget.type or "nil", "inject, label, check, input, dropdown, color, slider, group, button"), 3)
+			error(string.format(L["INVALID_WIDGETTYPE"], widget.type or "nil", "inject, label, editbox, check, input, dropdown, color, slider, group, button"), 3)
 		end
 	end
 	
