@@ -16,6 +16,7 @@ SSAFLocals = {
 	["([a-zA-Z]+)%'s Minion"] = "([a-zA-Z]+)%'s Minion",
 	
 	["Pet"] = "Pet",
+	["Enable for class"] = "Enable for class",
 	
 	["CLASSES"] = {
 		["MAGE"] = "Mage",
@@ -43,6 +44,7 @@ SSAFLocals = {
 	
 	["Command to execute when clicking the frame using the above modifier/mouse button"] = "Command to execute when clicking the frame using the above modifier/mouse button",
 	
+	["Enables the macro for a specific class, or for pets only."] = "Enables the macro for a specific class, or for pets only.",
 	
 	["All"] = "All",
 	["CTRL"] = "CTRL",

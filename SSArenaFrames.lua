@@ -44,12 +44,12 @@ function SSAF:Initialize()
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ enabled = true, modifier = "", button = "", text = "/target *name" },
+				{ enabled = true, class = "ALL", modifier = "", button = "", text = "/target *name" },
 			}
 		}
 	}
 	
-	self.db = self:InitializeDB("SSPVPDB", self.defaults)
+	self.db = self:InitializeDB("SSAFDB", self.defaults)
 
 	self.cmd = self:InitializeSlashCommand(L["SSArena Frames Slash Commands"], "SSAF", "ssaf", "arenaframes")
 	self.cmd:InjectDBCommands(self.db, "delete", "copy", "list", "set")
@@ -109,6 +109,8 @@ function SSAF:JoinedArena()
 end
 
 function SSAF:LeftArena()
+	self:UnregisterOOCUpdate("UpdateEnemies")
+
 	if( InCombatLockdown() ) then
 		self:RegisterOOCUpdate("ClearEnemies")
 	else
@@ -382,9 +384,18 @@ function SSAF:UpdateEnemies()
 		self:UpdateRow(enemy, id)
 		
 		-- Set up all the macro things
+		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
-			row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-			row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+			if( macro.enabled and ( macro.class == "ALL" or macro.class == enemy.class ) ) then
+				foundMacro = true
+				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+			end
+		end
+		
+		if( not foundMacro ) then
+			row.button:SetAttribute("type", "macro")
+			row.button:SetAttribute("macrotext", "/target " .. enemy.name)
 		end
 		
 		row:Show()
@@ -422,9 +433,18 @@ function SSAF:UpdateEnemies()
 		self:UpdateRow(enemy, id)
 		
 		-- Set up all the macro things
+		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
-			row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-			row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+			if( macro.enabled and ( macro.class == "ALL" or macro.class == "PET" ) ) then
+				foundMacro = true
+				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+			end
+		end
+		
+		if( not foundMacro ) then
+			row.button:SetAttribute("type", "macro")
+			row.button:SetAttribute("macrotext", "/target " .. enemy.name)
 		end
 
 		row:Show()
@@ -610,7 +630,8 @@ function SSAF:CreateFrame()
 	self.frame:SetBackdropBorderColor(0.60, 0.60, 0.60, 1.0)
 	self.frame:SetScale(self.db.profile.scale)
 	self.frame:SetWidth(180)
-	self.frame:SetMovable(not self.db.profile.locked)
+	self.frame:SetMovable(true)
+	--self.frame:SetMovable(not self.db.profile.locked)
 	self.frame:EnableMouse(not self.db.profile.locked)
 	self.frame:SetClampedToScreen(true)
 
@@ -629,6 +650,9 @@ function SSAF:CreateFrame()
 
 			SSAF.db.profile.position.x = self:GetLeft()
 			SSAF.db.profile.position.y = self:GetTop()
+			
+			--self:ClearAllPoints()
+			--self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", SSAF.db.profile.position.x, SSAF.db.profile.position.y)
 		end
 	end)	
 	
@@ -657,12 +681,8 @@ function SSAF:CreateFrame()
 	end)
 	
 	-- Position to last saved area
-	self.frame:ClearAllPoints()
-	if( self.db.profile.position ) then
-		self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", self.db.profile.position.x, self.db.profile.position.y)
-	else
-		self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-	end
+	--self.frame:ClearAllPoints()
+	self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", self.db.profile.position.x, self.db.profile.position.y)
 	
 	self.rows = {}
 end
@@ -898,6 +918,10 @@ function SSAF:ChannelMessage(msg)
 end
 
 -- So we can update secure things once we're OOC
+function SSAF:UnregisterOOCUpdate(func)
+	queuedUpdates[func] = nil
+end
+
 function SSAF:RegisterOOCUpdate(func)
 	queuedUpdates[func] = true
 end
@@ -971,8 +995,18 @@ function SSAF:AttribGet(var)
 end
 
 function SSAF:CreateAttributeUI(attributeID)
+	-- Yeah yeah, these never change. I'm lazy
+	local classes = {}
+	table.insert(classes, {"ALL", L["All"]})
+	table.insert(classes, {"PET", L["Pet"]})
+	
+	for k, v in pairs(L["CLASSES"]) do
+		table.insert(classes, {k, v})
+	end
+	
 	local config = {
 		{ group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "text"}},
+		{ group = L["Enable"], text = L["Enable for class"], help = L["Enables the macro for a specific class, or for pets only."], default = "ALL", list = classes, type = "dropdown", var = {"attributes", attributeID, "class"}},
 		{ group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "", var = {"attributes", attributeID, "modifier"}},
 		{ group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "", var = {"attributes", attributeID, "button"}},
 		{ group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
