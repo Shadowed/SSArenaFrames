@@ -503,13 +503,13 @@ function SSAF:ScanUnit(unit)
 		table.insert(enemies, {sortID = name .. "-" .. server, name = name, server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
 		
 		if( guild ) then
-			if( self.db.profile.reportChat ) then
+			if( self.db.profile.reportEnemies ) then
 				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class, guild))
 			end
 			
 			self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. guild)
 		else
-			if( self.db.profile.reportChat ) then
+			if( self.db.profile.reportEnemies ) then
 				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class))
 			end
 			
@@ -554,13 +554,13 @@ function SSAF:ScanUnit(unit)
 			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
 			
 			if( family ) then
-				if( self.db.profile.reportChat ) then
+				if( self.db.profile.reportEnemies ) then
 					SSPVP:ChannelMessage(string.format( L["[%d/%d] %s's pet, %s %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name, family))
 				end
 				
 				self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. family)
 			else
-				if( self.db.profile.reportChat ) then
+				if( self.db.profile.reportEnemies ) then
 					SSPVP:ChannelMessage(string.format(L["[%d/%d] %s's pet, %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name))
 				end
 				
