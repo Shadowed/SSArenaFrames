@@ -1,5 +1,5 @@
 local major = "HousingAuthority-1.2"
-local minor = tonumber(string.match("$Revision: 271 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 285 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 local HAInstance, oldRevision = LibStub:NewLibrary(major, minor)
@@ -444,51 +444,240 @@ local function openColorPicker(self)
 end
 
 -- DROPDOWNS
-local function dropdownClicked()
-	UIDropDownMenu_SetSelectedValue(this.owner, this.value)
-	setValue(this.owner.parent, this.owner.data, this.value)
-end
+local DROPDOWN_ROWS = 10
+local openedList
+local dropdownBackdrop = {
+	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+	edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+	edgeSize = 32,
+	tileSize = 32,
+	tile = true,
+	insets = { left = 11, right = 12, top = 12, bottom = 11 },
+}
 
-local buttonTbl = { func = dropdownClicked }
-local function initDropdown(frame)
-	if( this:GetName() and string.match(this:GetName(), "Button$") ) then
-		frame = getglobal(string.gsub(this:GetName(), "Button$", ""))
-	elseif( not frame ) then
-		frame = this
-	end
+local function showDropdown(self)
+	self.width = 0
 	
-	buttonTbl.owner = frame
-	for _, row in pairs(frame.data.list) do
-		buttonTbl.value = row[1]
-		buttonTbl.text = row[2]
-		buttonTbl.checked = nil
-		
-		UIDropDownMenu_AddButton(buttonTbl)
-	end
-end
+	-- Calculate the width of the list frame
+	local selectedValue = getValue(self.parent, self.data)
+	local selectedText
+	for id, info in pairs(self.data.list) do
+		self.text:SetText(info[2])
+		if( self.text:GetStringWidth() > self.width ) then
+			self.width = self.text:GetStringWidth() + 75
+		end
 
-local function updateDropdown(frame, noInit)
-	if( not noInit ) then
-		initDropdown(frame)
-	end
-	
-	-- Select da row
-	local selected = getValue(frame.parent, frame.data)
-	for _, row in pairs(frame.data.list) do
-		if( row[1] == selected ) then
-			UIDropDownMenu_SetSelectedValue(frame, row[1])
-			return
+		if( selectedValue == info[1] ) then
+			selectedText = info[2]		
 		end
 	end
 		
-	-- No entry found, use first one
-	UIDropDownMenu_SetSelectedValue(frame, frame.data.list[1][1])
+	-- Bad, means we couldn't find the selected text so we default to the first row
+	if( not selectedText ) then
+		setValue(self.parent, self.data, self.data.list[1][1])
+		selectedText = self.data.list[1][2]
+	end
+
+	-- Set selected text
+	self.text:SetText(selectedText)
+	
+	-- Auto resize so the text doesn't overflow
+	local textWidth = self.text:GetStringWidth() + 30
+	if( textWidth > self.middleTexture:GetWidth() ) then
+		self.middleTexture:SetWidth(textWidth)
+	end
 end
 
-local function dropdownShown(self)
-	UIDropDownMenu_Initialize(self, initDropdown)
+local function hideDropdown(self)
+	if( self.listFrame ) then
+		self.listFrame:Hide()
+		
+		if( openedList == self.listFrame ) then
+			openedList = nil
+		end
+	end
+end
+
+local function dropdownRowClicked(self)
+	local parent = self:GetParent().parentFrame
+	setValue(parent.parent, parent.data, self.key)
 	
-	updateDropdown(self, true)
+	showDropdown(parent)
+	
+	self:GetParent():Hide()
+end
+
+local function showHighlight(self)
+	self.highlight:Show()
+
+	-- Reset timer before it's hidden
+	self:GetParent().timeElapsed = 0
+end
+
+local function hideHighlight(self)
+	self.highlight:Hide()
+end
+
+local function createListRow(parent, id)
+	local button = CreateFrame("Button", nil, parent)
+	button:SetWidth(100)
+	button:SetHeight(16)
+	button:SetScript("OnClick", dropdownRowClicked)
+	button:SetTextFontObject(GameFontHighlightSmall)
+	button:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+	button:SetHighlightTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+	
+	-- GetFontString() returns nil until we SetText
+	button:SetText("")
+	button:GetFontString():SetPoint("LEFT", button, "LEFT", 40, 0)
+
+	local highlight = button:CreateTexture(nil, "BACKGROUND")
+	highlight:ClearAllPoints()
+	highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 12, 0)
+	highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+	highlight:SetAlpha(0.5)
+	highlight:SetBlendMode("ADD")
+	highlight:Hide()
+	button.highlight = highlight
+
+	button.check = button:CreateTexture(nil, "ARTWORK")
+	button.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+	button.check:SetHeight(24)
+	button.check:SetWidth(24)
+	
+	button:SetScript("OnEnter", showHighlight)
+	button:SetScript("OnLeave", hideHighlight)
+	
+	
+	if( id > 1 ) then
+		button:SetPoint("TOPLEFT", parent.rows[id - 1], "TOPLEFT", 0, -16)
+		button.check:SetPoint("TOPLEFT", button, "TOPLEFT", 12, 3)
+	else
+		button:SetPoint("TOPLEFT", parent, "TOPLEFT", -2, -13)
+		button.check:SetPoint("TOPLEFT", button, "TOPLEFT", 12, 3)
+	end
+	
+	parent.rows[id] = button
+	
+	return button
+end
+
+local function updateDropdownList(self, frame)
+	if( self ) then
+		frame = self
+	elseif( not frame ) then
+		frame = openedList
+	end
+	
+	if( not frame or not frame.parentFrame ) then
+		return
+	end
+
+	local parent = frame.parentFrame
+	local selectedValue = getValue(parent.parent, parent.data)
+	local totalRows = #(parent.data.list)
+	local usedRows = 0
+	
+	OptionHouse:UpdateScroll(frame.scroll, totalRows + 1)
+	
+	for id, info in pairs(parent.data.list) do
+		if( id >= frame.scroll.offset and usedRows < DROPDOWN_ROWS ) then
+			usedRows = usedRows + 1
+			
+			if( not frame.rows[usedRows] ) then
+				createListRow(frame, usedRows)
+			end
+			
+			local row = frame.rows[usedRows]
+			row:SetWidth(parent.width)
+			row.highlight:SetWidth(parent.width)
+			row:SetText(info[2])
+			row.key = info[1]
+			
+			if( info[1] == selectedValue ) then
+				row.check:Show()
+			else
+				row.check:Hide()
+			end
+		end
+	end
+end
+
+local function dropdownListShown(self)
+	updateDropdownList(self)
+
+	self:SetHeight((min(#(self.parentFrame.data.list), DROPDOWN_ROWS) * 16 ) + 25)
+	
+	if( #(self.parentFrame.data.list) <= DROPDOWN_ROWS ) then
+		self:SetWidth(self.parentFrame.width + 20)
+	else
+		self:SetWidth(self.parentFrame.width + 50)
+	end
+end
+
+-- Do we want this? Not sure
+local function dropdownCounter(self, elapsed)
+	self.timeElapsed = self.timeElapsed + elapsed
+	if( self.timeElapsed >= 10 ) then
+		self:Hide()
+	end
+end
+
+local function openDropdown(self)
+	PlaySound("igMainMenuOptionCheckBoxOn")
+	
+	if( not self.listFrame ) then
+		self.listFrame = CreateFrame("Frame", nil, self.parent.frame)
+		self.listFrame.rows = {}
+		self.listFrame.timeElapsed = 0
+		self.listFrame:SetBackdrop(dropdownBackdrop)
+		self.listFrame:SetToplevel(true)
+		self.listFrame:SetFrameStrata("FULLSCREEN")
+		self.listFrame:SetScript("OnShow", dropdownListShown)
+		--self.listFrame:SetScript("OnUpdate", dropdownCounter)
+		self.listFrame:Hide()
+
+		OptionHouse:CreateScrollFrame(self.listFrame, 10, updateDropdownList)
+		
+		self.listFrame.scroll:SetWidth(36)
+		self.listFrame.scroll:SetPoint("TOPLEFT", 10, -12)
+		self.listFrame.scroll:SetPoint("BOTTOMRIGHT", -34, 43)
+		self.listFrame.scroll.barUpTexture:Hide()
+		self.listFrame.scroll.barDownTexture:Hide()
+	end
+
+	-- Toggle it open or close
+	if( self.listFrame:IsVisible() ) then
+		if( openedList == self.listFrame ) then
+			openedList = nil
+		end
+		
+		self.listFrame:Hide()
+	else
+		-- Make sure only one list frame is active at one time
+		if( openedList ) then
+			openedList:Hide()
+		end
+		
+		openedList = self.listFrame
+
+		self.listFrame.timeElapsed = 0
+		self.listFrame.parentFrame = self
+		self.listFrame:ClearAllPoints()
+		self.listFrame:SetPoint("TOPLEFT", self.leftTexture, "BOTTOMLEFT", 8, 22)
+
+		self.listFrame:Show()
+
+		-- Renachor the frame if need be because it's at the bottom of the screen
+		if( self.listFrame:GetBottom() <= 300 ) then
+			self.listFrame:ClearAllPoints()
+			self.listFrame:SetPoint("BOTTOMLEFT", self.leftTexture, "TOPLEFT", 8, -22)
+		end
+	end
+end
+
+local function dropdownClickButton(self)
+	openDropdown(self:GetParent())
 end
 
 -- GROUP FRAME
@@ -992,7 +1181,7 @@ function HouseAuthority.UpdateDropdown(config, data)
 				if( matches >= rows ) then
 					widget.data.list = data.list
 					widget.data.default = widget.data.default or data.default
-					updateDropdown(widget)
+					updateDropdown(nil, widget)
 					break
 				end
 				
@@ -1000,7 +1189,7 @@ function HouseAuthority.UpdateDropdown(config, data)
 				widget.data.list = data.list
 				widget.data.default = widget.data.default or data.default
 
-				updateDropdown(widget)
+				updateDropdownList(nil, widget)
 				break
 			end
 		end
@@ -1022,26 +1211,94 @@ function HouseAuthority.CreateDropdown(config, data)
 	config.dropNum = ( config.dropNum or 0 ) + 1
 	
 	data.type = "dropdown"
-
-	local button = CreateFrame("Frame", "HADropdownID" .. config.id .. "Num" .. config.dropNum, config.frame, "UIDropDownMenuTemplate")
-	button.parent = config
-	button.data = data
-	button.xPos = -10
-	button:SetScript("OnShow", dropdownShown)
-	button:Hide()
+	
+	local frame = CreateFrame("Button", nil, config.frame)
+	frame.parent = config
+	frame.data = data
+	frame.xPos = -10
+	--frame.yPos = -4
+	frame:Hide()
+	
+	-- The entire border of the dropdown
+	frame.leftTexture = frame:CreateTexture(nil, "ARTWORK")
+	frame.leftTexture:SetTexture("Interface\\Glues\\CharacterCreate\\CharacterCreate-LabelFrame")
+	frame.leftTexture:SetHeight(64)
+	frame.leftTexture:SetWidth(25)
+	frame.leftTexture:SetPoint("TOPLEFT", 0, 17)
+	frame.leftTexture:SetTexCoord(0, 0.1953125, 0, 1)
+	
+	frame.middleTexture = frame:CreateTexture(nil, "ARTWORK")
+	frame.middleTexture:SetTexture("Interface\\Glues\\CharacterCreate\\CharacterCreate-LabelFrame")
+	frame.middleTexture:SetHeight(64)
+	frame.middleTexture:SetWidth(115)
+	frame.middleTexture:SetPoint("LEFT", frame.leftTexture, "RIGHT")
+	frame.middleTexture:SetTexCoord(0.1953125, 0.8046875, 0, 1)
+	
+	frame.rightTexture = frame:CreateTexture(nil, "ARTWORK")
+	frame.rightTexture:SetTexture("Interface\\Glues\\CharacterCreate\\CharacterCreate-LabelFrame")
+	frame.rightTexture:SetHeight(64)
+	frame.rightTexture:SetWidth(25)
+	frame.rightTexture:SetPoint("LEFT", frame.middleTexture, "RIGHT")
+	frame.rightTexture:SetTexCoord(0.8046875, 1, 0, 1)
+	
+	frame.clickButton = CreateFrame("Button", nil, frame)
+	frame.clickButton:SetHeight(24)
+	frame.clickButton:SetWidth(24)
+	frame.clickButton:SetPoint("TOPRIGHT", frame.rightTexture, -16, -18)
+	frame.clickButton:SetScript("OnClick", dropdownClickButton)
+	
+	-- Click "V" arrow on the right side
+	frame.clickButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+	local normalTexture = frame.clickButton:GetNormalTexture()
+	normalTexture:SetHeight(24)
+	normalTexture:SetWidth(24)
+	normalTexture:SetPoint("RIGHT")
+	
+	frame.clickButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
+	local pushedTexture = frame.clickButton:GetPushedTexture()
+	pushedTexture:SetHeight(24)
+	pushedTexture:SetWidth(24)
+	pushedTexture:SetPoint("RIGHT")
+	
+	frame.clickButton:SetDisabledTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Disabled")
+	local disabledTexture = frame.clickButton:GetDisabledTexture()
+	disabledTexture:SetHeight(24)
+	disabledTexture:SetWidth(24)
+	disabledTexture:SetPoint("RIGHT")
+	
+	frame.clickButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+	local highlightTexture = frame.clickButton:GetHighlightTexture()
+	highlightTexture:SetHeight(24)
+	highlightTexture:SetWidth(24)
+	highlightTexture:SetPoint("RIGHT")
+	highlightTexture:SetBlendMode("ADD")
+	
+	-- Selected text
+	frame:SetHeight(32)
+	frame:SetWidth(40)
+	--frame:SetScript("OnClick", openDropdown)
+	frame:SetScript("OnShow", showDropdown)
+	frame:SetScript("OnHide", hideDropdown)
+	
+	frame.text = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	frame.text:SetJustifyH("RIGHT")
+	frame.text:SetHeight(10)
+	frame.text:SetPoint("RIGHT", frame.rightTexture, -43, 2)
+	
+	frame.testText = frame:CreateFontString(nil, "ARTWORK")
 	
 	if( data.text ) then
-		local text = button:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-		text:SetPoint("LEFT", "HADropdownID" .. config.id .. "Num" .. config.dropNum .. "Button", "RIGHT", 10, 0)
+		local text = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+		text:SetPoint("LEFT", frame.clickButton, "RIGHT", 10, 0)
 		text:SetText(data.text)
 	end
 	
 	if( data.help ) then
-		setupWidgetInfo(button, config, "help", data.help)
+		setupWidgetInfo(frame, config, "help", data.help)
 	end
-
-	table.insert(config.widgets, button)
-	return button
+	
+	table.insert(config.widgets, frame)
+	return frame
 end
 
 local editBackdrop = {
@@ -1057,7 +1314,7 @@ function HouseAuthority.CreateEditBox(config, data)
 	argcheck(data, 2, "table")
 	argcheck(data.text, "text", "string", "nil")
 	argcheck(data.var, "var", "string", "number", "table")
-	argcheck(data.default, "defwqault", "number", "string", "nil")
+	argcheck(data.default, "default", "number", "string", "nil")
 	argcheck(data.numeric, "numeric", "boolean", "nil")
 	argcheck(data.maxChars, "maxChars", "number", "nil")
 	argcheck(data.maxBytes, "maxBytes", "number", "nil")
