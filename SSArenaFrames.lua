@@ -24,6 +24,7 @@ local RemembranceEnabled
 local AceComm
 local OptionHouse
 local HouseAuthority
+local SML
 
 function SSAF:Initialize()
 	self.defaults = {
@@ -71,12 +72,24 @@ function SSAF:Initialize()
 	local OHObj = OptionHouse:RegisterAddOn("Arena Frames", nil, "Amarand", "r" .. tonumber(string.match("$Revision: 252 $", "(%d+)") or 1))
 	OHObj:RegisterCategory(L["General"], self, "CreateUI", nil, 1)
 	
+		
 	-- We don't want anything to show for this
 	OHObj:RegisterCategory(L["Click Actions"], function() return CreateFrame("Frame") end, nil, nil, 2)
 
 	for i=1, 10 do
 		OHObj:RegisterSubCategory(L["Click Actions"], string.format(L["Action #%d"], i), function() return self:CreateAttributeUI(i) end, nil, nil, i)
 	end
+	
+	-- Register our default list of textures with SML
+	SML = LibStub:GetLibrary("LibSharedMedia-2.0")
+	SML:Register(SML.MediaType.STATUSBAR, "BantoBar", "Interface\\Addons\\SSArenaFrames\\images\\banto")
+	SML:Register(SML.MediaType.STATUSBAR, "Smooth",   "Interface\\Addons\\SSArenaFrames\\images\\smooth")
+	SML:Register(SML.MediaType.STATUSBAR, "Perl",     "Interface\\Addons\\SSArenaFrames\\images\\perl")
+	SML:Register(SML.MediaType.STATUSBAR, "Glaze",    "Interface\\Addons\\SSArenaFrames\\images\\glaze")
+	SML:Register(SML.MediaType.STATUSBAR, "Charcoal", "Interface\\Addons\\SSArenaFrames\\images\\Charcoal")
+	SML:Register(SML.MediaType.STATUSBAR, "Otravi",   "Interface\\Addons\\SSArenaFrames\\images\\otravi")
+	SML:Register(SML.MediaType.STATUSBAR, "Striped",  "Interface\\Addons\\SSArenaFrames\\images\\striped")
+	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
 end
 
 function SSAF:JoinedArena()
@@ -142,6 +155,7 @@ function SSAF:Reload()
 	if( self.frame ) then
 		self.frame:SetMovable(not self.db.profile.locked)
 		self.frame:EnableMouse(not self.db.profile.locked)
+		self.frame:SetScale(self.db.profile.scale)
 	end
 	
 	local path, size = GameFontNormalSmall:GetFont()
@@ -935,7 +949,6 @@ function SSAF:Get(var)
 	return self.db.profile[var]
 end
 
-local SML
 function SSAF:CreateUI()
 	local config = {
 		{ group = L["General"], text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
@@ -958,10 +971,6 @@ function SSAF:CreateUI()
 	local frame = HouseAuthority:CreateConfiguration(config, {set = "Set", get = "Get", onSet = "Reload", handler = self})
 	frame:Hide()
 	frame:SetScript("OnShow", function(self)
-		if( not SML ) then
-			SML = LibStub:GetLibrary("LibSharedMedia-2.0")
-		end
-
 		local textures = {}
 		for _, name in pairs(SML:List(SML.MediaType.STATUSBAR)) do
 			table.insert(textures, {SML:Fetch(SML.MediaType.STATUSBAR, name), name})
