@@ -1,5 +1,5 @@
 local major = "HousingAuthority-1.2"
-local minor = tonumber(string.match("$Revision: 285 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 297 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 local HAInstance, oldRevision = LibStub:NewLibrary(major, minor)
@@ -342,6 +342,10 @@ local function inputShown(self)
 	end
 end
 
+local function inputSetFocus(self)
+	self:SetFocus()
+end
+
 local function inputClearFocus(self)
 	self:ClearFocus()
 end
@@ -455,11 +459,27 @@ local dropdownBackdrop = {
 	insets = { left = 11, right = 12, top = 12, bottom = 11 },
 }
 
+local function showHighlight(self)
+	self.highlight:Show()
+
+	-- Reset timer before it's hidden
+	self:GetParent().timeElapsed = 0
+end
+
+local function hideHighlight(self)
+	self.highlight:Hide()
+end
+
 local function showDropdown(self)
 	self.width = 0
 	
 	-- Calculate the width of the list frame
-	local selectedValue = getValue(self.parent, self.data)
+	local selectedValues = getValue(self.parent, self.data)
+	if( self.data.multi and ( not selectedValues or type(selectedValues) ~= "table" ) ) then
+		selectedValues = {}
+		setValue(self.parent, self.data, selectedValues)
+	end
+
 	local selectedText
 	for id, info in pairs(self.data.list) do
 		self.text:SetText(info[2])
@@ -467,14 +487,17 @@ local function showDropdown(self)
 			self.width = self.text:GetStringWidth() + 75
 		end
 
-		if( selectedValue == info[1] ) then
-			selectedText = info[2]		
+		if( ( not self.data.multi and info[1] == selectedValues ) or ( self.data.multi and selectedValues[info[1]] ) ) then
+			selectedText = info[2]
 		end
 	end
 		
 	-- Bad, means we couldn't find the selected text so we default to the first row
 	if( not selectedText ) then
-		setValue(self.parent, self.data, self.data.list[1][1])
+		if( not self.data.multi ) then
+			setValue(self.parent, self.data, self.data.list[1][1])
+		end
+
 		selectedText = self.data.list[1][2]
 	end
 
@@ -488,6 +511,31 @@ local function showDropdown(self)
 	end
 end
 
+local function dropdownRowClicked(self)
+	local parent = self:GetParent().parentFrame
+	if( not parent.data.multi ) then
+		setValue(parent.parent, parent.data, self.key)
+		showDropdown(parent)
+
+		self:GetParent():Hide()
+	else
+		local selectedKeys = getValue(parent.parent, parent.data)
+		if( selectedKeys[self.key] ) then
+			selectedKeys[self.key] = nil	
+		else
+			selectedKeys[self.key] = true
+		end
+	
+		setValue(parent.parent, parent.data, selectedKeys)
+
+		-- Yes, this is INCREDIBLY hackish
+		self:GetParent():Hide()
+		self:GetParent():Show()
+		
+		showDropdown(parent)
+	end
+end
+
 local function hideDropdown(self)
 	if( self.listFrame ) then
 		self.listFrame:Hide()
@@ -496,26 +544,6 @@ local function hideDropdown(self)
 			openedList = nil
 		end
 	end
-end
-
-local function dropdownRowClicked(self)
-	local parent = self:GetParent().parentFrame
-	setValue(parent.parent, parent.data, self.key)
-	
-	showDropdown(parent)
-	
-	self:GetParent():Hide()
-end
-
-local function showHighlight(self)
-	self.highlight:Show()
-
-	-- Reset timer before it's hidden
-	self:GetParent().timeElapsed = 0
-end
-
-local function hideHighlight(self)
-	self.highlight:Hide()
 end
 
 local function createListRow(parent, id)
@@ -574,12 +602,12 @@ local function updateDropdownList(self, frame)
 	end
 
 	local parent = frame.parentFrame
-	local selectedValue = getValue(parent.parent, parent.data)
+	local selectedValues = getValue(parent.parent, parent.data)
 	local totalRows = #(parent.data.list)
 	local usedRows = 0
 	
 	OptionHouse:UpdateScroll(frame.scroll, totalRows + 1)
-	
+		
 	for id, info in pairs(parent.data.list) do
 		if( id >= frame.scroll.offset and usedRows < DROPDOWN_ROWS ) then
 			usedRows = usedRows + 1
@@ -594,7 +622,7 @@ local function updateDropdownList(self, frame)
 			row:SetText(info[2])
 			row.key = info[1]
 			
-			if( info[1] == selectedValue ) then
+			if( ( not parent.data.multi and info[1] == selectedValues ) or ( parent.data.multi and selectedValues[info[1]] ) ) then
 				row.check:Show()
 			else
 				row.check:Hide()
@@ -669,7 +697,7 @@ local function openDropdown(self)
 		self.listFrame:Show()
 
 		-- Renachor the frame if need be because it's at the bottom of the screen
-		if( self.listFrame:GetBottom() <= 300 ) then
+		if( self.listFrame:GetBottom() and self.listFrame:GetBottom() <= 300 ) then
 			self.listFrame:ClearAllPoints()
 			self.listFrame:SetPoint("BOTTOMLEFT", self.leftTexture, "TOPLEFT", 8, -22)
 		end
@@ -1181,7 +1209,7 @@ function HouseAuthority.UpdateDropdown(config, data)
 				if( matches >= rows ) then
 					widget.data.list = data.list
 					widget.data.default = widget.data.default or data.default
-					updateDropdown(nil, widget)
+					updateDropdownList(nil, widget)
 					break
 				end
 				
@@ -1203,6 +1231,7 @@ function HouseAuthority.CreateDropdown(config, data)
 	argcheck(data.default, "default", "string", "number", "nil")
 	argcheck(data.help, "help", "string", "nil")
 	argcheck(data.var, "var", "string", "number", "table")
+	argcheck(data.multi, "multi", "boolean", "nil")
 	assert(3, config and configs[config.id], string.format(L["MUST_CALL"], "CreateDropdown"))
 	
 	validateFunctions(configs[config.id], data)
@@ -1357,25 +1386,22 @@ function HouseAuthority.CreateEditBox(config, data)
 	scroll.parent = config
 	scroll.data = data
 	
-
-	--scroll:SetPoint("TOPLEFT", OptionHouse:GetFrame("addon"), "TOPLEFT", 190, -105)
-	--scroll:SetPoint("BOTTOMRIGHT", OptionHouse:GetFrame("addon"), "BOTTOMRIGHT", -35, 40)
-
 	-- Create the actual edit box
 	local editBox = CreateFrame("EditBox", nil, scroll)
 	editBox.parent = config
 	editBox.data = data
 	editBox:SetPoint("TOPLEFT", scroll, "TOPLEFT", 3, -3)
-	editBox:SetHeight(data.height or 286)
-	editBox:SetWidth(data.width or 85)
+	editBox:SetWidth(data.height or 286)
+	editBox:SetHeight(data.width or 85)
 	editBox:SetScript("OnShow", inputShown)
 	editBox:SetScript("OnTextChanged", inputChanged)
 	editBox:SetScript("OnEscapePressed", inputClearFocus)
+	editBox:SetScript("OnMouseDown", inputSetFocus)
+	
 	editBox:SetMultiLine(true)
 	editBox:SetAutoFocus(false)
 	editBox:SetNumeric(data.numeric)
 	editBox:SetFontObject(data.fontObj or GameFontHighlightSmall)
-	
 	
 	if( data.maxChars ) then
 		editBox:SetMaxLetters(data.maxLetters)
@@ -1386,7 +1412,7 @@ function HouseAuthority.CreateEditBox(config, data)
 	
 	scroll:SetScrollChild(editBox)
 	table.insert(config.widgets, frame)
-	return scroll
+	return frame
 end
 
 -- Lets you inject a custom UI object so you can use HA along side

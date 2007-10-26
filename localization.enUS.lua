@@ -14,9 +14,18 @@ SSAFLocals = {
 
 	["%s's %s"] = "%s's %s",
 	["([a-zA-Z]+)%'s Minion"] = "([a-zA-Z]+)%'s Minion",
+	["([a-zA-Z]+)%'s Pet"] = "([a-zA-Z]+)%'s Pet",
 	
 	["Pet"] = "Pet",
+	["Minion"] = "Minion",
 	["Enable for class"] = "Enable for class",
+	
+	["Enabled"] = "Enabled",
+	["Disabled"] = "Disabled",
+	
+	["Classes: %s"] = "Classes: %s",
+	["Modifier: %s"] = "Modifier: %s",
+	["Mouse: %s"] = "Mouse: %s",
 	
 	["CLASSES"] = {
 		["MAGE"] = "Mage",
@@ -64,6 +73,8 @@ SSAFLocals = {
 	["Click Actions"] = "Click Actions",
 	["Action #%d"] = "Action #%d",
 	
+	["Edit"] = "Edit",
+	
 	["Enable macro case"] = "Enable macro case",
 	["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."] = "Enables the macro text entered to be ran on the specified modifier key and mouse button combo.",
 	
@@ -73,8 +84,11 @@ SSAFLocals = {
 	["Show talents when available"] = "Show talents when available",
 	["Requires Remembrance, ArenaEnemyInfo or Tattle."] = "Requires Remembrance, ArenaEnemyInfo or Tattle.",
 	
-	["Show enemy pets"] = "Show enemy pets",
-	["Will display Warlock minions and Mage pets in the arena frames below all the players."] = "Will display Warlock minions and Mage pets in the arena frames below all the players.",
+	["Show enemy mage/warlock minions"] = "Show enemy mage/warlock minions",
+	["Will display Warlock and Mage minions in the arena frames below all the players."] = "Will display Warlock and Mage minions in the arena frames below all the players.",
+	
+	["Show enemy hunter pets"] = "Show enemy hunter pets",
+	["Will display Hunter pets in the arena frames below all the players."] = "Will display Warlock minions and Mage pets in the arena frames below all the players.",
 	
 	["Show class icon"] = "Show class icon",
 	["Displays the players class icon to the left of the arena frame on their row."] = "Displays the players class icon to the left of the arena frame on their row.",
@@ -85,6 +99,7 @@ SSAFLocals = {
 	["Health bar texture"] = "Health bar texture",
 	["Font outline"] = "Font outline",
 	["Pet health bar color"] = "Pet health bar color",
+	["Minion health bar color"] = "Minion health bar color",
 	["Name/health font color"] = "Name/health font color",
 	
 	["Lock arena frame"] = "Lock arena frame",

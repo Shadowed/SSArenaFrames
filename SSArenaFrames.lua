@@ -6,6 +6,7 @@ SSAF = DongleStub("Dongle-1.1"):New("SSAF")
 
 local L = SSAFLocals
 local CREATED_ROWS = 0
+local TOTAL_CLICKIES = 10
 
 local activeBF = -1
 local maxPlayers = 0
@@ -13,6 +14,37 @@ local queuedUpdates = {}
 
 local enemies = {}
 local enemyPets = {}
+
+local petClassIcons = {
+	["Voidwalker"] = "Interface\\Icons\\Spell_Shadow_SummonVoidWalker",
+	["Felhunter"] = "Interface\\Icons\\Spell_Shadow_SummonFelHunter",
+	["Felguard"] = "Interface\\Icons\\Spell_Shadow_SummonFelGuard",
+	["Succubus"] = "Interface\\Icons\\Spell_Shadow_SummonSuccubus",
+	["Imp"] = "Interface\\Icons\\Spell_Shadow_SummonImp",
+	["Cat"] = "Interface\\Icons\\Ability_Hunter_Pet_Cat",
+	["Bat"] = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
+	["Bear"] = "Interface\\Icons\\Ability_Hunter_Pet_Bear",
+	["Boar"] = "Interface\\Icons\\Ability_Hunter_Pet_Boar",
+	["Crab"] = "Interface\\Icons\\Ability_Hunter_Pet_Crab",
+	["Crocolisk"] = "Interface\\Icons\\Ability_Hunter_Pet_Crocolisk",
+	["Dragonhawk"] = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
+	["Gorilla"] = "Interface\\Icons\\Ability_Hunter_Pet_Gorilla",
+	["Hyena"] = "Interface\\Icons\\Ability_Hunter_Pet_Hyena",
+	["Netherray"] = "Interface\\Icons\\Ability_Hunter_Pet_NetherRay",
+	["Owl"] = "Interface\\Icons\\Ability_Hunter_Pet_Owl",
+	["Raptor"] = "Interface\\Icons\\Ability_Hunter_Pet_Raptor",
+	["Ravager"] = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
+	["Scorpid"] = "Interface\\Icons\\Ability_Hunter_Pet_Scorpid",
+	["Spider"] = "Interface\\Icons\\Ability_Hunter_Pet_Spider",
+	["Sporebat"] = "Interface\\Icons\\Ability_Hunter_Pet_Sporebat",
+	["Tallstrider"] = "Interface\\Icons\\Ability_Hunter_Pet_TallStrider",
+	["Turtle"] = "Interface\\Icons\\Ability_Hunter_Pet_Turtle",
+	["Vulture"] = "Interface\\Icons\\Ability_Hunter_Pet_Vulture",
+	["Warp Stalker"] = "Interface\\Icons\\Ability_Hunter_Pet_WarpStalker",
+	["Windserpent"] = "Interface\\Icons\\Ability_Hunter_Pet_WindSerpent",
+	["Wolf"] = "Interface\\Icons\\Ability_Hunter_Pet_Wolf",
+	[L["Water Elemental"]] = "Interface\\Icons\\Spell_Frost_SummonWaterElemental_2",
+}
 
 local PartySlain
 local SelfSlain
@@ -33,7 +65,8 @@ function SSAF:Initialize()
 			locked = true,
 			showID = false,
 			showIcon = false,
-			showPets = true,
+			showMinions = true,
+			showPets = false,
 			showTalents = true,
 			reportEnemies = true,
 			fontShadow = true,
@@ -41,12 +74,13 @@ function SSAF:Initialize()
 			healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
 			petBarColor = { r = 0.20, g = 1.0, b = 0.20 },
+			minionBarColor = { r = 0.30, g = 1.0, b = 0.30 },
 			position = { x = 300, y = 600 },
 			attributes = {
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ enabled = true, class = "ALL", modifier = "", button = "", text = "/target *name" },
+				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/target *name" },
 			}
 		}
 	}
@@ -73,12 +107,12 @@ function SSAF:Initialize()
 	local OHObj = OptionHouse:RegisterAddOn("Arena Frames", nil, "Amarand", "r" .. tonumber(string.match("$Revision: 252 $", "(%d+)") or 1))
 	OHObj:RegisterCategory(L["General"], self, "CreateUI", nil, 1)
 	
-		
-	-- We don't want anything to show for this
-	OHObj:RegisterCategory(L["Click Actions"], function() return CreateFrame("Frame") end, nil, nil, 2)
-
-	for i=1, 10 do
-		OHObj:RegisterSubCategory(L["Click Actions"], string.format(L["Action #%d"], i), function() return self:CreateAttributeUI(i) end, nil, nil, i)
+	-- Yes, this is hackish because we're creating new widgets everytime you click the frame
+	-- it'll require a change to HA which I need to get around to.
+	OHObj:RegisterCategory(L["Click Actions"], self, "CreateClickListUI", true, 2)
+	
+	for i=1, TOTAL_CLICKIES do
+		OHObj:RegisterSubCategory(L["Click Actions"], string.format(L["Action #%d"], i), self, "CreateAttributeUI", nil, i)
 	end
 	
 	-- Register our default list of textures with SML
@@ -90,7 +124,7 @@ function SSAF:Initialize()
 	SML:Register(SML.MediaType.STATUSBAR, "Charcoal", "Interface\\Addons\\SSArenaFrames\\images\\Charcoal")
 	SML:Register(SML.MediaType.STATUSBAR, "Otravi",   "Interface\\Addons\\SSArenaFrames\\images\\otravi")
 	SML:Register(SML.MediaType.STATUSBAR, "Striped",  "Interface\\Addons\\SSArenaFrames\\images\\striped")
-	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")	
+	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
 end
 
 function SSAF:JoinedArena()
@@ -136,94 +170,6 @@ function SSAF:LeftArena()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
 	self:RegisterEvent("ADDON_LOADED")
-end
-
-
--- Something in configuration changed
-function SSAF:Reload()
-	if( not self.db.profile.locked ) then
-		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
-
-			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player")})
-			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), maxHealth = UnitHealthMax("player")})
-
-			self:UpdateEnemies()
-		end
-	elseif( #(enemies) == 1 and #(enemyPets) == 1 ) then
-		self:ClearEnemies()
-	end
-	
-	if( self.frame ) then
-		self.frame:SetMovable(not self.db.profile.locked)
-		self.frame:EnableMouse(not self.db.profile.locked)
-		self.frame:SetScale(self.db.profile.scale)
-	end
-	
-	local path, size = GameFontNormalSmall:GetFont()
-	-- Update all the rows to the current settings
-	for i=1, CREATED_ROWS do
-		local row = self.rows[i]
-		row:SetStatusBarTexture(self.db.profile.healthTexture)
-		row.button:EnableMouse(self.db.profile.locked)
-		row:Hide()
-	
-		-- Player name text
-		local text = row.text
-		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-
-		if( self.db.profile.fontOutline == "NONE" ) then
-			text:SetFont(path, size)
-		else
-			text:SetFont(path, size, self.db.profile.fontOutline)
-		end
-
-		if( self.db.profile.fontShadow ) then
-			text:SetShadowOffset(1, 0)
-			text:SetShadowColor(0, 0, 0, 1)
-		else
-			text:SetShadowColor(0, 0, 0, 0)
-		end
-
-		local text = row.healthText
-		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-
-		if( self.db.profile.fontOutline == "NONE" ) then
-			text:SetFont(path, size)
-		else
-			text:SetFont(path, size, self.db.profile.fontOutline)
-		end
-
-		if( self.db.profile.fontShadow ) then
-			text:SetShadowOffset(1, 0)
-			text:SetShadowColor(0, 0, 0, 1)
-		else
-			text:SetShadowColor(0, 0, 0, 0)
-		end
-	end
-	
-	if( ( #(enemies) > 0 or #(enemyPets) > 0 ) ) then
-		self:UpdateEnemies()
-	end
-end
-
-function SSAF:ClearEnemies()
-	for i=#(enemies), 1, -1 do
-		table.remove(enemies, i)
-	end
-	for i=#(enemyPets), 1, -1 do
-		table.remove(enemyPets, i)
-	end
-	
-	if( self.rows ) then
-		for i=1, CREATED_ROWS do
-			self.rows[i].ownerName = nil
-			self.rows[i]:Hide()
-		end
-	end
-	
-	if( self.frame ) then
-		self.frame:Hide()
-	end
 end
 
 -- It's possible to mouseover an "enemy" when they're zoning in, so clear it just to be safe
@@ -422,7 +368,7 @@ function SSAF:UpdateEnemies()
 		-- Set up all the macro things
 		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
-			if( macro.enabled and ( macro.class == "ALL" or macro.class == enemy.class ) ) then
+			if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.classToken] ) ) then
 				foundMacro = true
 				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
 				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
@@ -435,77 +381,78 @@ function SSAF:UpdateEnemies()
 		end
 		
 		row:Show()
-	end
-	
-	if( not self.db.profile.showPets ) then
-		self.frame:SetHeight(18 * id)
-		self.frame:Show()
-		return
 	end
 	
 	-- Update enemy pets
 	for _, enemy in pairs(enemyPets) do
-		id = id + 1
-		if( not self.rows[id] ) then
-			self:CreateRow()
-		end
-		
-		local row = self.rows[id]
-		
-		local name = string.format(L["%s's %s"], enemy.owner, (enemy.family or enemy.name))
-		if( self.db.profile.showID ) then
-			name = "|cffffffff" .. id .. "|r " .. name
-		end
-		
-		row.text:SetText(name)
-		row.ownerName = nil
+		if( ( enemy.petType == "MINION" and self.db.profile.showMinions ) or ( enemy.petType == "PET" and self.db.profile.showPets ) ) then
+			id = id + 1
+			if( not self.rows[id] ) then
+				self:CreateRow()
+			end
 
-		row.classTexture:Hide()
-		
-		row:SetMinMaxValues(0, enemy.maxHealth)
-		row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.petBarColor.b, 1.0)
-		
-		-- Quick update
-		self:UpdateRow(enemy, id)
+			local row = self.rows[id]
 
-		-- Show pet type
-		if( self.db.profile.showIcon ) then
-			if( enemy.family ) then
-				local type = enemy.family
-				if( type == "Voidwalker" ) then
-					type = "VoidWalker"
-				elseif( type == "Felhunter" ) then
-					type = "FelHunter"
-				elseif( type == "Felguard" ) then
-					type = "FelGuard"
+			local name = string.format(L["%s's %s"], enemy.owner, (enemy.family or enemy.name))
+			if( self.db.profile.showID ) then
+				name = "|cffffffff" .. id .. "|r " .. name
+			end
+
+			row.text:SetText(name)
+			row.ownerName = nil
+
+			row.classTexture:Hide()
+
+			row:SetMinMaxValues(0, enemy.maxHealth)
+			
+			if( enemy.petType == "PET" ) then
+				row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.petBarColor.b, 1.0)
+			elseif( enemy.petType == "MINION" ) then
+				row:SetStatusBarColor(self.db.profile.minionBarColor.r, self.db.profile.minionBarColor.g, self.db.profile.minionBarColor.b, 1.0)
+			end
+
+			-- Quick update
+			self:UpdateRow(enemy, id)
+
+			-- Show pet type
+			if( self.db.profile.showIcon ) then
+				local path = petClassIcons[enemy.family or enemy.name]
+				if( path ) then
+					row.classTexture:SetTexture(path)
+				else
+					row.classTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+					row.classTexture:SetTexCoord(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0)
 				end
 
-				row.classTexture:SetTexture("Interface\\Icons\\Spell_Shadow_Summon" .. type)
+				row.classTexture:Show()
 			else
-				row.classTexture:SetTexture("Interface\\Icons\\Spell_Frost_SummonWaterElemental_2")
+				row.classTexture:Hide()
 			end
-			
-			row.classTexture:Show()
-		else
-			row.classTexture:Hide()
-		end
-		
-		-- Set up all the macro things
-		local foundMacro
-		for _, macro in pairs(self.db.profile.attributes) do
-			if( macro.enabled and ( macro.class == "ALL" or macro.class == "PET" ) ) then
-				foundMacro = true
-				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
-			end
-		end
-		
-		if( not foundMacro ) then
-			row.button:SetAttribute("type", "macro")
-			row.button:SetAttribute("macrotext", "/target " .. enemy.name)
-		end
 
-		row:Show()
+			-- Set up all the macro things
+			local foundMacro
+			for _, macro in pairs(self.db.profile.attributes) do
+				if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.petType] ) ) then
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+
+					foundMacro = true
+				end
+			end
+
+			if( not foundMacro ) then
+				row.button:SetAttribute("type", "macro")
+				row.button:SetAttribute("macrotext", "/target " .. enemy.name)
+			end
+
+			row:Show()
+		end
+	end
+	
+	-- Nothing displayed, hide frame
+	if( id == 0 ) then
+		self.frame:Hide()
+		return
 	end
 	
 	self.frame:SetHeight(18 * id)
@@ -592,7 +539,15 @@ function SSAF:ScanUnit(unit)
 			return
 		end
 		
+		-- Warlock/Mages
+		local type = "MINION"
 		local owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Minion"])
+		
+		-- Hunters
+		if( not owner ) then
+			owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Pet"])
+			type = "PET"
+		end
 		
 		-- Found the pet owner
 		if( owner and owner ~= L["Unknown"] ) then
@@ -609,14 +564,15 @@ function SSAF:ScanUnit(unit)
 				end
 			end
 			
-			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
+			
+			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
 			
 			if( family ) then
 				if( self.db.profile.reportEnemies ) then
 					SSPVP:ChannelMessage(string.format( L["[%d/%d] %s's pet, %s %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name, family))
 				end
 				
-				self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. family)
+				self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. family .. "," .. type)
 			else
 				if( self.db.profile.reportEnemies ) then
 					SSPVP:ChannelMessage(string.format(L["[%d/%d] %s's pet, %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name))
@@ -862,8 +818,25 @@ function SSAF:PetData(event, name, owner, family)
 			return
 		end
 	end
+	
+	-- These is mainly for backwards compatability
 
-	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, health = 100, maxHealth = 100})
+	-- Water Elementals have no family
+	-- We don't pass pet type for Water Elementals, because then we have issues
+	-- with family being "" not nil, too many sanity issues.
+	if( name == L["Water Elemental"] ) then
+		type = "MINION"
+
+	-- Warlock pets
+	elseif( not type and ( family == "Felguard" or family == "Felhunter" or family == "Imp" or family == "Felguard" or family == "Succubus" ) ) then
+		type = "MINION"
+	
+	-- Hunter pets
+	elseif( not type ) then
+		type = "PET"
+	end
+
+	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100})
 	self:UpdateEnemies()
 end
 
@@ -879,7 +852,7 @@ function SSAF:EnemyDied(event, name)
 	end
 end
 
--- Deal with the fact that ArenaLiveFrames doesn't send class tokens
+-- Deal with the fact that a few arena mods doesn't send class tokens
 function SSAF:TranslateClass(class)
 	for classToken, className in pairs(L["CLASSES"]) do
 		if( className == class ) then
@@ -994,6 +967,92 @@ function SSAF:SendMessage(msg, type)
 	SendAddonMessage("SSAF", msg, "BATTLEGROUND")
 end
 
+-- Something in configuration changed
+function SSAF:Reload()
+	if( not self.db.profile.locked ) then
+		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
+			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player")})
+			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player")})
+			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player")})
+
+			self:UpdateEnemies()
+		end
+	elseif( #(enemies) == 1 and #(enemyPets) == 1 ) then
+		self:ClearEnemies()
+	end
+	
+	if( self.frame ) then
+		self.frame:SetMovable(not self.db.profile.locked)
+		self.frame:EnableMouse(not self.db.profile.locked)
+		self.frame:SetScale(self.db.profile.scale)
+	end
+	
+	local path, size = GameFontNormalSmall:GetFont()
+	-- Update all the rows to the current settings
+	for i=1, CREATED_ROWS do
+		local row = self.rows[i]
+		row.button:EnableMouse(self.db.profile.locked)
+		row:Hide()
+	
+		-- Player name text
+		local text = row.text
+		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+
+		if( self.db.profile.fontOutline == "NONE" ) then
+			text:SetFont(path, size)
+		else
+			text:SetFont(path, size, self.db.profile.fontOutline)
+		end
+
+		if( self.db.profile.fontShadow ) then
+			text:SetShadowOffset(1, 0)
+			text:SetShadowColor(0, 0, 0, 1)
+		else
+			text:SetShadowColor(0, 0, 0, 0)
+		end
+
+		local text = row.healthText
+		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+
+		if( self.db.profile.fontOutline == "NONE" ) then
+			text:SetFont(path, size)
+		else
+			text:SetFont(path, size, self.db.profile.fontOutline)
+		end
+
+		if( self.db.profile.fontShadow ) then
+			text:SetShadowOffset(1, 0)
+			text:SetShadowColor(0, 0, 0, 1)
+		else
+			text:SetShadowColor(0, 0, 0, 0)
+		end
+	end
+	
+	if( ( #(enemies) > 0 or #(enemyPets) > 0 ) ) then
+		self:UpdateEnemies()
+	end
+end
+
+function SSAF:ClearEnemies()
+	for i=#(enemies), 1, -1 do
+		table.remove(enemies, i)
+	end
+	for i=#(enemyPets), 1, -1 do
+		table.remove(enemyPets, i)
+	end
+	
+	if( self.rows ) then
+		for i=1, CREATED_ROWS do
+			self.rows[i].ownerName = nil
+			self.rows[i]:Hide()
+		end
+	end
+	
+	if( self.frame ) then
+		self.frame:Hide()
+	end
+end
+
 -- GUI
 function SSAF:Set(var, value)
 	self.db.profile[var] = value
@@ -1012,7 +1071,8 @@ function SSAF:CreateUI()
 	local config = {
 		{ group = L["General"], text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
 		{ group = L["General"], text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
-		{ group = L["General"], text = L["Show enemy pets"], help = L["Will display Warlock minions and Mage pets in the arena frames below all the players."], type = "check", var = "showPets"},
+		{ group = L["General"], text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
+		{ group = L["General"], text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
 		{ group = L["General"], text = L["Show class icon"], help = L["Displays the players class icon to the left of the arena frame on their row."], type = "check", var = "showIcon"},
 		{ group = L["General"], text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
 
@@ -1021,6 +1081,7 @@ function SSAF:CreateUI()
 		{ group = L["Display"], text = L["Show shadow under name/health text"], type = "check", var = "fontShadow"},
 
 		{ group = L["Color"], text = L["Pet health bar color"], type = "color", var = "petBarColor"},
+		{ group = L["Color"], text = L["Minion health bar color"], type = "color", var = "minionBarColor"},
 		{ group = L["Color"], text = L["Name/health font color"], type = "color", var = "fontColor"},
 				
 		{ group = L["Frame"], text = L["Lock arena frame"], type = "check", var = "locked"},
@@ -1041,36 +1102,114 @@ function SSAF:CreateUI()
 	return frame
 end
 
+-- Listing click actions by class/binding/ect
+local cachedFrame
+function SSAF:OpenAttributeUI(var)
+	OptionHouse:Open("Arena Frames", L["Click Actions"], string.format(L["Action #%d"], var))
+end
+
+function SSAF:CreateClickListUI()
+	-- This lets us implement at least a basic level of caching
+	if( cachedFrame ) then
+		return
+	end
+	
+	local config = {}
+	
+	for i=1, TOTAL_CLICKIES do
+		local row = self.db.profile.attributes[i]
+		if( row ) then
+			local enabled = GREEN_FONT_COLOR_CODE .. L["Enabled"] .. FONT_COLOR_CODE_CLOSE
+			if( not row.enabled ) then
+				enabled = RED_FONT_COLOR_CODE .. L["Disabled"] .. FONT_COLOR_CODE_CLOSE
+			end
+			
+			local key = row.modifier
+			if( key == "" ) then
+				key = L["All"]
+			elseif( key == "ctrl-" ) then
+				key = L["CTRL"]			
+			elseif( key == "shift-" ) then
+				key = L["SHIFT"]			
+			elseif( key == "alt-" ) then
+				key = L["ALT"]			
+			end
+			
+			local mouse = row.button
+			if( mouse == "" ) then
+				mouse = L["Any button"]
+			elseif( mouse == "1" ) then
+				mouse = L["Left button"]
+			elseif( mouse == "2" ) then
+				mouse = L["Right button"]
+			elseif( mouse == "3" ) then
+				mouse = L["Middle button"]
+			elseif( mouse == "4" ) then
+				mouse = L["Button 4"]
+			elseif( mouse == "5" ) then
+				mouse = L["Button 5"]
+			end
+			
+			-- Grab total classes enabled for this
+			local total = 0
+			for _, _ in pairs(row.classes) do
+				total = total + 1
+			end
+			
+			table.insert(config, { group = "#" .. i, text = enabled, type = "label", xPos = 5, yPos = 0, font = GameFontHighlightSmall })
+			table.insert(config, { group = "#" .. i, text = L["Edit"], type = "button", onSet = "OpenAttributeUI", var = i})
+			table.insert(config, { group = "#" .. i, text = string.format(L["Classes: %s"], total), type = "label", xPos = 50, yPos = 0, font = GameFontHighlightSmall })
+			table.insert(config, { group = "#" .. i, text = string.format(L["Modifier: %s"], key), type = "label", xPos = 75, yPos = 0, font = GameFontHighlightSmall })
+			table.insert(config, { group = "#" .. i, text = string.format(L["Mouse: %s"], mouse), type = "label", xPos = 100, yPos = 0, font = GameFontHighlightSmall })
+		end
+	end
+
+	-- Update the dropdown incase any new textures were added
+	cachedFrame = HouseAuthority:CreateConfiguration(config, {handler = self, columns = 5})
+	
+	return cachedFrame
+end
+
+-- Modifying click actions
 function SSAF:AttribSet(var, value)
+	cachedFrame = nil
+	
 	-- Not created yet, set to default
 	if( not self.db.profile[var[1]][var[2]] ) then
-		self.db.profile[var[1]][var[2]] = { enabled = false, text = "/target *name", modifier = "", button = "" }
+		self.db.profile[var[1]][var[2]] = { enabled = false, classes = { ["ALL"] = true }, text = "/target *name", modifier = "", button = "" }
 	end
 	
 	self.db.profile[var[1]][var[2]][var[3]] = value
 end
 
 function SSAF:AttribGet(var)
+	-- Not created yet, set to default
 	if( not self.db.profile[var[1]][var[2]] ) then
-		return nil
+		cachedFrame = nil
+		self.db.profile[var[1]][var[2]] = { enabled = false, classes = { ["ALL"] = true }, text = "/target *name", modifier = "", button = "" }
 	end
 	
 	return self.db.profile[var[1]][var[2]][var[3]]
 end
 
-function SSAF:CreateAttributeUI(attributeID)
-	-- Yeah yeah, these never change. I'm lazy
+function SSAF:CreateAttributeUI(category, attributeID)
+	attributeID = tonumber(string.match(attributeID, "(%d+)"))
+	if( not attributeID ) then
+		return
+	end
+
 	local classes = {}
 	table.insert(classes, {"ALL", L["All"]})
 	table.insert(classes, {"PET", L["Pet"]})
+	table.insert(classes, {"MINION", L["Minion"]})
 	
 	for k, v in pairs(L["CLASSES"]) do
 		table.insert(classes, {k, v})
 	end
-	
+		
 	local config = {
-		{ group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "text"}},
-		{ group = L["Enable"], text = L["Enable for class"], help = L["Enables the macro for a specific class, or for pets only."], default = "ALL", list = classes, type = "dropdown", var = {"attributes", attributeID, "class"}},
+		{ group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "enabled"}},
+		{ group = L["Enable"], text = L["Enable for class"], help = L["Enables the macro for a specific class, or for pets only."], default = "ALL", list = classes, multi = true, type = "dropdown", var = {"attributes", attributeID, "classes"}},
 		{ group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "", var = {"attributes", attributeID, "modifier"}},
 		{ group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "", var = {"attributes", attributeID, "button"}},
 		{ group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
