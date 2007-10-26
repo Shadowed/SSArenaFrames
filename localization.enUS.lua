@@ -89,6 +89,8 @@ SSAFLocals = {
 	
 	["Lock arena frame"] = "Lock arena frame",
 	["Frame Scale: %d%%"] = "Frame Scale: %d%%",
+	
+	["Show shadow under name/health text"] = "Show shadow under name/health text",
 }
 
 BINDING_HEADER_SSAF = "SSArena Frames"

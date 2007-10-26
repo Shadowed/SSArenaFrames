@@ -36,7 +36,8 @@ function SSAF:Initialize()
 			showPets = true,
 			showTalents = true,
 			reportEnemies = true,
-			fontOutline = "OUTLINE",
+			fontShadow = true,
+			fontOutline = "NONE",
 			healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
 			petBarColor = { r = 0.20, g = 1.0, b = 0.20 },
@@ -89,7 +90,7 @@ function SSAF:Initialize()
 	SML:Register(SML.MediaType.STATUSBAR, "Charcoal", "Interface\\Addons\\SSArenaFrames\\images\\Charcoal")
 	SML:Register(SML.MediaType.STATUSBAR, "Otravi",   "Interface\\Addons\\SSArenaFrames\\images\\otravi")
 	SML:Register(SML.MediaType.STATUSBAR, "Striped",  "Interface\\Addons\\SSArenaFrames\\images\\striped")
-	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
+	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")	
 end
 
 function SSAF:JoinedArena()
@@ -164,16 +165,23 @@ function SSAF:Reload()
 		local row = self.rows[i]
 		row:SetStatusBarTexture(self.db.profile.healthTexture)
 		row.button:EnableMouse(self.db.profile.locked)
+		row:Hide()
 	
 		-- Player name text
 		local text = row.text
-		text:SetPoint("LEFT", row, "LEFT", 1, 0)
 		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 
 		if( self.db.profile.fontOutline == "NONE" ) then
 			text:SetFont(path, size)
 		else
 			text:SetFont(path, size, self.db.profile.fontOutline)
+		end
+
+		if( self.db.profile.fontShadow ) then
+			text:SetShadowOffset(1, 0)
+			text:SetShadowColor(0, 0, 0, 1)
+		else
+			text:SetShadowColor(0, 0, 0, 0)
 		end
 
 		local text = row.healthText
@@ -185,9 +193,15 @@ function SSAF:Reload()
 			text:SetFont(path, size, self.db.profile.fontOutline)
 		end
 
+		if( self.db.profile.fontShadow ) then
+			text:SetShadowOffset(1, 0)
+			text:SetShadowColor(0, 0, 0, 1)
+		else
+			text:SetShadowColor(0, 0, 0, 0)
+		end
 	end
 	
-	if( activeBF ~= -1 and ( #(enemies) > 0 or #(enemyPets) > 0 ) ) then
+	if( ( #(enemies) > 0 or #(enemyPets) > 0 ) ) then
 		self:UpdateEnemies()
 	end
 end
@@ -312,7 +326,7 @@ end
 -- like health or dying
 function SSAF:UpdateRow(enemy, id)
 	self.rows[id]:SetValue(enemy.health)
-	self.rows[id].healthText:SetText(((enemy.health / enemy.maxHealth) * 100) .. "%")
+	self.rows[id].healthText:SetText(math.floor((enemy.health / enemy.maxHealth) * 100 + 0.5) .. "%")
 	
 	if( enemy.isDead ) then
 		self.rows[id]:SetAlpha(0.75)
@@ -377,14 +391,22 @@ function SSAF:UpdateEnemies()
 		if( self.db.profile.showID ) then
 			name = "|cffffffff" .. id .. "|r " .. name
 		end
-
+			
 		row.text:SetText(name)
 		row.ownerName = enemy.name
-		
+				
+		-- Word wrap
+		if( row.text:GetStringWidth() >= 145 ) then
+			row.text:SetWidth(145)
+		else
+			row.text:SetWidth(row.text:GetStringWidth())
+		end
+				
 		-- Show class icon to the left of the players name
 		if( self.db.profile.showIcon ) then
 			local coords = CLASS_BUTTONS[enemy.classToken]
 
+			row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
 			row.classTexture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 			row.classTexture:Show()
 		else
@@ -445,6 +467,28 @@ function SSAF:UpdateEnemies()
 		
 		-- Quick update
 		self:UpdateRow(enemy, id)
+
+		-- Show pet type
+		if( self.db.profile.showIcon ) then
+			if( enemy.family ) then
+				local type = enemy.family
+				if( type == "Voidwalker" ) then
+					type = "VoidWalker"
+				elseif( type == "Felhunter" ) then
+					type = "FelHunter"
+				elseif( type == "Felguard" ) then
+					type = "FelGuard"
+				end
+
+				row.classTexture:SetTexture("Interface\\Icons\\Spell_Shadow_Summon" .. type)
+			else
+				row.classTexture:SetTexture("Interface\\Icons\\Spell_Frost_SummonWaterElemental_2")
+			end
+			
+			row.classTexture:Show()
+		else
+			row.classTexture:Hide()
+		end
 		
 		-- Set up all the macro things
 		local foundMacro
@@ -463,7 +507,7 @@ function SSAF:UpdateEnemies()
 
 		row:Show()
 	end
-
+	
 	self.frame:SetHeight(18 * id)
 	self.frame:Show()
 end
@@ -641,7 +685,7 @@ function SSAF:CreateFrame()
 		insets = {left = 1, right = 1, top = 1, bottom = 1}})
 
 	self.frame:SetBackdropColor(0, 0, 0, 1.0)
-	self.frame:SetBackdropBorderColor(0.60, 0.60, 0.60, 1.0)
+	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.frame:SetScale(self.db.profile.scale)
 	self.frame:SetWidth(180)
 	self.frame:SetMovable(true)
@@ -664,9 +708,6 @@ function SSAF:CreateFrame()
 
 			SSAF.db.profile.position.x = self:GetLeft()
 			SSAF.db.profile.position.y = self:GetTop()
-			
-			--self:ClearAllPoints()
-			--self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", SSAF.db.profile.position.x, SSAF.db.profile.position.y)
 		end
 	end)	
 	
@@ -695,9 +736,8 @@ function SSAF:CreateFrame()
 	end)
 	
 	-- Position to last saved area
-	--self.frame:ClearAllPoints()
 	self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", self.db.profile.position.x, self.db.profile.position.y)
-	
+
 	self.rows = {}
 end
 
@@ -721,18 +761,25 @@ function SSAF:CreateRow()
 	row:SetStatusBarTexture(self.db.profile.healthTexture)
 	row:Hide()
 	
-	
 	local path, size = GameFontNormalSmall:GetFont()
-	
+
 	-- Player name text
 	local text = row:CreateFontString(nil, "OVERLAY")
 	text:SetPoint("LEFT", row, "LEFT", 1, 0)
 	text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-	
+
 	if( self.db.profile.fontOutline == "NONE" ) then
 		text:SetFont(path, size)
 	else
 		text:SetFont(path, size, self.db.profile.fontOutline)
+	end
+	
+	if( self.db.profile.fontShadow ) then
+		text:SetShadowOffset(1, -1)
+		text:SetShadowColor(0, 0, 0, 1)
+	else
+		text:SetShadowOffset(0, 0)
+		text:SetShadowColor(0, 0, 0, 0)
 	end
 	
 	-- Health percent text
@@ -746,12 +793,19 @@ function SSAF:CreateRow()
 		healthText:SetFont(path, size, self.db.profile.fontOutline)
 	end
 	
+	if( self.db.profile.fontShadow ) then
+		healthText:SetShadowOffset(1, -1)
+		healthText:SetShadowColor(0, 0, 0, 1)
+	else
+		healthText:SetShadowOffset(0, 0)
+		healthText:SetShadowColor(0, 0, 0, 0)
+	end
+
 	-- Class icon
 	local texture = row:CreateTexture(nil, "OVERLAY")
-	texture:SetHeight(15)
-	texture:SetWidth(15)
-	texture:SetTexture("Interface\\WorldStateFrame\\Icons-Classes")
-	texture:SetPoint("CENTER", row, "LEFT", -10, 0)
+	texture:SetHeight(16)
+	texture:SetWidth(16)
+	texture:SetPoint("CENTER", row, "LEFT", -12, 0)
 	
 	-- So we can actually run macro text
 	local button = CreateFrame("Button", "SSArenaButton" .. id, row, "SecureActionButtonTemplate")
@@ -950,15 +1004,21 @@ function SSAF:Get(var)
 end
 
 function SSAF:CreateUI()
+	local textures = {}
+	for _, name in pairs(SML:List(SML.MediaType.STATUSBAR)) do
+		table.insert(textures, {SML:Fetch(SML.MediaType.STATUSBAR, name), name})
+	end
+
 	local config = {
 		{ group = L["General"], text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
 		{ group = L["General"], text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
 		{ group = L["General"], text = L["Show enemy pets"], help = L["Will display Warlock minions and Mage pets in the arena frames below all the players."], type = "check", var = "showPets"},
 		{ group = L["General"], text = L["Show class icon"], help = L["Displays the players class icon to the left of the arena frame on their row."], type = "check", var = "showIcon"},
 		{ group = L["General"], text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
-		
-		{ group = L["Display"], text = L["Health bar texture"], type = "dropdown", list = {{"Interface\\TargetingFrame\\UI-StatusBar", "Blizzard"}}, var = "healthTexture"},
+
+		{ group = L["Display"], text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
 		{ group = L["Display"], text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
+		{ group = L["Display"], text = L["Show shadow under name/health text"], type = "check", var = "fontShadow"},
 
 		{ group = L["Color"], text = L["Pet health bar color"], type = "color", var = "petBarColor"},
 		{ group = L["Color"], text = L["Name/health font color"], type = "color", var = "fontColor"},
