@@ -15,6 +15,18 @@ local queuedUpdates = {}
 local enemies = {}
 local enemyPets = {}
 
+local PartySlain
+local SelfSlain
+
+local AEIEnabled
+local TattleEnabled
+local RemembranceEnabled
+
+local AceComm
+local OptionHouse
+local HouseAuthority
+local SML
+
 local petClassIcons = {
 	["Voidwalker"] = "Interface\\Icons\\Spell_Shadow_SummonVoidWalker",
 	["Felhunter"] = "Interface\\Icons\\Spell_Shadow_SummonFelHunter",
@@ -45,18 +57,6 @@ local petClassIcons = {
 	["Wolf"] = "Interface\\Icons\\Ability_Hunter_Pet_Wolf",
 	[L["Water Elemental"]] = "Interface\\Icons\\Spell_Frost_SummonWaterElemental_2",
 }
-
-local PartySlain
-local SelfSlain
-
-local AEIEnabled
-local TattleEnabled
-local RemembranceEnabled
-
-local AceComm
-local OptionHouse
-local HouseAuthority
-local SML
 
 function SSAF:Initialize()
 	self.defaults = {
@@ -375,6 +375,7 @@ function SSAF:UpdateEnemies()
 			end
 		end
 		
+		-- Make sure we always have at least one macro to target
 		if( not foundMacro ) then
 			row.button:SetAttribute("type", "macro")
 			row.button:SetAttribute("macrotext", "/target " .. enemy.name)
@@ -439,7 +440,8 @@ function SSAF:UpdateEnemies()
 					foundMacro = true
 				end
 			end
-
+			
+			-- Make sure we always have at least one macro to target
 			if( not foundMacro ) then
 				row.button:SetAttribute("type", "macro")
 				row.button:SetAttribute("macrotext", "/target " .. enemy.name)
@@ -524,7 +526,7 @@ function SSAF:ScanUnit(unit)
 		table.sort(enemies, sortEnemies)
 		self:UpdateEnemies()
 		
-	-- Warlock pet or a Water Elemental
+	-- Hunter pet, or Warlock/Mage minion
 	elseif( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) then
 		-- Need to find the pets owner
 		if( not self.tooltip ) then
@@ -539,7 +541,7 @@ function SSAF:ScanUnit(unit)
 			return
 		end
 		
-		-- Warlock/Mages
+		-- Warlock/Mage
 		local type = "MINION"
 		local owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Minion"])
 		
@@ -623,6 +625,66 @@ local function scanFrames(...)
 		end
 	end
 end
+
+-- Syncing
+function SSAF:EnemyData(event, name, server, race, classToken, guild)
+	for _, enemy in pairs(enemies) do
+		if( not enemy.owner and enemy.name == name ) then
+			return
+		end
+	end
+	
+	server = server or ""
+
+	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, server = server, race = race, classToken = classToken, guild = guild})
+	self:UpdateEnemies()
+end
+
+-- New pet found
+function SSAF:PetData(event, name, owner, family)
+	if( not self.db.profile.showPets ) then
+		return
+	end
+	
+	for _, enemy in pairs(enemyPets) do
+		if( enemy.owner == owner and enemy.name == name ) then
+			return
+		end
+	end
+	
+	-- These is mainly for backwards compatability
+
+	-- Water Elementals have no family
+	-- We don't pass pet type for Water Elementals, because then we have issues
+	-- with family being "" not nil, too many sanity issues.
+	if( name == L["Water Elemental"] ) then
+		type = "MINION"
+
+	-- Warlock pets
+	elseif( not type and ( family == "Felguard" or family == "Felhunter" or family == "Imp" or family == "Felguard" or family == "Succubus" ) ) then
+		type = "MINION"
+	
+	-- Hunter pets
+	elseif( not type ) then
+		type = "PET"
+	end
+
+	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100})
+	self:UpdateEnemies()
+end
+
+-- Someone died, update them to actually be dead
+function SSAF:EnemyDied(event, name)
+	for id, enemy in pairs(enemies) do
+		if( not enemy.isDead and enemy.name == name ) then
+			enemy.isDead = true
+			enemy.health = 0
+			self:UpdateRow(enemy, id)
+			break
+		end
+	end
+end
+
 
 -- Create the master frame to hold everything
 function SSAF:CreateFrame()
@@ -793,65 +855,6 @@ function SSAF:CreateRow()
 	end
 end
 
--- Syncing
-function SSAF:EnemyData(event, name, server, race, classToken, guild)
-	for _, enemy in pairs(enemies) do
-		if( not enemy.owner and enemy.name == name ) then
-			return
-		end
-	end
-	
-	server = server or ""
-
-	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, server = server, race = race, classToken = classToken, guild = guild})
-	self:UpdateEnemies()
-end
-
--- New pet found
-function SSAF:PetData(event, name, owner, family)
-	if( not self.db.profile.showPets ) then
-		return
-	end
-	
-	for _, enemy in pairs(enemyPets) do
-		if( enemy.owner == owner and enemy.name == name ) then
-			return
-		end
-	end
-	
-	-- These is mainly for backwards compatability
-
-	-- Water Elementals have no family
-	-- We don't pass pet type for Water Elementals, because then we have issues
-	-- with family being "" not nil, too many sanity issues.
-	if( name == L["Water Elemental"] ) then
-		type = "MINION"
-
-	-- Warlock pets
-	elseif( not type and ( family == "Felguard" or family == "Felhunter" or family == "Imp" or family == "Felguard" or family == "Succubus" ) ) then
-		type = "MINION"
-	
-	-- Hunter pets
-	elseif( not type ) then
-		type = "PET"
-	end
-
-	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100})
-	self:UpdateEnemies()
-end
-
--- Someone died, update them to actually be dead
-function SSAF:EnemyDied(event, name)
-	for id, enemy in pairs(enemies) do
-		if( not enemy.isDead and enemy.name == name ) then
-			enemy.isDead = true
-			enemy.health = 0
-			self:UpdateRow(enemy, id)
-			break
-		end
-	end
-end
-
 -- Deal with the fact that a few arena mods doesn't send class tokens
 function SSAF:TranslateClass(class)
 	for classToken, className in pairs(L["CLASSES"]) do
@@ -864,7 +867,6 @@ function SSAF:TranslateClass(class)
 end
 
 -- Deal with the stupid people using memo
--- YOU DONT NEED IT'S USELESS FOR ARENA MODS
 function SSAF:ADDON_LOADED(event, addon)
 	if( not AceComm and AceLibrary and LibStub:GetLibrary("AceComm-2.0", true) ) then
 		AceComm = AceLibrary("AceAddon-2.0"):new("AceComm-2.0")
@@ -1069,23 +1071,28 @@ function SSAF:CreateUI()
 	end
 
 	local config = {
-		{ group = L["General"], text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
-		{ group = L["General"], text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
-		{ group = L["General"], text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
-		{ group = L["General"], text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
-		{ group = L["General"], text = L["Show class icon"], help = L["Displays the players class icon to the left of the arena frame on their row."], type = "check", var = "showIcon"},
-		{ group = L["General"], text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
+		{ group = L["General"], type = "groupOrder", order = 1 },
+		{ group = L["Frame"], type = "groupOrder", order = 2 },
+		{ group = L["Display"], type = "groupOrder", order = 3 },
+		{ group = L["Color"], type = "groupOrder", order = 4 },
+		
+		{ group = L["General"], order = 1, text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
+		{ group = L["General"], order = 2, text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
+		{ group = L["General"], order = 3, text = L["Show class icon"], help = L["Displays the players class icon to the left of the arena frame on their row."], type = "check", var = "showIcon"},
+		{ group = L["General"], order = 4, text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
+		{ group = L["General"], order = 5, text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
+		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
 
-		{ group = L["Display"], text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
-		{ group = L["Display"], text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
-		{ group = L["Display"], text = L["Show shadow under name/health text"], type = "check", var = "fontShadow"},
+		{ group = L["Display"], order = 1, text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
+		{ group = L["Display"], order = 2, text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
+		{ group = L["Display"], order = 3, text = L["Show shadow under name/health text"], type = "check", var = "fontShadow"},
 
-		{ group = L["Color"], text = L["Pet health bar color"], type = "color", var = "petBarColor"},
-		{ group = L["Color"], text = L["Minion health bar color"], type = "color", var = "minionBarColor"},
-		{ group = L["Color"], text = L["Name/health font color"], type = "color", var = "fontColor"},
+		{ group = L["Color"], order = 1, text = L["Pet health bar color"], type = "color", var = "petBarColor"},
+		{ group = L["Color"], order = 2, text = L["Minion health bar color"], type = "color", var = "minionBarColor"},
+		{ group = L["Color"], order = 3, text = L["Name/health font color"], type = "color", var = "fontColor"},
 				
-		{ group = L["Frame"], text = L["Lock arena frame"], type = "check", var = "locked"},
-		{ group = L["Frame"], format = L["Frame Scale: %d%%"], manualInput = true, min = 0.0, max = 2.0, type = "slider", var = "scale"}
+		{ group = L["Frame"], order = 1, text = L["Lock arena frame"], type = "check", var = "locked"},
+		{ group = L["Frame"], order = 2, format = L["Frame Scale: %d%%"], min = 0.0, max = 2.0, type = "slider", var = "scale"}
 	}
 
 	-- Update the dropdown incase any new textures were added

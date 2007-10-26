@@ -84,7 +84,7 @@ end
   Begin Library Implementation
 ---------------------------------------------------------------------------]]
 local major = "OptionHouse-1.1"
-local minor = tonumber(string.match("$Revision: 252 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 634 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -104,8 +104,9 @@ local L = {
 	["NO_PARENTCAT"] = "No parent category named '%s' exists in %s'",
 	["SUBCATEGORY_ALREADYREG"] = "The sub-category named '%s' already exists in the category '%s' for '%s'",
 	["UNKNOWN_FRAMETYPE"] = "Unknown frame type given '%s', only 'main', 'perf', 'addon', 'config' are supported.",
-	["OPTION_HOUSE"] = "Option House",
-	["ENTERED_COMBAT"] = "|cFF33FF99Option House|r: Configuration window closed due to entering combat.",
+	["OPTION_HOUSE"] = "OptionHouse",
+	["ENTERED_COMBAT"] = "|cFF33FF99OptionHouse|r: Configuration window closed due to entering combat.",
+	["IN_COMBAT"] = "|cFF33FF99OptionHouse|r: Configuration window cannot be opened while in combat.",
 	["SEARCH"] = "Search...",
 	["ADDON_OPTIONS"] = "Addons",
 	["VERSION"] = "Version: %s",
@@ -141,6 +142,7 @@ local tabfunctions = {}
 local methods = {"RegisterCategory", "RegisterSubCategory", "RemoveCategory", "RemoveSubCategory"}
 local addons = {}
 local regFrames = {}
+local openedByMenu
 local evtFrame
 local frame
 
@@ -337,7 +339,7 @@ local function onVerticalScroll(self, offset)
 		self.down:Enable()
 	end
 
-	self.updateFunc()
+	self.updateFunc(self.updateHandler)
 end
 
 local function onMouseWheel(self, offset)
@@ -407,6 +409,7 @@ local function createScrollFrame(frame, displayNum, onScroll)
 
 	frame.scroll.offset = 0
 	frame.scroll.displayNum = displayNum
+	frame.scroll.updateHandler = frame
 	frame.scroll.updateFunc = onScroll
 
 	-- Actual bar for scrolling
@@ -503,6 +506,22 @@ local function sortCategories(a, b)
 	if( not b ) then
 		return false
 	end
+	
+	local aType = type(a.data.sortID)
+	local bType = type(b.data.sortID)
+	
+	-- Sort categories/sub categories
+	if( aType == "number" and bType == "number" ) then
+		if( a.data.sortID == b.data.sortID ) then
+			return ( a.name < b.name )
+		end
+
+		return ( a.data.sortID < b.data.sortID )
+	elseif( aType == "number" and bType ~= "number" ) then
+		return true
+	elseif( bType == "number" and aType ~= "number" ) then
+		return false
+	end
 
 	return ( a.name < b.name )
 end
@@ -523,6 +542,16 @@ local function addCategoryRow(type, name, tooltip, data, parent, addon)
 				end
 			end
 		end
+	end
+	
+	if( not data ) then
+		data = {}
+	end
+		
+	if( type == "addon" ) then
+		data.sortID = name
+	elseif( not data.sortID ) then
+		data.sortID = 9999999
 	end
 
 	table.insert(frame.categories, {name = name, type = type, tooltip = tooltip, data = data, parent = parent, addon = addon} )
@@ -740,7 +769,6 @@ local function displayCategoryRow(type, text, data, tooltip, highlighted)
 	button:Show()
 end
 
-
 local function updateConfigList(openAlso)
 	local frame = regFrames.addon
 	frame.rowID = 0
@@ -760,7 +788,7 @@ local function updateConfigList(openAlso)
 			frame.categories[id].hide = nil
 		end
 	end
-
+	
 	-- Resort list if needed
 	if( frame.resortList ) then
 		table.sort(frame.categories, sortCategories)
@@ -774,32 +802,31 @@ local function updateConfigList(openAlso)
 			-- Total addons
 			if( addon.name == frame.selectedAddon ) then
 				displayCategoryRow(addon.type, addon.name, addon.data, addon.tooltip, true)
+				
 				for _, cat in pairs(frame.categories) do
 					-- Show all the categories with the addon as the parent
 					if( not cat.hide and cat.parent == addon.name and cat.type == "category" ) then
 						-- Total categories of the selected addon
 						if( cat.name == frame.selectedCategory ) then
 							displayCategoryRow(cat.type, cat.name, cat.data, cat.tooltip, true)
-
-							local rowID
+							
 							for _, subCat in pairs(frame.categories) do
 								-- We don't have to check type, because it's the only one that has .addon set
 								if( not subCat.hide and subCat.parent == cat.name and subCat.addon == addon.name ) then
 									-- Total sub categories of the selected addons selected category
 									displayCategoryRow(subCat.type, subCat.name, subCat.data, subCat.tooltip, subCat.name == frame.selectedSubCat)
-									lastID = frame.rowID
 									
+									lastID = frame.rowID
 									if( openAlso ) then
 										opened = subCat.data
 									end
 								end
 							end
 
-							-- Turns the line from straight down to a curve at the end
 							if( lastID ) then
 								frame.lines[lastID]:SetTexCoord(0.4375, 0.875, 0, 0.625)
 							end
-							
+
 							-- Okay open the category then
 							if( not opened and openAlso ) then
 								opened = cat.data
@@ -914,8 +941,7 @@ local function createAddonFrame(hide)
 		frame:SetAllPoints(regFrames.main)
 
 		regFrames.addon = frame
-		OptionHouseFrames.addon = frame
-
+		
 		frame.buttons = {}
 		frame.lines = {}
 		for i=1, 15 do
@@ -969,7 +995,7 @@ local function createAddonFrame(hide)
 	if( frame.shownFrame ) then
 		frame.shownFrame:Hide()
 	end
-	
+
 	updateConfigList()
 	ShowUIPanel(frame)
 end
@@ -991,15 +1017,29 @@ local function createOHFrame()
 	frame.tabs = {}
 
 	regFrames.main = frame
-	OptionHouseFrames.main = frame
 
 	-- If we don't hide it ourself, the panel layout becomes messed up
+	-- because dynamically created frames are created shown
 	frame:Hide()
+	
+	frame:SetScript("OnHide", function()
+		if( openedByMenu ) then
+			openedByMenu = nil
+
+			PlaySound("gsTitleOptionExit");
+			ShowUIPanel(GameMenuFrame)
+		end
+	end)
+	frame:SetScript("OnShow", function()
+		if( OptionHouseDB.position ) then
+			frame:ClearAllPoints()
+			frame:SetPoint("TOPLEFT", nil, "BOTTOMLEFT", OptionHouseDB.position.x, OptionHouseDB.position.y)
+		end
+	end)
 
 	frame:SetAttribute("UIPanelLayout-defined", true)
 	frame:SetAttribute("UIPanelLayout-enabled", true)
---~ 	frame:SetAttribute("UIPanelLayout-area", "doublewide") -- This is broken in the Blizzy code ><  Slouken's been sent a fix
-	frame:SetAttribute("UIPanelLayout-area", "left")
+ 	frame:SetAttribute("UIPanelLayout-area", "doublewide")
 	frame:SetAttribute("UIPanelLayout-whileDead", true)
 	table.insert(UISpecialFrames, name)
 
@@ -1009,18 +1049,59 @@ local function createOHFrame()
 	title:SetPoint("TOPLEFT", 75, -15)
 
 	-- Embedded version wont include the icon cause authors are more whiny then users
+	-- Also, we want to use different methods of frame dragging
 	if( not IsAddOnLoaded("OptionHouse") ) then
 		local texture = frame:CreateTexture(nil, "OVERLAY")
 		texture:SetWidth(57)
 		texture:SetHeight(57)
 		texture:SetPoint("TOPLEFT", 9, -7)
 		SetPortraitTexture(texture, "player")
+
+		frame:EnableMouse(true)
 	else
 		local texture = frame:CreateTexture(nil, "OVERLAY")
 		texture:SetWidth(128)
 		texture:SetHeight(128)
 		texture:SetPoint("TOPLEFT", 9, -2)
 		texture:SetTexture("Interface\\AddOns\\OptionHouse\\GnomePortrait")
+		
+		frame:EnableMouse(false)
+		frame:SetMovable(not OptionHouseDB.locked)
+		
+		-- This goes in the entire bar where "OptionHouse" title text is
+		local mover = CreateFrame("Button", nil, frame)
+		mover:SetPoint("TOP", 25, -15)
+		mover:SetHeight(19)
+		mover:SetWidth(730)
+		
+		mover:SetScript("OnLeave", hideTooltip)
+		mover:SetScript("OnEnter", showTooltip)
+		mover:SetScript("OnMouseUp", function(self)
+			if( self.isMoving ) then
+				local parent = self:GetParent()
+				parent:StopMovingOrSizing()
+				OptionHouseDB.position = {x = parent:GetLeft(), y = parent:GetTop()}
+				
+				self.isMoving = nil
+			end
+		end)
+		
+		mover:SetScript("OnMouseDown", function(self, mouse)
+			local parent = self:GetParent()
+			
+			-- Start moving!
+			if( parent:IsMovable() and mouse == "LeftButton" ) then
+				self.isMoving = true
+				parent:StartMoving()
+								
+			-- Reset position
+			elseif( mouse == "RightButton" ) then
+				parent:ClearAllPoints()
+				parent:SetPoint("TOPLEFT", 0, -104)
+
+				OptionHouseDB.position = nil
+			end
+		end)
 	end
 
 	local title = frame:CreateFontString(nil, "OVERLAY")
@@ -1136,7 +1217,6 @@ function OptionHouse.RegisterFrame(self, type, frame)
 	end
 	
 	regFrames[type] = frame
-	OptionHouseFrames[type] = frame
 end
 
 -- PUBLIC API's
@@ -1144,11 +1224,16 @@ function OptionHouse:GetFrame(type)
 	if( type ~= "addon" and type ~= "manage" and type ~= "perf" and type ~= "main" ) then
 		error(string.format(L["UNKNOWN_FRAMETYPE"], type), 3)
 	end
-
+		
 	return regFrames[type]
 end
 
 function OptionHouse:Open(addonName, parentCat, childCat)
+	if( InCombatLockdown() ) then
+		DEFAULT_CHAT_FRAME:AddMessage(L["IN_COMBAT"])
+		return
+	end
+	
 	argcheck(addonName, 1, "string", "nil")
 	argcheck(parentCat, 2, "string", "nil")
 	argcheck(childCat, 3, "string", "nil")
@@ -1170,10 +1255,16 @@ function OptionHouse:Open(addonName, parentCat, childCat)
 end
 
 function OptionHouse:OpenTab(id)
+	if( InCombatLockdown() ) then
+		DEFAULT_CHAT_FRAME:AddMessage(L["IN_COMBAT"])
+		return
+	end
+
 	argcheck(id, 1, "number")
+	
+	createOHFrame()
 	assert(3, #(tabfunctions) > id, string.format(L["UNKNOWN_TAB"], id, #(tabfunctions)))
 
-	createOHFrame()
 	tabOnClick(id)
 	ShowUIPanel(frame)
 end
@@ -1201,18 +1292,19 @@ function OptionHouse:RegisterAddOn(name, title, author, version)
 	return addons[name].obj
 end
 
-function OptionHouse.RegisterCategory(addon, name, handler, func, noCache)
+function OptionHouse.RegisterCategory(addon, name, handler, func, noCache, sortID)
 	argcheck(name, 2, "string")
 	argcheck(handler, 3, "string", "function", "table")
 	argcheck(func, 4, "string", "function", "nil")
 	argcheck(noCache, 5, "boolean", "number", "nil")
+	argcheck(sortID, 6, "number", "nil")
 	assert(3, handler or func, L["NO_FUNC_PASSED"])
 	assert(3, addons[addon.name], string.format(L["MUST_CALL"], "RegisterCategory"))
 	assert(3, addons[addon.name].categories, string.format(L["CATEGORY_ALREADYREG"], name, addon.name))
 
 	-- Category numbers are required so we know when to skip it because only one category/sub cat exists
 	addons[addon.name].totalCats = addons[addon.name].totalCats + 1
-	addons[addon.name].categories[name] = {func = func, handler = handler, noCache = noCache, sub = {}, totalSubs = 0}
+	addons[addon.name].categories[name] = {func = func, handler = handler, noCache = noCache, sub = {}, totalSubs = 0, sortID = sortID or 9999999}
 
 	if( regFrames.addon ) then
 		addCategoryListing(addon.name, addons[addon.name])
@@ -1220,12 +1312,13 @@ function OptionHouse.RegisterCategory(addon, name, handler, func, noCache)
 	end
 end
 
-function OptionHouse.RegisterSubCategory(addon, parentCat, name, handler, func, noCache)
+function OptionHouse.RegisterSubCategory(addon, parentCat, name, handler, func, noCache, sortID)
 	argcheck(parentCat, 2, "string")
 	argcheck(name, 3, "string")
 	argcheck(handler, 4, "string", "function", "table")
 	argcheck(func, 5, "string", "function", "nil")
 	argcheck(noCache, 6, "boolean", "number", "nil")
+	argcheck(sortID, 7, "number", "nil")
 	assert(3, handler or func, L["NO_FUNC_PASSED"])
 	assert(3, addons[addon.name], string.format(L["MUST_CALL"], "RegisterSubCategory"))
 	assert(3, addons[addon.name].categories[parentCat], string.format(L["NO_PARENTCAT"], parentCat, addon.name))
@@ -1233,7 +1326,7 @@ function OptionHouse.RegisterSubCategory(addon, parentCat, name, handler, func, 
 
 	addons[addon.name].totalSubs = addons[addon.name].totalSubs + 1
 	addons[addon.name].categories[parentCat].totalSubs = addons[addon.name].categories[parentCat].totalSubs + 1
-	addons[addon.name].categories[parentCat].sub[name] = {handler = handler, func = func, noCache = noCache}
+	addons[addon.name].categories[parentCat].sub[name] = {handler = handler, func = func, noCache = noCache, sortID = sortID or 9999999}
 
 	if( regFrames.addon ) then
 		addCategoryListing(addon.name, addons[addon.name])
@@ -1312,6 +1405,8 @@ local function instanceLoaded()
 			local menubutton = CreateFrame("Button", "GameMenuButtonOptionHouse", GameMenuFrame, "GameMenuButtonTemplate")
 			menubutton:SetText(L["OPTION_HOUSE"])
 			menubutton:SetScript("OnClick", function()
+				openedByMenu = true
+				
 				PlaySound("igMainMenuOption")
 				HideUIPanel(GameMenuFrame)
 				SlashCmdList["OPTHOUSE"]()
@@ -1326,8 +1421,6 @@ local function instanceLoaded()
 		end
 	end
 
-	OptionHouseFrames = OptionHouseFrames or {}
-
 	OptionHouse.addons = addons
 	OptionHouse.evtFrame = evtFrame
 	OptionHouse.tabfunctions = tabfunctions
@@ -1338,7 +1431,7 @@ local function instanceLoaded()
 			addon.obj[method] = OptionHouse[method]
 		end
 	end
-
+	
 	SLASH_OPTHOUSE1 = "/opthouse"
 	SLASH_OPTHOUSE2 = "/oh"
 	SlashCmdList["OPTHOUSE"] = function(...)

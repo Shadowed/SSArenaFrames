@@ -826,7 +826,7 @@ function HouseAuthority:RegisterFrame(data)
 	
 	id = id + 1
 	
-	local config = { id = id, columns = data.columns, widgets = {}, handler = data.handler, get = data.get, frame = data.frame, set = data.set, onSet = data.onSet }
+	local config = { id = id, columns = data.columns, widgets = {}, groupOrder = {}, handler = data.handler, get = data.get, frame = data.frame, set = data.set, onSet = data.onSet }
 	config.obj = { id = id }
 	
 	for _, method in pairs(methods) do
@@ -1438,6 +1438,26 @@ function HouseAuthority.InjectUIObject(config, UIObj, data)
 	table.insert(config.widgets, UIObj)
 end
 
+local function sortWidgets(a, b)
+	if( not a ) then
+		return true
+	elseif( not b ) then
+		return false
+	end
+		
+	return ( a.data.order < b.data.order )
+end
+
+local function sortGroups(a, b)
+	if( not a ) then
+		return true
+	elseif( not b ) then
+		return false
+	end
+	
+	return ( a.groupOrder < b.groupOrder )
+end
+
 function HouseAuthority.GetFrame(config)
 	assert(3, config and configs[config.id], string.format(L["MUST_CALL"], "GetFrame"))
 	assert(3, OptionHouse:GetFrame("addon"), L["OH_NOT_INITIALIZED"])
@@ -1470,13 +1490,19 @@ function HouseAuthority.GetFrame(config)
 			table.insert(config.groups[widget.data.group], widget)
 			groupedWidgets = groupedWidgets + 1
 		end
-		
 		-- Need to account for the fact that the height is for the bar itself
 		-- not bar + top and below text
 		if( config.columns > 1 and widget.data.type == "slider" ) then
 			widget.yPos = widget.yPos + 5
 		end
+		
+		-- Add a default order so we don't error
+		if( not widget.data.order ) then
+			widget.data.order = 999999
+		end
 	end
+	
+	table.sort(config.widgets, sortWidgets)
 	
 	-- Grouping is "disabled" so postion it directly to the frame
 	local totalHeight = 0
@@ -1496,6 +1522,8 @@ function HouseAuthority.GetFrame(config)
 			else
 				frame = createGroup(config, config.groupData)
 			end
+			
+			frame.groupOrder = config.groupOrder[text] or 999999
 			
 			-- Reparent/framelevel/position/blah the widgets
 			for i, widget in pairs(widgets) do
@@ -1517,6 +1545,8 @@ function HouseAuthority.GetFrame(config)
 			
 			totalHeight = totalHeight + height + 35
 		end
+		
+		table.sort(frames, sortGroups)
 		
 		-- Now position all of the groups
 		positionWidgets(1, config.frame, frames, nil, true)
@@ -1550,10 +1580,18 @@ function HouseAuthority:CreateConfiguration(data, frameData)
 	for id, widget in pairs(data) do
 		if( widget.type == "inject" ) then
 			handler["InjectUIObject"](handler, widget.widget, widget)
+		elseif( widget.type == "groupOrder" ) then
+			local config = configs[handler.id]
+			if( not config.groupOrder ) then
+				config.groupOrder = {}
+			end
+			
+			config.groupOrder[widget.group] = widget.order
+			
 		elseif( widget.type and widgetList[widget.type] ) then
 			handler[widgetList[widget.type]](handler, widget)
 		else
-			error(string.format(L["INVALID_WIDGETTYPE"], widget.type or "nil", "inject, label, editbox, check, input, dropdown, color, slider, group, button"), 3)
+			error(string.format(L["INVALID_WIDGETTYPE"], widget.type or "nil", "inject, label, groupOrder, editbox, check, input, dropdown, color, slider, group, button"), 3)
 		end
 	end
 	
