@@ -15,6 +15,9 @@ local queuedUpdates = {}
 local enemies = {}
 local enemyPets = {}
 
+local enemyIndex = {}
+local enemyPetIndex = {}
+
 local PartySlain
 local SelfSlain
 
@@ -196,18 +199,6 @@ function SSAF:UpdateBindings()
 	end
 end
 
-
--- Grabs the data from the name
-function SSAF:GetDataFromName(name)
-	for _, enemy in pairs(enemies) do
-		if( enemy.name == name ) then
-			return enemy
-		end
-	end
-	
-	return nil
-end
-
 -- Check if an enemy died
 function SSAF:CHAT_MSG_COMBAT_HOSTILE_DEATH(event, msg)
 	-- Check if someone in our party killed them
@@ -229,23 +220,11 @@ end
 -- Updates all the health info!
 function SSAF:UpdateHealth(enemy, health, maxHealth)
 	-- No data passed (Bad) return quickly
-	if( not enemy ) then
+	if( not enemy or not enemy.displayRow ) then
 		return
 	end
 	
-	local row, id
-	for i=1, CREATED_ROWS do
-		if( self.rows[i].ownerName == enemy.name ) then
-			row = self.rows[i]
-			id = i
-			break
-		end
-	end
-	
-	-- Unable to find them on the frame, so don't update
-	if( not id ) then
-		return
-	end
+	local row = self.rows[enemy.displayRow]
 	
 	-- Max health changed (Never really should happen)
 	if( enemy.maxHealth ~= maxHealth ) then
@@ -258,19 +237,30 @@ function SSAF:UpdateHealth(enemy, health, maxHealth)
 		enemy.isDead = true
 	end
 
-	self:UpdateRow(enemy, id)
+	self:UpdateRow(enemy, enemy.displayRow)
 end
 
 -- Health update, check if it's one of our guys
 function SSAF:UNIT_HEALTH(event, unit)
 	if( unit == "focus" or unit == "target" ) then
-		self:UpdateHealth(self:GetDataFromName(UnitName(unit)), UnitHealth(unit), UnitHealthMax(unit))
+		local name = UnitName(unit)
+		
+		if( enemies[enemyIndex[name]] and enemies[enemyIndex[name]].displayRow) then
+			self:UpdateHealth(enemies[enemyIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
+		
+		elseif( enemyPet[enemyPetIndex[name]] and enemyPet[enemyIndex[name]].displayRow ) then
+			self:UpdateHealth(enemyPet[enemyPetIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
+		end
 	end
 end
 
 -- Basically this handles things that change mid combat
 -- like health or dying
 function SSAF:UpdateRow(enemy, id)
+	if( enemy.health > enemy.maxHealth ) then
+		enemy.maxHealth = enemy.health
+	end
+	
 	self.rows[id]:SetValue(enemy.health)
 	self.rows[id].healthText:SetText(math.floor((enemy.health / enemy.maxHealth) * 100 + 0.5) .. "%")
 	
@@ -303,6 +293,9 @@ function SSAF:UpdateEnemies()
 		end
 
 		local row = self.rows[id]
+		
+		
+		enemy.displayRow = id
 		
 		-- Players name
 		local name = enemy.name
@@ -340,6 +333,7 @@ function SSAF:UpdateEnemies()
 			
 		row.text:SetText(name)
 		row.ownerName = enemy.name
+		row.ownerType = "PLAYER"
 				
 		-- Word wrap
 		if( row.text:GetStringWidth() >= 145 ) then
@@ -393,6 +387,8 @@ function SSAF:UpdateEnemies()
 			end
 
 			local row = self.rows[id]
+			
+			enemy.displayRow = id
 
 			local name = string.format(L["%s's %s"], enemy.owner, (enemy.family or enemy.name))
 			if( self.db.profile.showID ) then
@@ -400,7 +396,8 @@ function SSAF:UpdateEnemies()
 			end
 
 			row.text:SetText(name)
-			row.ownerName = nil
+			row.ownerName = enemy.name
+			row.ownerType = enemy.petType
 
 			row.classTexture:Hide()
 
@@ -493,14 +490,11 @@ function SSAF:ScanUnit(unit)
 	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) ) then
 		return
 	end
-
+	
 	if( UnitIsPlayer(unit) ) then
 		server = server or GetRealmName()
-		
-		for _, player in pairs(enemies) do
-			if( player.name == name and player.server == server ) then
-				return
-			end
+		if( enemyIndex[name] ) then
+			return
 		end
 		
 		local race = UnitRace(unit)
@@ -508,6 +502,7 @@ function SSAF:ScanUnit(unit)
 		local guild = GetGuildInfo(unit)
 		
 		table.insert(enemies, {sortID = name .. "-" .. server, name = name, server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
+		enemyIndex[name] = #(enemies)
 		
 		if( guild ) then
 			if( self.db.profile.reportEnemies ) then
@@ -527,7 +522,7 @@ function SSAF:ScanUnit(unit)
 		self:UpdateEnemies()
 		
 	-- Hunter pet, or Warlock/Mage minion
-	elseif( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) then
+	elseif( ( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) ) then
 		-- Need to find the pets owner
 		if( not self.tooltip ) then
 			self.tooltip = CreateFrame("GameTooltip", "SSArenaTooltip", UIParent, "GameTooltipTemplate")
@@ -552,8 +547,13 @@ function SSAF:ScanUnit(unit)
 		end
 		
 		-- Found the pet owner
-		if( owner and owner ~= L["Unknown"] ) then
+		if( owner and owner ~= UNKNOWNOBJECT ) then
 			local family = UnitCreatureFamily(unit)
+
+			if( enemyPetIndex[name] and enemyPets[enemyPetIndex[name]].owner == owner ) then
+				return
+			end
+			
 			for i=#(enemyPets), 1, -1 do
 				if( enemyPets[i].owner == owner ) then
 					-- Check to see if the pet changed
@@ -568,6 +568,7 @@ function SSAF:ScanUnit(unit)
 			
 			
 			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
+			enemyPetIndex[name] = #(enemyPets)
 			
 			if( family ) then
 				if( self.db.profile.reportEnemies ) then
@@ -597,7 +598,11 @@ local function healthValueChanged(...)
 	
 	local ownerName = select(5, this:GetParent():GetRegions()):GetText()
 
-	SSAF:UpdateHealth(SSAF:GetDataFromName(ownerName), value, select(2, this:GetMinMaxValues()))
+	if( enemyIndex[ownerName] ) then
+		SSAF:UpdateHealth(enemies[enemyIndex[ownerName]], value, select(2, this:GetMinMaxValues()))
+	elseif( enemyPetIndex[ownerName] ) then
+		SSAF:UpdateHealth(enemyPets[enemyPetIndex[ownerName]], value, select(2, this:GetMinMaxValues()))
+	end
 
 	if( this.SSValueChanged ) then
 		this.SSValueChanged(...)
@@ -635,14 +640,16 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild)
 	end
 	
 	server = server or ""
-
+	
 	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, server = server, race = race, classToken = classToken, guild = guild})
+	enemyIndex[name] = #(enemies)
+	
 	self:UpdateEnemies()
 end
 
 -- New pet found
 function SSAF:PetData(event, name, owner, family)
-	if( not self.db.profile.showPets ) then
+	if( not self.db.profile.showPets and not self.db.profile.showMinions ) then
 		return
 	end
 	
@@ -668,19 +675,42 @@ function SSAF:PetData(event, name, owner, family)
 	elseif( not type ) then
 		type = "PET"
 	end
+	
+	-- Disabled, not suppose to show these
+	if( ( type == "MINION" and not self.db.profile.showMinions ) or ( type == "PET" and not self.db.profile.showPets ) ) then
+		return
+	end
 
 	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100})
+	enemyPetIndex[name] = #(enemyPets)
+	
 	self:UpdateEnemies()
 end
 
 -- Someone died, update them to actually be dead
 function SSAF:EnemyDied(event, name)
-	for id, enemy in pairs(enemies) do
+	if( enemies[name] ) then
+		local enemy = enemies[name]
 		if( not enemy.isDead and enemy.name == name ) then
 			enemy.isDead = true
 			enemy.health = 0
-			self:UpdateRow(enemy, id)
-			break
+
+			if( enemy.displayRow ) then
+				self:UpdateRow(enemy, enemy.displayRow)
+			end
+		end
+	
+	elseif( enemyPetIndex[name] ) then
+		local enemy = enemyPets[enemyPetIndex[name]]
+		if( ( enemy.petType == "MINION" and self.db.profile.showMinions ) or ( enemy.petType == "PET" and self.db.profile.showPets ) ) then
+			if( not enemy.isDead and enemy.name == name ) then
+				enemy.isDead = true
+				enemy.health = 0
+
+				if( enemy.displayRow ) then
+					self:UpdateRow(enemy, enemy.displayRow)
+				end
+			end
 		end
 	end
 end
@@ -706,10 +736,12 @@ function SSAF:CreateFrame()
 	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.frame:SetScale(self.db.profile.scale)
 	self.frame:SetWidth(180)
+	self.frame:SetHeight(18)
 	self.frame:SetMovable(true)
 	--self.frame:SetMovable(not self.db.profile.locked)
 	self.frame:EnableMouse(not self.db.profile.locked)
 	self.frame:SetClampedToScreen(true)
+	self.frame:Hide()
 
 	-- Moving the frame
 	self.frame:SetScript("OnMouseDown", function(self)
@@ -747,7 +779,12 @@ function SSAF:CreateFrame()
 		if( timeElapsed >= 1 ) then
 			for i=1, GetNumPartyMembers() do
 				if( UnitExists("party" .. i .. "target" ) ) then
-					SSAF:UpdateHealth(SSAF:GetDataFromName(UnitName("party" .. i .. "target")), UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+					local name = UnitName("party" .. i .. "target")
+					if( enemyIndex[name] ) then
+						SSAF:UpdateHealth(enemyIndex[name], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+					elseif( enemyPetIndex[name] ) then
+						SSAF:UpdateHealth(enemyPetIndex[name], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+					end
 				end
 			end
 		end
@@ -755,7 +792,6 @@ function SSAF:CreateFrame()
 	
 	-- Position to last saved area
 	self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", self.db.profile.position.x, self.db.profile.position.y)
-
 	self.rows = {}
 end
 
@@ -979,7 +1015,8 @@ function SSAF:Reload()
 
 			self:UpdateEnemies()
 		end
-	elseif( #(enemies) == 1 and #(enemyPets) == 1 ) then
+		
+	elseif( #(enemies) == 1 and #(enemyPets) == 2 ) then
 		self:ClearEnemies()
 	end
 	
@@ -1043,9 +1080,18 @@ function SSAF:ClearEnemies()
 		table.remove(enemyPets, i)
 	end
 	
+	for k, v in pairs(enemyIndex) do
+		enemyIndex[k] = nil
+	end
+	
+	for k, v in pairs(enemyPetIndex) do
+		enemyPetIndex[k] = nil
+	end
+	
 	if( self.rows ) then
 		for i=1, CREATED_ROWS do
 			self.rows[i].ownerName = nil
+			self.rows[i].ownerType = nil
 			self.rows[i]:Hide()
 		end
 	end
