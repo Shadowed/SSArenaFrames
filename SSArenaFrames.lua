@@ -781,9 +781,9 @@ function SSAF:CreateFrame()
 				if( UnitExists("party" .. i .. "target" ) ) then
 					local name = UnitName("party" .. i .. "target")
 					if( enemyIndex[name] ) then
-						SSAF:UpdateHealth(enemyIndex[name], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+						SSAF:UpdateHealth(enemies[enemyIndex[name]], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
 					elseif( enemyPetIndex[name] ) then
-						SSAF:UpdateHealth(enemyPetIndex[name], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+						SSAF:UpdateHealth(enemyPets[enemyPetIndex[name]], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
 					end
 				end
 			end
@@ -1205,8 +1205,10 @@ function SSAF:CreateClickListUI()
 			
 			-- Grab total classes enabled for this
 			local total = 0
-			for _, _ in pairs(row.classes) do
-				total = total + 1
+			if( row.classes ) then
+				for _, _ in pairs(row.classes) do
+					total = total + 1
+				end
 			end
 			
 			table.insert(config, { group = "#" .. i, text = enabled, type = "label", xPos = 5, yPos = 0, font = GameFontHighlightSmall })
