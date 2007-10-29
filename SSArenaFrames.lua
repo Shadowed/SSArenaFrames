@@ -225,6 +225,26 @@ function SSAF:UpdateHealth(enemy, health, maxHealth)
 	end
 	
 	local row = self.rows[enemy.displayRow]
+	--[[
+	-- Display # changed for some reason, update it and save the value
+	if( row.ownerName ~= enemy.name and row.ownerType ~= enemy.petType ) then
+		local id
+		for i=1, CREATED_ROWS do
+			local row = self.rows[i]
+			if( row.ownerName == enemy.name and row.ownerType == enemy.petType ) then
+				id = i
+				enemy.displayRow = i
+				break
+			end
+		end
+
+		if( not id ) then
+			return
+		end
+		
+		row = self.rows[id]
+	end
+	]]
 	
 	-- Max health changed (Never really should happen)
 	if( enemy.maxHealth ~= maxHealth ) then
@@ -248,8 +268,8 @@ function SSAF:UNIT_HEALTH(event, unit)
 		if( enemies[enemyIndex[name]] and enemies[enemyIndex[name]].displayRow) then
 			self:UpdateHealth(enemies[enemyIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
 		
-		elseif( enemyPet[enemyPetIndex[name]] and enemyPet[enemyIndex[name]].displayRow ) then
-			self:UpdateHealth(enemyPet[enemyPetIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
+		elseif( enemyPets[enemyPetIndex[name]] and enemyPets[enemyIndex[name]].displayRow ) then
+			self:UpdateHealth(enemyPets[enemyPetIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
 		end
 	end
 end
@@ -293,7 +313,6 @@ function SSAF:UpdateEnemies()
 		end
 
 		local row = self.rows[id]
-		
 		
 		enemy.displayRow = id
 		
@@ -409,6 +428,13 @@ function SSAF:UpdateEnemies()
 				row:SetStatusBarColor(self.db.profile.minionBarColor.r, self.db.profile.minionBarColor.g, self.db.profile.minionBarColor.b, 1.0)
 			end
 
+			-- Word wrap
+			if( row.text:GetStringWidth() >= 145 ) then
+				row.text:SetWidth(145)
+			else
+				row.text:SetWidth(row.text:GetStringWidth())
+			end
+
 			-- Quick update
 			self:UpdateRow(enemy, id)
 
@@ -501,8 +527,8 @@ function SSAF:ScanUnit(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
 		
-		table.insert(enemies, {sortID = name .. "-" .. server, name = name, server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
-		enemyIndex[name] = #(enemies)
+		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
+		--enemyIndex[name] = #(enemies)
 		
 		if( guild ) then
 			if( self.db.profile.reportEnemies ) then
@@ -519,6 +545,10 @@ function SSAF:ScanUnit(unit)
 		end
 		
 		table.sort(enemies, sortEnemies)
+		for id, enemy in pairs(enemies) do
+			enemyIndex[enemy.name] = id
+		end
+		
 		self:UpdateEnemies()
 		
 	-- Hunter pet, or Warlock/Mage minion
@@ -568,7 +598,7 @@ function SSAF:ScanUnit(unit)
 			
 			
 			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
-			enemyPetIndex[name] = #(enemyPets)
+			--enemyPetIndex[name] = #(enemyPets)
 			
 			if( family ) then
 				if( self.db.profile.reportEnemies ) then
@@ -585,6 +615,12 @@ function SSAF:ScanUnit(unit)
 			end
 			
 			table.sort(enemyPets, sortEnemies)
+
+			-- Sorting changes the indexes, so need to update it
+			for id, enemy in pairs(enemyPets) do
+				enemyPetIndex[enemy.name] = id
+			end
+			
 			self:UpdateEnemies()
 		end
 	end
@@ -641,7 +677,7 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild)
 	
 	server = server or ""
 	
-	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, server = server, race = race, classToken = classToken, guild = guild})
+	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, petType = "PLAYER", server = server, race = race, classToken = classToken, guild = guild})
 	enemyIndex[name] = #(enemies)
 	
 	self:UpdateEnemies()
@@ -691,26 +727,20 @@ end
 function SSAF:EnemyDied(event, name)
 	if( enemies[name] ) then
 		local enemy = enemies[name]
-		if( not enemy.isDead and enemy.name == name ) then
+		if( not enemy.isDead ) then
 			enemy.isDead = true
 			enemy.health = 0
 
-			if( enemy.displayRow ) then
-				self:UpdateRow(enemy, enemy.displayRow)
-			end
+			self:UpdateRow(enemy, enemy.displayRow)
 		end
 	
 	elseif( enemyPetIndex[name] ) then
 		local enemy = enemyPets[enemyPetIndex[name]]
-		if( ( enemy.petType == "MINION" and self.db.profile.showMinions ) or ( enemy.petType == "PET" and self.db.profile.showPets ) ) then
-			if( not enemy.isDead and enemy.name == name ) then
-				enemy.isDead = true
-				enemy.health = 0
+		if( not enemy.isDead and ( ( enemy.petType == "MINION" and self.db.profile.showMinions ) or ( enemy.petType == "PET" and self.db.profile.showPets ) ) ) then
+			enemy.isDead = true
+			enemy.health = 0
 
-				if( enemy.displayRow ) then
-					self:UpdateRow(enemy, enemy.displayRow)
-				end
-			end
+			self:UpdateRow(enemy, enemy.displayRow)
 		end
 	end
 end
