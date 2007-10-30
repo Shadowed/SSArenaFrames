@@ -1061,6 +1061,7 @@ function SSAF:Reload()
 	for i=1, CREATED_ROWS do
 		local row = self.rows[i]
 		row.button:EnableMouse(self.db.profile.locked)
+		row:SetStatusBarTexture(self.db.profile.healthTexture)
 		row:Hide()
 	
 		-- Player name text
