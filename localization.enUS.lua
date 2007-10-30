@@ -39,6 +39,8 @@ SSAFLocals = {
 		["WARLOCK"] = "Warlock",
 	},
 	
+	["Arena Preparation"] = "Arena Preparation",
+	
 	["General"] = "General",
 	["Frame"] = "Frame",
 	["Color"] = "Color",

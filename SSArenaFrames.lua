@@ -139,7 +139,6 @@ function SSAF:JoinedArena()
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
 	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 	self:RegisterEvent("PLAYER_TARGET_CHANGED")
-	self:RegisterEvent("CHAT_MSG_BG_SYSTEM_NEUTRAL")
 	self:RegisterEvent("CHAT_MSG_COMBAT_HOSTILE_DEATH")
 	self:RegisterEvent("UPDATE_BINDINGS", "UpdateBindings")
 	
@@ -176,13 +175,6 @@ function SSAF:LeftArena()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
 	self:RegisterEvent("ADDON_LOADED")
-end
-
--- It's possible to mouseover an "enemy" when they're zoning in, so clear it just to be safe
-function SSAF:CHAT_MSG_BG_SYSTEM_NEUTRAL(event, message)
-	if( message == L["The Arena battle has begun!"] ) then
-		self:ClearEnemies()
-	end
 end
 
 -- Set up bindings
@@ -525,10 +517,10 @@ function SSAF:ScanUnit(unit)
 	-- 3) ????
 	-- 4) Profit! Because all arena mods check for the name "Unknown" before exiting
 	local name, server = UnitName(unit)
-	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) ) then
+	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) or GetPlayerBuffTexture(L["Arena Preparation"]) ) then
 		return
 	end
-	
+
 	if( UnitIsPlayer(unit) ) then
 		server = server or GetRealmName()
 		if( enemyIndex[name] ) then
