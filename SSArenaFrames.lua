@@ -1,5 +1,5 @@
 --[[ 
-	SSArena Frames By Amarand / Mayen (Horde) from Icecrown (US) PvE
+	SSArena Frames By Amarand (Horde) / Mayen (Horde) from Icecrown (US) PvE
 ]]
 
 SSAF = DongleStub("Dongle-1.1"):New("SSAF")
@@ -20,6 +20,7 @@ local enemyPetIndex = {}
 
 local PartySlain
 local SelfSlain
+local WaterDies
 
 local AEIEnabled
 local TattleEnabled
@@ -102,6 +103,8 @@ function SSAF:Initialize()
 	-- Party/We killed someone
 	PartySlain = string.gsub(PARTYKILLOTHER, "%%s", "(.+)")
 	SelfSlain = string.gsub(SELFKILLOTHER, "%%s", "(.+)")
+	WaterDies = string.format(UNITDIESOTHER, L["Water Elemental"])
+	
 		
 	-- Register with OptionHouse
 	OptionHouse = LibStub("OptionHouse-1.1")
@@ -214,6 +217,11 @@ function SSAF:CHAT_MSG_COMBAT_HOSTILE_DEATH(event, msg)
 
 		self:EnemyDied(event, died)
 		self:SendMessage("ENEMYDIED:" .. died)
+	
+	-- Water elemental died (time limit hit)
+	elseif( msg == Waterdies ) then
+		self:EnemyDied(event, L["Water Elemental"])
+		self:SendMessage("ENEMYDIED:" .. L["Water Elemental"])
 	end
 end
 
@@ -268,7 +276,7 @@ function SSAF:UNIT_HEALTH(event, unit)
 		if( enemies[enemyIndex[name]] and enemies[enemyIndex[name]].displayRow) then
 			self:UpdateHealth(enemies[enemyIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
 		
-		elseif( enemyPets[enemyPetIndex[name]] and enemyPets[enemyIndex[name]].displayRow ) then
+		elseif( enemyPets[enemyPetIndex[name]] and enemyPets[enemyPetIndex[name]].displayRow ) then
 			self:UpdateHealth(enemyPets[enemyPetIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
 		end
 	end
@@ -277,6 +285,10 @@ end
 -- Basically this handles things that change mid combat
 -- like health or dying
 function SSAF:UpdateRow(enemy, id)
+	if( not id ) then
+		return
+	end
+	
 	if( enemy.health > enemy.maxHealth ) then
 		enemy.maxHealth = enemy.health
 	end
@@ -528,7 +540,6 @@ function SSAF:ScanUnit(unit)
 		local guild = GetGuildInfo(unit)
 		
 		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
-		--enemyIndex[name] = #(enemies)
 		
 		if( guild ) then
 			if( self.db.profile.reportEnemies ) then
@@ -584,21 +595,7 @@ function SSAF:ScanUnit(unit)
 				return
 			end
 			
-			for i=#(enemyPets), 1, -1 do
-				if( enemyPets[i].owner == owner ) then
-					-- Check to see if the pet changed
-					if( enemyPets[i].name ~= name ) then
-						table.remove(enemyPets, i)
-						break
-					else
-						return
-					end
-				end
-			end
-			
-			
 			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
-			--enemyPetIndex[name] = #(enemyPets)
 			
 			if( family ) then
 				if( self.db.profile.reportEnemies ) then
@@ -736,7 +733,7 @@ function SSAF:EnemyDied(event, name)
 	
 	elseif( enemyPetIndex[name] ) then
 		local enemy = enemyPets[enemyPetIndex[name]]
-		if( not enemy.isDead and ( ( enemy.petType == "MINION" and self.db.profile.showMinions ) or ( enemy.petType == "PET" and self.db.profile.showPets ) ) ) then
+		if( not enemy.isDead ) then
 			enemy.isDead = true
 			enemy.health = 0
 
@@ -806,7 +803,7 @@ function SSAF:CreateFrame()
 		-- Really, nameplate scanning should get the info 99% of the time
 		-- so we don't need to be so aggressive with this
 		timeElapsed = timeElapsed + elapsed
-		if( timeElapsed >= 1 ) then
+		if( timeElapsed >= 0.50 ) then
 			for i=1, GetNumPartyMembers() do
 				if( UnitExists("party" .. i .. "target" ) ) then
 					local name = UnitName("party" .. i .. "target")
