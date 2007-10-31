@@ -268,17 +268,9 @@ function SSAF:UpdateMana(enemy, unit)
 
 	local row = self.rows[enemy.displayRow]
 		
-	if( enemy.powerType ) then
-		row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
-	end
-	
-	if( enemy.manaMax ) then
-		row.manaBar:SetMinMaxValues(0, enemy.manaMax)
-	end
-	
-	if( enemy.mana ) then
-		row.manaBar:SetValue(enemy.mana)
-	end
+	row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
+	row.manaBar:SetMinMaxValues(0, enemy.manaMax)
+	row.manaBar:SetValue(enemy.mana)
 end
 
 -- Health update, check if it's one of our guys
@@ -682,7 +674,7 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild)
 	
 	server = server or ""
 	
-	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, petType = "PLAYER", server = server, race = race, classToken = classToken, guild = guild})
+	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, petType = "PLAYER", server = server, race = race, classToken = classToken, guild = guild, mana = 100, maxMana = 100, powerType = 0})
 	enemyIndex[name] = #(enemies)
 	
 	self:UpdateEnemies()
@@ -722,7 +714,7 @@ function SSAF:PetData(event, name, owner, family)
 		return
 	end
 
-	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100})
+	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100, mana = 100, maxMana = 100, powerType = 2})
 	enemyPetIndex[name] = #(enemyPets)
 	
 	self:UpdateEnemies()
