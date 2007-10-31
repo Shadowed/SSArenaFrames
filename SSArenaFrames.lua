@@ -9,6 +9,7 @@ local CREATED_ROWS = 0
 local TOTAL_CLICKIES = 10
 
 local activeBF = -1
+local activeInstance = 0
 local maxPlayers = 0
 local queuedUpdates = {}
 
@@ -73,6 +74,8 @@ function SSAF:Initialize()
 			showPets = false,
 			showTalents = true,
 			reportEnemies = true,
+			manaBar = true,
+			manaBarHeight = 3,
 			fontShadow = true,
 			fontOutline = "NONE",
 			healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
@@ -135,6 +138,10 @@ end
 
 function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_HEALTH")
+	self:RegisterEvent("UNIT_MANA", "UPDATE_POWER")
+	self:RegisterEvent("UNIT_RAGE", "UPDATE_POWER")
+	self:RegisterEvent("UNIT_ENERGY", "UPDATE_POWER")
+	self:RegisterEvent("UNIT_FOCUS", "UPDATE_POWER")
 	self:RegisterEvent("CHAT_MSG_ADDON")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
 	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
@@ -218,46 +225,55 @@ function SSAF:CHAT_MSG_COMBAT_HOSTILE_DEATH(event, msg)
 end
 
 -- Updates all the health info!
-function SSAF:UpdateHealth(enemy, health, maxHealth)
-	-- No data passed (Bad) return quickly
-	if( not enemy or not enemy.displayRow ) then
+function SSAF:UpdateHealth(enemy, unit)
+	if( unit ) then
+		enemy.maxHealth = UnitHealthMax(unit)
+		enemy.health = UnitHealth(unit) or enemy.health
+		if( enemy.health > enemy.maxHealth ) then
+			enemy.maxHealth = enemy.health
+		end
+
+		if( enemy.health == 0 ) then
+			enemy.isDead = true
+		end
+	end
+	
+	if( not enemy.displayRow ) then
 		return
 	end
 	
 	local row = self.rows[enemy.displayRow]
-	--[[
-	-- Display # changed for some reason, update it and save the value
-	if( row.ownerName ~= enemy.name and row.ownerType ~= enemy.petType ) then
-		local id
-		for i=1, CREATED_ROWS do
-			local row = self.rows[i]
-			if( row.ownerName == enemy.name and row.ownerType == enemy.petType ) then
-				id = i
-				enemy.displayRow = i
-				break
-			end
-		end
+	
+	row:SetMinMaxValues(0, enemy.maxHealth)
+	row:SetValue(enemy.health)
+	row.healthText:SetText(math.floor((enemy.health / enemy.maxHealth) * 100 + 0.5) .. "%")
+	
+	if( enemy.isDead ) then
+		row:SetAlpha(0.75)
+	else
+		row:SetAlpha(1.0)
+	end
+end
 
-		if( not id ) then
-			return
-		end
+function SSAF:UpdateMana(enemy, unit)
+	if( unit ) then
+		enemy.mana = UnitMana(unit)
+		enemy.manaMax = UnitManaMax(unit)
+		enemy.powerType = UnitPowerType(unit)
+	end
+	
+	if( not enemy.displayRow ) then
+		return
+	end
+
+	local row = self.rows[enemy.displayRow]
 		
-		row = self.rows[id]
-	end
-	]]
-	
-	-- Max health changed (Never really should happen)
-	if( enemy.maxHealth ~= maxHealth ) then
-		row:SetMinMaxValues(0, maxHealth)
-		enemy.maxHealth = maxHealth
+	if( enemy.powerType ) then
+		row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
 	end
 	
-	enemy.health = health or enemy.health
-	if( enemy.health == 0 ) then
-		enemy.isDead = true
-	end
-
-	self:UpdateRow(enemy, enemy.displayRow)
+	row.manaBar:SetMinMaxValues(0, enemy.manaMax)
+	row.manaBar:SetValue(enemy.mana)
 end
 
 -- Health update, check if it's one of our guys
@@ -265,33 +281,26 @@ function SSAF:UNIT_HEALTH(event, unit)
 	if( unit == "focus" or unit == "target" ) then
 		local name = UnitName(unit)
 		
-		if( enemies[enemyIndex[name]] and enemies[enemyIndex[name]].displayRow) then
-			self:UpdateHealth(enemies[enemyIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
+		if( enemies[enemyIndex[name]] ) then
+			self:UpdateHealth(enemies[enemyIndex[name]], unit)
 		
-		elseif( enemyPets[enemyPetIndex[name]] and enemyPets[enemyPetIndex[name]].displayRow ) then
-			self:UpdateHealth(enemyPets[enemyPetIndex[name]], UnitHealth(unit), UnitHealthMax(unit))
+		elseif( enemyPets[enemyPetIndex[name]] ) then
+			self:UpdateHealth(enemyPets[enemyPetIndex[name]], unit)
 		end
 	end
 end
 
--- Basically this handles things that change mid combat
--- like health or dying
-function SSAF:UpdateRow(enemy, id)
-	if( not id ) then
-		return
-	end
-	
-	if( enemy.health > enemy.maxHealth ) then
-		enemy.maxHealth = enemy.health
-	end
-	
-	self.rows[id]:SetValue(enemy.health)
-	self.rows[id].healthText:SetText(math.floor((enemy.health / enemy.maxHealth) * 100 + 0.5) .. "%")
-	
-	if( enemy.isDead ) then
-		self.rows[id]:SetAlpha(0.75)
-	else
-		self.rows[id]:SetAlpha(1.0)
+-- Update a power
+function SSAF:UPDATE_POWER(event, unit)
+	if( unit == "focus" or unit == "target" ) then
+		local name = UnitName(unit)
+		
+		if( enemies[enemyIndex[name]] ) then
+			self:UpdateMana(enemies[enemyIndex[name]], unit)
+		
+		elseif( enemyPets[enemyPetIndex[name]] ) then
+			self:UpdateMana(enemyPets[enemyPetIndex[name]], unit)
+		end
 	end
 end
 
@@ -380,7 +389,8 @@ function SSAF:UpdateEnemies()
 		row:SetStatusBarColor(RAID_CLASS_COLORS[enemy.classToken].r, RAID_CLASS_COLORS[enemy.classToken].g, RAID_CLASS_COLORS[enemy.classToken].b, 1.0)
 		
 		-- Now do a quick basic update of other info
-		self:UpdateRow(enemy, id)
+		self:UpdateHealth(enemy)
+		self:UpdateMana(enemy)
 		
 		-- Set up all the macro things
 		local foundMacro
@@ -440,7 +450,8 @@ function SSAF:UpdateEnemies()
 			end
 
 			-- Quick update
-			self:UpdateRow(enemy, id)
+			self:UpdateHealth(enemy)
+			self:UpdateMana(enemy)
 
 			-- Show pet type
 			if( self.db.profile.showIcon ) then
@@ -531,7 +542,7 @@ function SSAF:ScanUnit(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
 		
-		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
+		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit) or 100, manaMax = UnitManaMax(unit) or 100, powerType = UnitPowerType(unit)})
 		
 		if( guild ) then
 			if( self.db.profile.reportEnemies ) then
@@ -587,7 +598,7 @@ function SSAF:ScanUnit(unit)
 				return
 			end
 			
-			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100})
+			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit), manaMax = UnitManaMax(unit), powerType = UnitPowerType(unit)})
 			
 			if( family ) then
 				if( self.db.profile.reportEnemies ) then
@@ -720,7 +731,7 @@ function SSAF:EnemyDied(event, name)
 			enemy.isDead = true
 			enemy.health = 0
 
-			self:UpdateRow(enemy, enemy.displayRow)
+			self:UpdateHealth(enemy)
 		end
 	
 	elseif( enemyPetIndex[name] ) then
@@ -729,7 +740,7 @@ function SSAF:EnemyDied(event, name)
 			enemy.isDead = true
 			enemy.health = 0
 
-			self:UpdateRow(enemy, enemy.displayRow)
+			self:UpdateHealth(enemy)
 		end
 	end
 end
@@ -795,14 +806,17 @@ function SSAF:CreateFrame()
 		-- Really, nameplate scanning should get the info 99% of the time
 		-- so we don't need to be so aggressive with this
 		timeElapsed = timeElapsed + elapsed
-		if( timeElapsed >= 0.50 ) then
+		if( timeElapsed >= 0.25 ) then
 			for i=1, GetNumPartyMembers() do
-				if( UnitExists("party" .. i .. "target" ) ) then
-					local name = UnitName("party" .. i .. "target")
+				local unit = "party" .. i .. "target"
+				if( UnitExists(unit) ) then
+					local name = UnitName(unit)
 					if( enemyIndex[name] ) then
-						SSAF:UpdateHealth(enemies[enemyIndex[name]], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+						SSAF:UpdateHealth(enemies[enemyIndex[name]], unit)
+						SSAF:UpdateMana(enemies[enemyIndex[name]], unit)
 					elseif( enemyPetIndex[name] ) then
-						SSAF:UpdateHealth(enemyPets[enemyPetIndex[name]], UnitHealth("party" .. i .. "target"), UnitHealthMax("party" .. i .. "target"))
+						SSAF:UpdateHealth(enemyPets[enemyPetIndex[name]], unit)
+						SSAF:UpdateMana(enemyPets[enemyPetIndex[name]], unit)
 					end
 				end
 			end
@@ -834,13 +848,28 @@ function SSAF:CreateRow()
 	row:SetStatusBarTexture(self.db.profile.healthTexture)
 	row:Hide()
 	
+	-- Mana bar
+	local mana = CreateFrame("StatusBar", nil, row)
+	mana:SetWidth(178)
+	mana:SetHeight(self.db.profile.manaBarHeight)
+	mana:SetStatusBarTexture(self.db.profile.healthTexture)
+	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+	--mana:SetFrameLevel(row:GetFrameLevel() + 5)
+	
+	if( self.db.profile.manaBar ) then
+		mana:Show()
+	else
+		mana:Hide()
+	end
+	
 	local path, size = GameFontNormalSmall:GetFont()
 
 	-- Player name text
 	local text = row:CreateFontString(nil, "OVERLAY")
 	text:SetPoint("LEFT", row, "LEFT", 1, 0)
 	text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-
+	
+	
 	if( self.db.profile.fontOutline == "NONE" ) then
 		text:SetFont(path, size)
 	else
@@ -896,6 +925,7 @@ function SSAF:CreateRow()
 
 	self.rows[id] = row
 	self.rows[id].text = text
+	self.rows[id].manaBar = mana
 	self.rows[id].classTexture = texture
 	self.rows[id].button = button
 	self.rows[id].healthText = healthText
@@ -984,14 +1014,16 @@ end
 -- Are we inside an arena?
 function SSAF:UPDATE_BATTLEFIELD_STATUS()
 	for i=1, MAX_BATTLEFIELD_QUEUES do
-		local status, map, id, _, _, teamSize, registeredMatch = GetBattlefieldStatus(i)
-		if( teamSize > 0 and status == "active" and i ~= activeBF ) then
+		local status, map, id, _, _, teamSize = GetBattlefieldStatus(i)
+		if( teamSize > 0 and status == "active" and i ~= activeBF and id ~= activeInstance ) then
 			activeBF = i
+			activeInstance = id
 			maxPlayers = teamSize
 			self:JoinedArena()
 
-		elseif( teamSize > 0 and status ~= "active" and i == activeBF ) then
+		elseif( teamSize > 0 and status ~= "active" and i == activeBF and id ~= activeInstance ) then
 			activeBF = -1
+			activeInstance = 0
 			maxPlayers = 0
 			self:LeftArena()
 		end
@@ -1028,9 +1060,9 @@ end
 function SSAF:Reload()
 	if( not self.db.profile.locked ) then
 		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
-			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player")})
-			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player")})
-			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player")})
+			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), manaMax = UnitManaMax("player"), powerType = UnitPowerType("player")})
+			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), manaMax = UnitManaMax("player"), powerType = 2})
+			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), manaMax = UnitManaMax("player"), powerType = 0})
 
 			self:UpdateEnemies()
 		end
@@ -1051,7 +1083,15 @@ function SSAF:Reload()
 		local row = self.rows[i]
 		row.button:EnableMouse(self.db.profile.locked)
 		row:SetStatusBarTexture(self.db.profile.healthTexture)
+		row.manaBar:SetStatusBarTexture(self.db.profile.healthTexture)
+		row.manaBar:SetHeight(self.db.profile.manaBarHeight)
 		row:Hide()
+		
+		if( self.db.profile.manaBar ) then
+			row.manaBar:Show()
+		else
+			row.manaBar:Hide()
+		end
 	
 		-- Player name text
 		local text = row.text
@@ -1087,7 +1127,7 @@ function SSAF:Reload()
 		end
 	end
 	
-	if( ( #(enemies) > 0 or #(enemyPets) > 0 ) ) then
+	if( #(enemies) > 0 or #(enemyPets) > 0 ) then
 		self:UpdateEnemies()
 	end
 end
@@ -1152,6 +1192,8 @@ function SSAF:CreateUI()
 		{ group = L["Display"], order = 1, text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
 		{ group = L["Display"], order = 2, text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
 		{ group = L["Display"], order = 3, text = L["Show shadow under name/health text"], type = "check", var = "fontShadow"},
+		{ group = L["Display"], order = 4, text = L["Show mana bars"], type = "check", var = "manaBar"},
+		{ group = L["Display"], order = 5, text = L["Mana bar height"], type = "input", numeric = true, default = 3, width = 30, var = "manaBarHeight"},
 
 		{ group = L["Color"], order = 1, text = L["Pet health bar color"], type = "color", var = "petBarColor"},
 		{ group = L["Color"], order = 2, text = L["Minion health bar color"], type = "color", var = "minionBarColor"},

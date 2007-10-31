@@ -107,6 +107,9 @@ SSAFLocals = {
 	["Lock arena frame"] = "Lock arena frame",
 	["Frame Scale: %d%%"] = "Frame Scale: %d%%",
 	
+	["Show mana bars"] = "Show mana bars",
+	["Mana bar height"] = "Mana bar height",
+	
 	["Show shadow under name/health text"] = "Show shadow under name/health text",
 }
 
