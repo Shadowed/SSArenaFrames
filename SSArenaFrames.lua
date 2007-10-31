@@ -272,8 +272,13 @@ function SSAF:UpdateMana(enemy, unit)
 		row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
 	end
 	
-	row.manaBar:SetMinMaxValues(0, enemy.manaMax)
-	row.manaBar:SetValue(enemy.mana)
+	if( enemy.manaMax ) then
+		row.manaBar:SetMinMaxValues(0, enemy.manaMax)
+	end
+	
+	if( enemy.mana ) then
+		row.manaBar:SetValue(enemy.mana)
+	end
 end
 
 -- Health update, check if it's one of our guys
@@ -542,7 +547,7 @@ function SSAF:ScanUnit(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
 		
-		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit) or 100, manaMax = UnitManaMax(unit) or 100, powerType = UnitPowerType(unit)})
+		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit) or 100, manaMax = UnitManaMax(unit) or 100, powerType = UnitPowerType(unit) or 0})
 		
 		if( guild ) then
 			if( self.db.profile.reportEnemies ) then
