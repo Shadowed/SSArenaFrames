@@ -258,7 +258,7 @@ end
 function SSAF:UpdateMana(enemy, unit)
 	if( unit ) then
 		enemy.mana = UnitMana(unit)
-		enemy.maxMana = UnitmaxMana(unit)
+		enemy.maxMana = UnitManaMax(unit)
 		enemy.powerType = UnitPowerType(unit)
 	end
 	
@@ -539,7 +539,7 @@ function SSAF:ScanUnit(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
 		
-		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit) or 100, maxMana = UnitmaxMana(unit) or 100, powerType = UnitPowerType(unit) or 0})
+		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit) or 100, maxMana = UnitManaMax(unit) or 100, powerType = UnitPowerType(unit) or 0})
 		
 		if( guild ) then
 			if( self.db.profile.reportEnemies ) then
@@ -595,7 +595,7 @@ function SSAF:ScanUnit(unit)
 				return
 			end
 			
-			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit), maxMana = UnitmaxMana(unit), powerType = UnitPowerType(unit)})
+			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit), maxMana = UnitManaMax(unit), powerType = UnitPowerType(unit)})
 			
 			if( family ) then
 				if( self.db.profile.reportEnemies ) then
@@ -1057,9 +1057,9 @@ end
 function SSAF:Reload()
 	if( not self.db.profile.locked ) then
 		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
-			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitmaxMana("player"), powerType = UnitPowerType("player")})
-			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitmaxMana("player"), powerType = 2})
-			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitmaxMana("player"), powerType = 0})
+			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = UnitPowerType("player")})
+			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 2})
+			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
 
 			self:UpdateEnemies()
 		end
