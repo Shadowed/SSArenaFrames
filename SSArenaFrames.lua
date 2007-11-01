@@ -268,11 +268,8 @@ function SSAF:UpdateMana(enemy, unit)
 
 	local row = self.rows[enemy.displayRow]
 		
-	if( enemy.powerType ) then
-		row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
-	end
-	
-	if( enemy.maxManarow.manaBar:SetMinMaxValues(0, enemy.maxMana)
+	row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
+	row.manaBar:SetMinMaxValues(0, enemy.maxMana)
 	row.manaBar:SetValue(enemy.mana)
 end
 
