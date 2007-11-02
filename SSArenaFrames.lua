@@ -9,15 +9,19 @@ local CREATED_ROWS = 0
 local TOTAL_CLICKIES = 10
 
 local activeBF = -1
-local activeInstance = 0
 local maxPlayers = 0
 local queuedUpdates = {}
+
+local prevStyle = 0
 
 local enemies = {}
 local enemyPets = {}
 
 local enemyIndex = {}
 local enemyPetIndex = {}
+
+local partyTargets = {["party1target"] = {}, ["party2target"] = {}, ["party3target"] = {}, ["party4target"] = {}}
+local usedRows = {}
 
 local PartySlain
 local SelfSlain
@@ -77,6 +81,7 @@ function SSAF:Initialize()
 			manaBar = true,
 			manaBarHeight = 3,
 			fontShadow = true,
+			targetDots = true,
 			fontOutline = "NONE",
 			healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
@@ -153,10 +158,7 @@ function SSAF:JoinedArena()
 	self:RegisterMessage("SS_ENEMYPET_DATA", "PetData")
 	self:RegisterMessage("SS_ENEMYDIED_DATA", "EnemyDied")
 		
-	for i=CREATED_ROWS, 5 do
-		self:CreateRow()
-	end
-	
+	-- Maybe they're LoD!
 	if( IsAddOnLoaded("ArenaEnemyInfo") ) then
 		AEIEnabled = true
 	elseif( IsAddOnLoaded("Tattle") ) then
@@ -165,6 +167,52 @@ function SSAF:JoinedArena()
 	
 	if( IsAddOnLoaded("Remembrance") ) then
 		RemembranceEnabled = true
+	end
+	
+	-- Pre-create if need be
+	for i=CREATED_ROWS, 10 do
+		self:CreateRow()
+	end
+
+	-- Update to a different format if need be
+	for i=1, CREATED_ROWS do
+		self:UpdateToTTextures(self.rows[i], maxPlayers)
+	end
+end
+
+-- 1 = Top left / 2 = Bottom left / 3 = Bottom right / 4 = Top right
+function SSAF:UpdateToTTextures(row, maxPlayers)
+	if( row.currentStyle == maxPlayers ) then
+		return
+	end
+	
+	row.currentStyle = maxPlayers
+		
+	-- 1 possible target, 1 x 16/16
+	if( maxPlayers == 2 ) then
+		row.targets[1]:SetHeight(16)
+		row.targets[1]:SetWidth(16)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 0)
+
+	-- 2 possible targets, 1 x 16/8, 2 x 8/8
+	elseif( maxPlayers == 3 ) then
+		row.targets[1]:SetHeight(8)
+		row.targets[1]:SetWidth(16)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
+
+		row.targets[2]:SetHeight(8)
+		row.targets[2]:SetWidth(16)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
+		
+	-- 4 possible targets, 8/8 each
+	elseif( maxPlayers == 5 ) then
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 7, 4)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 7, -4)
+
+		for _, target in pairs(row.targets) do
+			target:SetHeight(8)
+			target:SetWidth(8)
+		end
 	end
 end
 
@@ -218,9 +266,44 @@ function SSAF:CHAT_MSG_COMBAT_HOSTILE_DEATH(event, msg)
 		self:SendMessage("ENEMYDIED:" .. died)
 	
 	-- Water elemental died (time limit hit)
-	elseif( msg == Waterdies ) then
+	elseif( msg == WaterDies ) then
 		self:EnemyDied(event, L["Water Elemental"])
 		self:SendMessage("ENEMYDIED:" .. L["Water Elemental"])
+	end
+end
+
+-- Update all of the ToT stuff
+function SSAF:UpdateToT()
+	if( not self.db.profile.targetDots ) then
+		return
+	end
+	
+	for id, _ in pairs(usedRows) do
+		self.rows[id].usedIcons = 0
+		for _, texture in pairs(self.rows[id].targets) do
+			texture:Hide()
+		end
+		
+		usedRows[id] = nil
+	end
+	
+	for unit, data in pairs(partyTargets) do
+		local enemy
+		if( data.isPlayer and enemyIndex[data.name] ) then
+			enemy = enemies[enemyIndex[data.name]]
+		elseif( not data.isPlayer and enemyPetIndex[data.name] ) then
+			enemy = enemyPets[enemyPetIndex[name]]
+		end
+		
+		if( enemy and enemy.displayRow ) then
+			usedRows[enemy.displayRow] = true
+
+			self.rows[enemy.displayRow].usedIcons = (self.rows[enemy.displayRow].usedIcons or 0) + 1
+			local texture = self.rows[enemy.displayRow].targets[self.rows[enemy.displayRow].usedIcons]
+			
+			texture:SetVertexColor(RAID_CLASS_COLORS[data.class].r, RAID_CLASS_COLORS[data.class].g, RAID_CLASS_COLORS[data.class].b)
+			texture:Show()
+		end
 	end
 end
 
@@ -494,6 +577,10 @@ function SSAF:UpdateEnemies()
 	
 	self.frame:SetHeight(18 * id)
 	self.frame:Show()
+
+	-- Update all of the ToT info whenever we update everything
+	-- incase it's done AFTER the person targets
+	self:UpdateToT()
 end
 
 -- Quick redirects!
@@ -806,12 +893,23 @@ function SSAF:CreateFrame()
 		if( timeElapsed >= 0.25 ) then
 			for i=1, GetNumPartyMembers() do
 				local unit = "party" .. i .. "target"
+				local name = UnitName(unit)
+				local isPlayer = UnitIsPlayer(unit)
+				
+				if( partyTargets[unit].name ~= name or partyTargets[unit].isPlayer ~= isPlayer ) then
+					partyTargets[unit].name = name
+					partyTargets[unit].isPlayer = isPlayer
+					partyTargets[unit].class = select(2, UnitClass("party" .. i))
+										
+					SSAF:UpdateToT()
+				end
+				
+				-- Health/mana
 				if( UnitExists(unit) ) then
-					local name = UnitName(unit)
-					if( enemyIndex[name] ) then
+					if( isPlayer and enemyIndex[name] ) then
 						SSAF:UpdateHealth(enemies[enemyIndex[name]], unit)
 						SSAF:UpdateMana(enemies[enemyIndex[name]], unit)
-					elseif( enemyPetIndex[name] ) then
+					elseif( not isPlayer and enemyPetIndex[name] ) then
 						SSAF:UpdateHealth(enemyPets[enemyPetIndex[name]], unit)
 						SSAF:UpdateMana(enemyPets[enemyPetIndex[name]], unit)
 					end
@@ -921,12 +1019,56 @@ function SSAF:CreateRow()
 	end
 
 	self.rows[id] = row
+	self.rows[id].targets = {}
 	self.rows[id].text = text
 	self.rows[id].manaBar = mana
 	self.rows[id].classTexture = texture
 	self.rows[id].button = button
 	self.rows[id].healthText = healthText
 	
+	-- Add the "whos targeting us" buttons
+	-- Top left
+	local texture = row:CreateTexture(nil, "OVERLAY")
+	texture:SetHeight(8)
+	texture:SetWidth(8)
+	texture:SetPoint("CENTER", row, "RIGHT", 7, 4)
+	texture:SetTexture(self.db.profile.healthTexture)
+	texture:Hide()
+	
+	self.rows[id].targets[1] = texture
+
+	-- Top right
+	local texture = row:CreateTexture(nil, "OVERLAY")
+	texture:SetHeight(8)
+	texture:SetWidth(8)
+	texture:SetPoint("CENTER", row, "RIGHT", 15, 4)
+	texture:SetTexture(self.db.profile.healthTexture)
+	texture:Hide()
+
+	self.rows[id].targets[4] = texture
+
+	-- Bottom left
+	local texture = row:CreateTexture(nil, "OVERLAY")
+	texture:SetHeight(8)
+	texture:SetWidth(8)
+	texture:SetPoint("CENTER", row, "RIGHT", 7, -4)
+	texture:SetTexture(self.db.profile.healthTexture)
+	texture:Hide()
+	
+	self.rows[id].targets[2] = texture
+
+	-- Bottom right
+	local texture = row:CreateTexture(nil, "OVERLAY")
+	texture:SetHeight(8)
+	texture:SetWidth(8)
+	texture:SetPoint("CENTER", row, "RIGHT", 15, -4)
+	texture:SetTexture(self.db.profile.healthTexture)
+	texture:Hide()
+	
+	self.rows[id].targets[3] = texture
+	
+	self:UpdateToTTextures(self.rows[id], 5)
+
 	-- Add key bindings
 	local bindKey = GetBindingKey("ARENATAR" .. id)
 
@@ -1012,15 +1154,13 @@ end
 function SSAF:UPDATE_BATTLEFIELD_STATUS()
 	for i=1, MAX_BATTLEFIELD_QUEUES do
 		local status, map, id, _, _, teamSize = GetBattlefieldStatus(i)
-		if( teamSize > 0 and status == "active" and i ~= activeBF and id ~= activeInstance ) then
+		if( teamSize > 0 and status == "active" and i ~= activeBF ) then
 			activeBF = i
-			activeInstance = id
 			maxPlayers = teamSize
 			self:JoinedArena()
 
-		elseif( teamSize > 0 and status ~= "active" and i == activeBF and id ~= activeInstance ) then
+		elseif( teamSize > 0 and status ~= "active" and i == activeBF ) then
 			activeBF = -1
-			activeInstance = 0
 			maxPlayers = 0
 			self:LeftArena()
 		end
@@ -1057,9 +1197,13 @@ end
 function SSAF:Reload()
 	if( not self.db.profile.locked ) then
 		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
-			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = UnitPowerType("player")})
-			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 2})
-			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
+			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), petType = "PLAYER", race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = UnitPowerType("player")})
+			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), petType = "PET", health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 2})
+			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), petType = "MINION", health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
+			
+			enemyIndex[UnitName("player")] = 1
+			enemyPetIndex[L["Pet"]] = 1
+			enemyPetIndex[L["Minion"]] = 2
 
 			self:UpdateEnemies()
 		end
@@ -1088,6 +1232,14 @@ function SSAF:Reload()
 			row.manaBar:Show()
 		else
 			row.manaBar:Hide()
+		end
+		
+		for _, texture in pairs(row.targets) do
+			texture:SetTexture(self.db.profile.healthTexture)
+			
+			if( not self.db.profile.targetDots ) then
+				texture:Hide()
+			end
 		end
 	
 		-- Player name text
@@ -1145,6 +1297,12 @@ function SSAF:ClearEnemies()
 		enemyPetIndex[k] = nil
 	end
 	
+	for _, data in pairs(partyTargets) do
+		for k, v in pairs(data) do
+			data[k] = nil
+		end
+	end
+	
 	if( self.rows ) then
 		for i=1, CREATED_ROWS do
 			self.rows[i].ownerName = nil
@@ -1185,6 +1343,7 @@ function SSAF:CreateUI()
 		{ group = L["General"], order = 4, text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
 		{ group = L["General"], order = 5, text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
 		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
+		{ group = L["General"], order = 7, text = L["Show whos targeting an enemy"], help = L[""], type = "check", var = "targetDots"},
 
 		{ group = L["Display"], order = 1, text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
 		{ group = L["Display"], order = 2, text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},

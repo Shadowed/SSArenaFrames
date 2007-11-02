@@ -111,6 +111,9 @@ SSAFLocals = {
 	["Mana bar height"] = "Mana bar height",
 	
 	["Show shadow under name/health text"] = "Show shadow under name/health text",
+	
+	["Show whos targeting an enemy"] = "Show whos targeting an enemy",
+	["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."] = "Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them.",
 }
 
 BINDING_HEADER_SSAF = "SSArena Frames"
