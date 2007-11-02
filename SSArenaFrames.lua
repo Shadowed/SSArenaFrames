@@ -446,7 +446,7 @@ function SSAF:UpdateEnemies()
 		row.text:SetText(name)
 		row.ownerName = enemy.name
 		row.ownerType = "PLAYER"
-				
+		
 		-- Word wrap
 		if( row.text:GetStringWidth() >= 145 ) then
 			row.text:SetWidth(145)
@@ -479,6 +479,8 @@ function SSAF:UpdateEnemies()
 				foundMacro = true
 				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
 				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+			else
+				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
 			end
 		end
 		
@@ -511,8 +513,6 @@ function SSAF:UpdateEnemies()
 			row.text:SetText(name)
 			row.ownerName = enemy.name
 			row.ownerType = enemy.petType
-
-			row.classTexture:Hide()
 
 			row:SetMinMaxValues(0, enemy.maxHealth)
 			
@@ -556,6 +556,8 @@ function SSAF:UpdateEnemies()
 					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
 
 					foundMacro = true
+				else
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
 				end
 			end
 			
@@ -960,10 +962,9 @@ function SSAF:CreateRow()
 	local path, size = GameFontNormalSmall:GetFont()
 
 	-- Player name text
-	local text = row:CreateFontString(nil, "OVERLAY")
+	local text = mana:CreateFontString(nil, "OVERLAY")
 	text:SetPoint("LEFT", row, "LEFT", 1, 0)
 	text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-	
 	
 	if( self.db.profile.fontOutline == "NONE" ) then
 		text:SetFont(path, size)
@@ -980,7 +981,7 @@ function SSAF:CreateRow()
 	end
 	
 	-- Health percent text
-	local healthText = row:CreateFontString(nil, "OVERLAY")
+	local healthText = mana:CreateFontString(nil, "OVERLAY")
 	healthText:SetPoint("RIGHT", row, "RIGHT", -1, 0)
 	healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	
@@ -1200,6 +1201,7 @@ function SSAF:Reload()
 			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), petType = "PLAYER", race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = UnitPowerType("player")})
 			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), petType = "PET", health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 2})
 			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), petType = "MINION", health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
+			--table.insert(enemyPets, {sortID = "", name = L["Water Elemental"], owner = "Amarandmayen", petType = "MINION", health = UnitHealth("player"), petType = "MINION", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
 			
 			enemyIndex[UnitName("player")] = 1
 			enemyPetIndex[L["Pet"]] = 1
@@ -1343,7 +1345,7 @@ function SSAF:CreateUI()
 		{ group = L["General"], order = 4, text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
 		{ group = L["General"], order = 5, text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
 		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
-		{ group = L["General"], order = 7, text = L["Show whos targeting an enemy"], help = L[""], type = "check", var = "targetDots"},
+		{ group = L["General"], order = 7, text = L["Show whos targeting an enemy"], help = L["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."], type = "check", var = "targetDots"},
 
 		{ group = L["Display"], order = 1, text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
 		{ group = L["Display"], order = 2, text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
