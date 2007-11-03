@@ -27,10 +27,6 @@ local PartySlain
 local SelfSlain
 local WaterDies
 
-local AEIEnabled
-local TattleEnabled
-local RemembranceEnabled
-
 local AceComm
 local OptionHouse
 local HouseAuthority
@@ -147,27 +143,16 @@ function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_RAGE", "UPDATE_POWER")
 	self:RegisterEvent("UNIT_ENERGY", "UPDATE_POWER")
 	self:RegisterEvent("UNIT_FOCUS", "UPDATE_POWER")
-	self:RegisterEvent("CHAT_MSG_ADDON")
-	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
 	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-	self:RegisterEvent("PLAYER_TARGET_CHANGED")
-	self:RegisterEvent("CHAT_MSG_COMBAT_HOSTILE_DEATH")
 	self:RegisterEvent("UPDATE_BINDINGS", "UpdateBindings")
+	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
+	self:RegisterEvent("PLAYER_TARGET_CHANGED")
+	self:RegisterEvent("CHAT_MSG_ADDON")
+	self:RegisterEvent("CHAT_MSG_COMBAT_HOSTILE_DEATH")
 	
 	self:RegisterMessage("SS_ENEMY_DATA", "EnemyData")
 	self:RegisterMessage("SS_ENEMYPET_DATA", "PetData")
 	self:RegisterMessage("SS_ENEMYDIED_DATA", "EnemyDied")
-		
-	-- Maybe they're LoD!
-	if( IsAddOnLoaded("ArenaEnemyInfo") ) then
-		AEIEnabled = true
-	elseif( IsAddOnLoaded("Tattle") ) then
-		TattleEnabled = true
-	end
-	
-	if( IsAddOnLoaded("Remembrance") ) then
-		RemembranceEnabled = true
-	end
 	
 	-- Pre-create if need be
 	for i=CREATED_ROWS, 10 do
@@ -386,14 +371,14 @@ end
 
 -- Update the entire frame and everything in it
 function SSAF:UpdateEnemies()
-	if( not self.frame ) then
-		self:CreateFrame()
-	end
-	
 	-- Can't update in combat of course
 	if( InCombatLockdown() ) then
 		self:RegisterOOCUpdate("UpdateEnemies")
 		return
+	end
+
+	if( not self.frame ) then
+		self:CreateFrame()
 	end
 		
 	local id = 0
@@ -415,14 +400,14 @@ function SSAF:UpdateEnemies()
 		-- Enemy talents
 		if( self.db.profile.showTalents ) then
 			local found
-			if( AEIEnabled ) then
+			if( IsAddOnLoaded("ArenaEnemyInfo") ) then
 				local data = AEI:GetSpec(enemy.name, enemy.server)
 				if( data ~= "" ) then
 					found = true
 					name = "|cffffffff" .. data .. "|r " .. name
 				end
 				
-			elseif( TattleEnabled ) then
+			elseif( IsAddOnLoaded("Tattle") ) then
 				local data = Tattle:GetPlayerData(enemy.name, enemy.server)
 				if( data ) then
 					found = true
@@ -430,7 +415,7 @@ function SSAF:UpdateEnemies()
 				end
 			end
 			
-			if( RemembranceEnabled and not found ) then
+			if( IsAddOnLoaded("Remembrance") and not found ) then
 				local tree1, tree2, tree3 = Remembrance:GetTalents(enemy.name, enemy.server)
 				if( tree1 and tree2 and tree3 ) then
 					name = "|cffffffff[" .. tree1 .. "/" .. tree2 .. "/" .. tree3 .. "]|r " .. name
@@ -667,8 +652,8 @@ function SSAF:ScanUnit(unit)
 		end
 		
 		-- Warlock/Mage
-		local type = "MINION"
 		local owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Minion"])
+		local type = "MINION"
 		
 		-- Hunters
 		if( not owner ) then
@@ -838,11 +823,6 @@ function SSAF:CreateFrame()
 		return
 	end
 	
-	if( InCombatLockdown() ) then
-		self:RegisterOOCUpdate("CreateFrame")
-		return
-	end
-	
 	self.frame = CreateFrame("Frame")
 	self.frame:SetBackdrop({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 		edgeFile = "Interface\\ChatFrame\\ChatFrameBackground", edgeSize = 0.6,
@@ -854,7 +834,6 @@ function SSAF:CreateFrame()
 	self.frame:SetWidth(180)
 	self.frame:SetHeight(18)
 	self.frame:SetMovable(true)
-	--self.frame:SetMovable(not self.db.profile.locked)
 	self.frame:EnableMouse(not self.db.profile.locked)
 	self.frame:SetClampedToScreen(true)
 	self.frame:Hide()
@@ -898,6 +877,7 @@ function SSAF:CreateFrame()
 				local name = UnitName(unit)
 				local isPlayer = UnitIsPlayer(unit)
 				
+				-- Target monitoring
 				if( partyTargets[unit].name ~= name or partyTargets[unit].isPlayer ~= isPlayer ) then
 					partyTargets[unit].name = name
 					partyTargets[unit].isPlayer = isPlayer
@@ -927,10 +907,6 @@ end
 
 -- Create a single row
 function SSAF:CreateRow()
-	if( InCombatLockdown() ) then
-		return
-	end
-
 	if( not self.frame ) then
 		self:CreateFrame()
 	end
@@ -951,11 +927,8 @@ function SSAF:CreateRow()
 	mana:SetHeight(self.db.profile.manaBarHeight)
 	mana:SetStatusBarTexture(self.db.profile.healthTexture)
 	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
-	--mana:SetFrameLevel(row:GetFrameLevel() + 5)
 	
-	if( self.db.profile.manaBar ) then
-		mana:Show()
-	else
+	if( not self.db.profile.manaBar ) then
 		mana:Hide()
 	end
 	
@@ -1176,10 +1149,6 @@ function SSAF:PLAYER_REGEN_ENABLED()
 	end
 end
 
-function SSAF:ChannelMessage(msg)
-	SendChatMessage("[SS] " .. msg, "BATTLEGROUND")
-end
-
 -- So we can update secure things once we're OOC
 function SSAF:UnregisterOOCUpdate(func)
 	queuedUpdates[func] = nil
@@ -1189,7 +1158,10 @@ function SSAF:RegisterOOCUpdate(func)
 	queuedUpdates[func] = true
 end
 
--- Quick code for syncing
+function SSAF:ChannelMessage(msg)
+	SendChatMessage("[SS] " .. msg, "BATTLEGROUND")
+end
+
 function SSAF:SendMessage(msg, type)
 	SendAddonMessage("SSAF", msg, "BATTLEGROUND")
 end
@@ -1290,15 +1262,12 @@ function SSAF:ClearEnemies()
 	for i=#(enemyPets), 1, -1 do
 		table.remove(enemyPets, i)
 	end
-	
 	for k, v in pairs(enemyIndex) do
 		enemyIndex[k] = nil
 	end
-	
 	for k, v in pairs(enemyPetIndex) do
 		enemyPetIndex[k] = nil
 	end
-	
 	for _, data in pairs(partyTargets) do
 		for k, v in pairs(data) do
 			data[k] = nil
@@ -1362,17 +1331,7 @@ function SSAF:CreateUI()
 	}
 
 	-- Update the dropdown incase any new textures were added
-	local frame = HouseAuthority:CreateConfiguration(config, {set = "Set", get = "Get", onSet = "Reload", handler = self})
-	frame:Hide()
-	frame:SetScript("OnShow", function(self)
-		local textures = {}
-		for _, name in pairs(SML:List(SML.MediaType.STATUSBAR)) do
-			table.insert(textures, {SML:Fetch(SML.MediaType.STATUSBAR, name), name})
-		end
-
-		HouseAuthority:GetObject(self):UpdateDropdown({var = "healthTexture", list = textures})
-	end)
-	return frame
+	return HouseAuthority:CreateConfiguration(config, {set = "Set", get = "Get", onSet = "Reload", handler = self})
 end
 
 -- Listing click actions by class/binding/ect
