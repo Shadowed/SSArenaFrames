@@ -46,8 +46,6 @@ SSAFLocals = {
 	["Color"] = "Color",
 	["Display"] = "Display",
 	["None"] = "None",
-	["Outline"] = "Outline",
-	["Thick outline"] = "Thick outline",
 	
 	["Enable"] = "Enable",
 	["Modifiers"] = "Modifiers",
@@ -76,6 +74,7 @@ SSAFLocals = {
 	["Action #%d"] = "Action #%d",
 	
 	["Edit"] = "Edit",
+	["Mana"] = "Mana",
 	
 	["Enable macro case"] = "Enable macro case",
 	["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."] = "Enables the macro text entered to be ran on the specified modifier key and mouse button combo.",
@@ -98,19 +97,29 @@ SSAFLocals = {
 	["Show row number"] = "Show row number",
 	["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."] = "Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies.",
 	
-	["Health bar texture"] = "Health bar texture",
-	["Font outline"] = "Font outline",
+	["Bar texture"] = "Bar texture",
+	["Texture to use for health, mana and party target bars."] = "Texture to use for health, mana and party target bars.",
+
 	["Pet health bar color"] = "Pet health bar color",
+	["Hunter pet health bar color."] = "Hunter pet health bar color.",
+	
 	["Minion health bar color"] = "Minion health bar color",
-	["Name/health font color"] = "Name/health font color",
+	["Warlock and Mage pet health bar color."] = "Warlock and Mage pet health bar color.",
+	
+	["Name and health text font color"] = "Name and health text font color",
 	
 	["Lock arena frame"] = "Lock arena frame",
+	["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."] = "Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked.",
+	
+	
 	["Frame Scale: %d%%"] = "Frame Scale: %d%%",
+	["Allows you to increase, or decrease the total size of the arena frames."] = "Allows you to increase, or decrease the total size of the arena frames.",
 	
 	["Show mana bars"] = "Show mana bars",
-	["Mana bar height"] = "Mana bar height",
+	["Shows a mana bar at the bottom of the health bar, requires you or a party member to target the enemy for them to update."] = "Shows a mana bar at the bottom of the health bar, requires you or a party member to target the enemy for them to update.",
 	
-	["Show shadow under name/health text"] = "Show shadow under name/health text",
+	["Mana bar height"] = "Mana bar height",
+	["Height of the mana bars, the health bar will not resize for this however."] = "Height of the mana bars, the health bar will not resize for this however.",
 	
 	["Show whos targeting an enemy"] = "Show whos targeting an enemy",
 	["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."] = "Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them.",

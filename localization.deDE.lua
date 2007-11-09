@@ -1,6 +1,6 @@
 if( GetLocale() ~= "deDE" ) then
-	return;
+	return
 end
 
-SSAFLocals = setmetatable( {
-}, { __index = SSAFLocals } );
+SSAFLocals = setmetatable({
+}, { __index = SSAFLocals })

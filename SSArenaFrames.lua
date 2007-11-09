@@ -20,8 +20,12 @@ local enemyPets = {}
 local enemyIndex = {}
 local enemyPetIndex = {}
 
+-- For ToT
 local partyTargets = {["party1target"] = {}, ["party2target"] = {}, ["party3target"] = {}, ["party4target"] = {}}
 local usedRows = {}
+
+-- Backwards compatability. REMOVE ME FOR 2.4
+local defPowerType = {["WARRIOR"] = 1, ["ROGUE"] = 3, ["PET"] = 3, ["MINION"] = 4}
 
 local PartySlain
 local SelfSlain
@@ -32,6 +36,7 @@ local OptionHouse
 local HouseAuthority
 local SML
 
+-- Map of pet type to icon
 local petClassIcons = {
 	["Voidwalker"] = "Interface\\Icons\\Spell_Shadow_SummonVoidWalker",
 	["Felhunter"] = "Interface\\Icons\\Spell_Shadow_SummonFelHunter",
@@ -68,27 +73,25 @@ function SSAF:Initialize()
 		profile = {
 			scale = 1.0,
 			locked = true,
+			targetDots = true,
+			reportEnemies = true,
+			barTexture = "Interface\\TargetingFrame\\UI-StatusBar",
 			showID = false,
 			showIcon = false,
 			showMinions = true,
 			showPets = false,
 			showTalents = true,
-			reportEnemies = true,
 			manaBar = true,
 			manaBarHeight = 3,
-			fontShadow = true,
-			targetDots = true,
-			fontOutline = "NONE",
-			healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
+			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
 			petBarColor = { r = 0.20, g = 1.0, b = 0.20 },
 			minionBarColor = { r = 0.30, g = 1.0, b = 0.30 },
-			position = { x = 300, y = 600 },
 			attributes = {
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/target *name" },
+				{ enabled = true, classes = { ["ALL"] = true }, modifier = "*", button = "*", text = "/target *name" },
 			}
 		}
 	}
@@ -108,13 +111,12 @@ function SSAF:Initialize()
 	PartySlain = string.gsub(PARTYKILLOTHER, "%%s", "(.+)")
 	SelfSlain = string.gsub(SELFKILLOTHER, "%%s", "(.+)")
 	WaterDies = string.format(UNITDIESOTHER, L["Water Elemental"])
-	
 		
 	-- Register with OptionHouse
 	OptionHouse = LibStub("OptionHouse-1.1")
 	HouseAuthority = LibStub("HousingAuthority-1.2")
 	
-	local OHObj = OptionHouse:RegisterAddOn("Arena Frames", nil, "Amarand", "r" .. tonumber(string.match("$Revision: 252 $", "(%d+)") or 1))
+	local OHObj = OptionHouse:RegisterAddOn("Arena Frames", nil, "Amarand", "r" .. tonumber(string.match("$Revision$", "(%d+)") or 1))
 	OHObj:RegisterCategory(L["General"], self, "CreateUI", nil, 1)
 	
 	-- Yes, this is hackish because we're creating new widgets everytime you click the frame
@@ -135,6 +137,13 @@ function SSAF:Initialize()
 	SML:Register(SML.MediaType.STATUSBAR, "Otravi",   "Interface\\Addons\\SSArenaFrames\\images\\otravi")
 	SML:Register(SML.MediaType.STATUSBAR, "Striped",  "Interface\\Addons\\SSArenaFrames\\images\\striped")
 	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
+	
+	-- REMOVE ME FOR 2.4, upgrade for our renamed variable
+	if( self.db.profile.healthTexture ) then
+		self.db.profile.barTexture = self.db.profile.healthTexture
+		self.db.profile.healthTexture = nil
+	end
+	
 end
 
 function SSAF:JoinedArena()
@@ -163,6 +172,24 @@ function SSAF:JoinedArena()
 	for i=1, CREATED_ROWS do
 		self:UpdateToTTextures(self.rows[i], maxPlayers)
 	end
+end
+
+
+
+function SSAF:LeftArena()
+	self:UnregisterOOCUpdate("UpdateEnemies")
+
+	if( InCombatLockdown() ) then
+		self:RegisterOOCUpdate("ClearEnemies")
+	else
+		self:ClearEnemies()
+	end
+	
+	self:UnregisterAllMessages()
+	self:UnregisterAllEvents()
+	self:RegisterEvent("PLAYER_REGEN_ENABLED")
+	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
+	self:RegisterEvent("ADDON_LOADED")
 end
 
 -- 1 = Top left / 2 = Bottom left / 3 = Bottom right / 4 = Top right
@@ -199,22 +226,6 @@ function SSAF:UpdateToTTextures(row, maxPlayers)
 			target:SetWidth(8)
 		end
 	end
-end
-
-function SSAF:LeftArena()
-	self:UnregisterOOCUpdate("UpdateEnemies")
-
-	if( InCombatLockdown() ) then
-		self:RegisterOOCUpdate("ClearEnemies")
-	else
-		self:ClearEnemies()
-	end
-	
-	self:UnregisterAllMessages()
-	self:UnregisterAllEvents()
-	self:RegisterEvent("PLAYER_REGEN_ENABLED")
-	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
-	self:RegisterEvent("ADDON_LOADED")
 end
 
 -- Set up bindings
@@ -456,7 +467,7 @@ function SSAF:UpdateEnemies()
 		-- Now do a quick basic update of other info
 		self:UpdateHealth(enemy)
 		self:UpdateMana(enemy)
-		
+	
 		-- Set up all the macro things
 		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
@@ -480,7 +491,7 @@ function SSAF:UpdateEnemies()
 	
 	-- Update enemy pets
 	for _, enemy in pairs(enemyPets) do
-		if( ( enemy.petType == "MINION" and self.db.profile.showMinions ) or ( enemy.petType == "PET" and self.db.profile.showPets ) ) then
+		if( ( enemy.type == "MINION" and self.db.profile.showMinions ) or ( enemy.type == "PET" and self.db.profile.showPets ) ) then
 			id = id + 1
 			if( not self.rows[id] ) then
 				self:CreateRow()
@@ -497,13 +508,13 @@ function SSAF:UpdateEnemies()
 
 			row.text:SetText(name)
 			row.ownerName = enemy.name
-			row.ownerType = enemy.petType
+			row.ownerType = enemy.type
 
 			row:SetMinMaxValues(0, enemy.maxHealth)
 			
-			if( enemy.petType == "PET" ) then
+			if( enemy.type == "PET" ) then
 				row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.petBarColor.b, 1.0)
-			elseif( enemy.petType == "MINION" ) then
+			elseif( enemy.type == "MINION" ) then
 				row:SetStatusBarColor(self.db.profile.minionBarColor.r, self.db.profile.minionBarColor.g, self.db.profile.minionBarColor.b, 1.0)
 			end
 
@@ -532,11 +543,11 @@ function SSAF:UpdateEnemies()
 			else
 				row.classTexture:Hide()
 			end
-
+			
 			-- Set up all the macro things
 			local foundMacro
 			for _, macro in pairs(self.db.profile.attributes) do
-				if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.petType] ) ) then
+				if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
 					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
 					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
 
@@ -592,6 +603,22 @@ local function sortEnemies(a, b)
 	return ( a.sortID < b.sortID )
 end
 
+
+function SSAF:UpdateEnemyIndex()
+	table.sort(enemies, sortEnemies)
+	for id, enemy in pairs(enemies) do
+		enemyIndex[enemy.name] = id
+	end
+end
+
+function SSAF:UpdateEnemyPetIndex()
+	table.sort(enemyPets, sortEnemies)
+	for id, enemy in pairs(enemyPets) do
+		enemyPetIndex[enemy.name] = id
+	end
+end
+
+
 -- Scan unit, see if they're valid as an enemy or enemy pet
 function SSAF:ScanUnit(unit)
 	-- 1) Roll a Priest with the name Unknown
@@ -613,27 +640,30 @@ function SSAF:ScanUnit(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
 		
-		table.insert(enemies, {sortID = name .. "-" .. server, name = name, petType = "PLAYER", server = server, race = race, class = class, classToken = classToken, guild = guild, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit) or 100, maxMana = UnitManaMax(unit) or 100, powerType = UnitPowerType(unit) or 0})
+		table.insert(enemies, {	sortID = name .. "-" .. server,
+					name = name,
+					type = "PLAYER",
+					server = server,
+					race = race,
+					class = class,
+					classToken = classToken,
+					guild = guild,
+					health = UnitHealth(unit),
+					maxHealth = UnitHealthMax(unit),
+					mana = UnitMana(unit),
+					maxMana = UnitManaMax(unit),
+					powerType = UnitPowerType(unit)})
 		
-		if( guild ) then
-			if( self.db.profile.reportEnemies ) then
+		if( self.db.profile.reportEnemies ) then
+			if( guild ) then
 				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class, guild))
-			end
-			
-			self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. guild)
-		else
-			if( self.db.profile.reportEnemies ) then
+			else
 				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class))
 			end
-			
-			self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken)
 		end
-		
-		table.sort(enemies, sortEnemies)
-		for id, enemy in pairs(enemies) do
-			enemyIndex[enemy.name] = id
-		end
-		
+
+		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit))
+		self:UpdateEnemyIndex()
 		self:UpdateEnemies()
 		
 	-- Hunter pet, or Warlock/Mage minion
@@ -669,29 +699,27 @@ function SSAF:ScanUnit(unit)
 				return
 			end
 			
-			table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, family = family, petType = type, health = UnitHealth(unit), maxHealth = UnitHealthMax(unit) or 100, mana = UnitMana(unit), maxMana = UnitManaMax(unit), powerType = UnitPowerType(unit)})
-			
-			if( family ) then
-				if( self.db.profile.reportEnemies ) then
+			table.insert(enemyPets, {sortID = name .. "-" .. owner,
+						name = name,
+						owner = owner,
+						family = family,
+						type = type,
+						health = UnitHealth(unit),
+						maxHealth = UnitHealthMax(unit),
+						mana = UnitMana(unit),
+						maxMana = UnitManaMax(unit),
+						powerType = UnitPowerType(unit)})
+			-- Output!
+			if( self.db.profile.reportEnemies ) then
+				if( family ) then
 					SSPVP:ChannelMessage(string.format( L["[%d/%d] %s's pet, %s %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name, family))
-				end
-				
-				self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. family .. "," .. type)
-			else
-				if( self.db.profile.reportEnemies ) then
+				else
 					SSPVP:ChannelMessage(string.format(L["[%d/%d] %s's pet, %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name))
 				end
-				
-				self:SendMessage("ENEMYPET:" .. name .. "," .. owner)
 			end
-			
-			table.sort(enemyPets, sortEnemies)
 
-			-- Sorting changes the indexes, so need to update it
-			for id, enemy in pairs(enemyPets) do
-				enemyPetIndex[enemy.name] = id
-			end
-			
+			self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. family .. "," .. type .. "," .. UnitPowerType(unit))
+			self:UpdateEnemyPetIndex()
 			self:UpdateEnemies()
 		end
 	end
@@ -739,7 +767,7 @@ local function scanFrames(...)
 end
 
 -- Syncing
-function SSAF:EnemyData(event, name, server, race, classToken, guild)
+function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
 	for _, enemy in pairs(enemies) do
 		if( not enemy.owner and enemy.name == name ) then
 			return
@@ -748,14 +776,25 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild)
 	
 	server = server or ""
 	
-	table.insert(enemies, {sortID = name .. "-" .. server, name = name, health = 100, maxHealth = 100, petType = "PLAYER", server = server, race = race, classToken = classToken, guild = guild, mana = 100, maxMana = 100, powerType = 0})
-	enemyIndex[name] = #(enemies)
+	table.insert(enemies, { sortID = name .. "-" .. server,
+				name = name,
+				health = 100,
+				maxHealth = 100,
+				type = "PLAYER",
+				server = server,
+				race = race,
+				classToken = classToken,
+				guild = guild,
+				mana = 100,
+				maxMana = 100,
+				powerType = tonumber(powerType) or defPowerType[classToken] or 0})
 	
+	self:UpdateEnemyIndex()
 	self:UpdateEnemies()
 end
 
 -- New pet found
-function SSAF:PetData(event, name, owner, family)
+function SSAF:PetData(event, name, owner, family, type, powerType)
 	if( not self.db.profile.showPets and not self.db.profile.showMinions ) then
 		return
 	end
@@ -767,6 +806,7 @@ function SSAF:PetData(event, name, owner, family)
 	end
 	
 	-- These is mainly for backwards compatability
+	-- REMOVE ME FOR 2.4
 
 	-- Water Elementals have no family
 	-- We don't pass pet type for Water Elementals, because then we have issues
@@ -775,22 +815,25 @@ function SSAF:PetData(event, name, owner, family)
 		type = "MINION"
 
 	-- Warlock pets
-	elseif( not type and ( family == "Felguard" or family == "Felhunter" or family == "Imp" or family == "Felguard" or family == "Succubus" ) ) then
+	elseif( not type and ( family == "Felguard" or family == "Felhunter" or family == "Imp" or family == "Succubus" ) ) then
 		type = "MINION"
 	
 	-- Hunter pets
-	elseif( not type ) then
+	elseif( not type or type == "" ) then
 		type = "PET"
 	end
-	
-	-- Disabled, not suppose to show these
-	if( ( type == "MINION" and not self.db.profile.showMinions ) or ( type == "PET" and not self.db.profile.showPets ) ) then
-		return
-	end
 
-	table.insert(enemyPets, {sortID = name .. "-" .. owner, name = name, owner = owner, petType = type, family = family, health = 100, maxHealth = 100, mana = 100, maxMana = 100, powerType = 2})
-	enemyPetIndex[name] = #(enemyPets)
-	
+	table.insert(enemyPets, {sortID = name .. "-" .. owner,
+				name = name,
+				owner = owner,
+				type = type,
+				family = family,
+				health = 100,
+				maxHealth = 100,
+				mana = 100,
+				maxMana = 100,
+				powerType = tonumber(powerType) or defPowerType[type] or 2})
+	self:UpdateEnemyPetIndex()
 	self:UpdateEnemies()
 end
 
@@ -918,58 +961,42 @@ function SSAF:CreateRow()
 	local row = CreateFrame("StatusBar", nil, self.frame)
 	row:SetHeight(16)
 	row:SetWidth(178)
-	row:SetStatusBarTexture(self.db.profile.healthTexture)
+	row:SetStatusBarTexture(self.db.profile.barTexture)
 	row:Hide()
 	
 	-- Mana bar
 	local mana = CreateFrame("StatusBar", nil, row)
 	mana:SetWidth(178)
 	mana:SetHeight(self.db.profile.manaBarHeight)
-	mana:SetStatusBarTexture(self.db.profile.healthTexture)
+	mana:SetStatusBarTexture(self.db.profile.barTexture)
 	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
 	
 	if( not self.db.profile.manaBar ) then
 		mana:Hide()
 	end
-	
+
 	local path, size = GameFontNormalSmall:GetFont()
 
 	-- Player name text
 	local text = mana:CreateFontString(nil, "OVERLAY")
 	text:SetPoint("LEFT", row, "LEFT", 1, 0)
 	text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-	
-	if( self.db.profile.fontOutline == "NONE" ) then
-		text:SetFont(path, size)
-	else
-		text:SetFont(path, size, self.db.profile.fontOutline)
-	end
-	
-	if( self.db.profile.fontShadow ) then
-		text:SetShadowOffset(1, -1)
-		text:SetShadowColor(0, 0, 0, 1)
-	else
-		text:SetShadowOffset(0, 0)
-		text:SetShadowColor(0, 0, 0, 0)
-	end
+	text:SetFont(path, size)
+	text:SetShadowOffset(1, -1)
+	text:SetShadowColor(0, 0, 0, 1)
 	
 	-- Health percent text
 	local healthText = mana:CreateFontString(nil, "OVERLAY")
 	healthText:SetPoint("RIGHT", row, "RIGHT", -1, 0)
 	healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+	healthText:SetFont(path, size)
+	healthText:SetShadowOffset(1, -1)
+	healthText:SetShadowColor(0, 0, 0, 1)
 	
-	if( self.db.profile.fontOutline == "NONE" ) then
-		healthText:SetFont(path, size)
-	else
-		healthText:SetFont(path, size, self.db.profile.fontOutline)
-	end
-	
-	if( self.db.profile.fontShadow ) then
-		healthText:SetShadowOffset(1, -1)
-		healthText:SetShadowColor(0, 0, 0, 1)
-	else
-		healthText:SetShadowOffset(0, 0)
-		healthText:SetShadowColor(0, 0, 0, 0)
+	-- Reparent text so they'll show if mana bars are disabled
+	if( not self.db.profile.manaBar ) then
+		text:SetParent(row)
+		healthText:SetParent(row)
 	end
 
 	-- Class icon
@@ -984,6 +1011,7 @@ function SSAF:CreateRow()
 	button:SetWidth(179)
 	button:SetPoint("LEFT", row, "LEFT", 1, 0)
 	button:EnableMouse(self.db.profile.locked)
+	button:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp", "Button4Up", "Button5Up")
 	
 	-- Position
 	if( id > 1 ) then
@@ -1006,7 +1034,7 @@ function SSAF:CreateRow()
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", 7, 4)
-	texture:SetTexture(self.db.profile.healthTexture)
+	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 	
 	self.rows[id].targets[1] = texture
@@ -1016,7 +1044,7 @@ function SSAF:CreateRow()
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", 15, 4)
-	texture:SetTexture(self.db.profile.healthTexture)
+	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 
 	self.rows[id].targets[4] = texture
@@ -1026,7 +1054,7 @@ function SSAF:CreateRow()
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", 7, -4)
-	texture:SetTexture(self.db.profile.healthTexture)
+	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 	
 	self.rows[id].targets[2] = texture
@@ -1036,7 +1064,7 @@ function SSAF:CreateRow()
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", 15, -4)
-	texture:SetTexture(self.db.profile.healthTexture)
+	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 	
 	self.rows[id].targets[3] = texture
@@ -1170,16 +1198,9 @@ end
 function SSAF:Reload()
 	if( not self.db.profile.locked ) then
 		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
-			table.insert(enemies, {sortID = "", name = UnitName("player"), server = GetRealmName(), petType = "PLAYER", race = UnitRace("player"), class = UnitClass("player"), classToken = select(2, UnitClass("player")), health = UnitHealth("player"), maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = UnitPowerType("player")})
-			table.insert(enemyPets, {sortID = "", name = L["Pet"], owner = UnitName("player"), petType = "PET", health = UnitHealth("player"), petType = "PET", family = "Cat", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 2})
-			table.insert(enemyPets, {sortID = "", name = L["Minion"], owner = UnitName("player"), petType = "MINION", health = UnitHealth("player"), petType = "MINION", family = "Felhunter", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
-			--table.insert(enemyPets, {sortID = "", name = L["Water Elemental"], owner = "Amarandmayen", petType = "MINION", health = UnitHealth("player"), petType = "MINION", maxHealth = UnitHealthMax("player"), mana = UnitMana("player"), maxMana = UnitManaMax("player"), powerType = 0})
-			
-			enemyIndex[UnitName("player")] = 1
-			enemyPetIndex[L["Pet"]] = 1
-			enemyPetIndex[L["Minion"]] = 2
-
-			self:UpdateEnemies()
+			self:EnemyData("", UnitName("player"), GetRealmName(), (UnitRace("player")), select(2, UnitClass("player")), nil, UnitPowerType("player"))
+			self:PetData("", L["Pet"], UnitName("player"), "Cat", "PET", 2)
+			self:PetData("", L["Minion"], UnitName("player"), "Felhunter", "MINION", 0)
 		end
 		
 	elseif( #(enemies) == 1 and #(enemyPets) == 2 ) then
@@ -1192,69 +1213,43 @@ function SSAF:Reload()
 		self.frame:SetScale(self.db.profile.scale)
 	end
 	
-	local path, size = GameFontNormalSmall:GetFont()
 	-- Update all the rows to the current settings
 	for i=1, CREATED_ROWS do
 		local row = self.rows[i]
 		row.button:EnableMouse(self.db.profile.locked)
-		row:SetStatusBarTexture(self.db.profile.healthTexture)
-		row.manaBar:SetStatusBarTexture(self.db.profile.healthTexture)
+		row:SetStatusBarTexture(self.db.profile.barTexture)
+		row.manaBar:SetStatusBarTexture(self.db.profile.barTexture)
 		row.manaBar:SetHeight(self.db.profile.manaBarHeight)
 		row:Hide()
 		
 		if( self.db.profile.manaBar ) then
+			row.text:SetParent(row.manaBar)
+			row.healthText:SetParent(row.manaBar)
 			row.manaBar:Show()
 		else
+			row.text:SetParent(row)
+			row.healthText:SetParent(row)
 			row.manaBar:Hide()
 		end
 		
 		for _, texture in pairs(row.targets) do
-			texture:SetTexture(self.db.profile.healthTexture)
+			texture:SetTexture(self.db.profile.barTexture)
 			
 			if( not self.db.profile.targetDots ) then
 				texture:Hide()
 			end
 		end
 	
-		-- Player name text
-		local text = row.text
-		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-
-		if( self.db.profile.fontOutline == "NONE" ) then
-			text:SetFont(path, size)
-		else
-			text:SetFont(path, size, self.db.profile.fontOutline)
-		end
-
-		if( self.db.profile.fontShadow ) then
-			text:SetShadowOffset(1, 0)
-			text:SetShadowColor(0, 0, 0, 1)
-		else
-			text:SetShadowColor(0, 0, 0, 0)
-		end
-
-		local text = row.healthText
-		text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-
-		if( self.db.profile.fontOutline == "NONE" ) then
-			text:SetFont(path, size)
-		else
-			text:SetFont(path, size, self.db.profile.fontOutline)
-		end
-
-		if( self.db.profile.fontShadow ) then
-			text:SetShadowOffset(1, 0)
-			text:SetShadowColor(0, 0, 0, 1)
-		else
-			text:SetShadowColor(0, 0, 0, 0)
-		end
+		row.text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+		row.healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	end
-	
+
 	if( #(enemies) > 0 or #(enemyPets) > 0 ) then
 		self:UpdateEnemies()
 	end
 end
 
+-- Recycle tables/left arena
 function SSAF:ClearEnemies()
 	for i=#(enemies), 1, -1 do
 		table.remove(enemies, i)
@@ -1306,7 +1301,8 @@ function SSAF:CreateUI()
 		{ group = L["General"], type = "groupOrder", order = 1 },
 		{ group = L["Frame"], type = "groupOrder", order = 2 },
 		{ group = L["Display"], type = "groupOrder", order = 3 },
-		{ group = L["Color"], type = "groupOrder", order = 4 },
+		{ group = L["Mana"], type = "groupOrder", order = 4 },
+		{ group = L["Color"], type = "groupOrder", order = 5 },
 		
 		{ group = L["General"], order = 1, text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
 		{ group = L["General"], order = 2, text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
@@ -1316,18 +1312,17 @@ function SSAF:CreateUI()
 		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
 		{ group = L["General"], order = 7, text = L["Show whos targeting an enemy"], help = L["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."], type = "check", var = "targetDots"},
 
-		{ group = L["Display"], order = 1, text = L["Health bar texture"], type = "dropdown", list = textures, var = "healthTexture"},
-		{ group = L["Display"], order = 2, text = L["Font outline"], type = "dropdown", list = {{"NONE", L["None"]}, {"OUTLINE", L["Outline"]}, {"THICKOUTLINE", L["Thick outline"]}}, var = "fontOutline"},
-		{ group = L["Display"], order = 3, text = L["Show shadow under name/health text"], type = "check", var = "fontShadow"},
-		{ group = L["Display"], order = 4, text = L["Show mana bars"], type = "check", var = "manaBar"},
-		{ group = L["Display"], order = 5, text = L["Mana bar height"], type = "input", numeric = true, default = 3, width = 30, var = "manaBarHeight"},
+		{ group = L["Display"], order = 1, text = L["Bar texture"], help = L["Texture to use for health, mana and party target bars."], type = "dropdown", list = textures, var = "barTexture"},
 
-		{ group = L["Color"], order = 1, text = L["Pet health bar color"], type = "color", var = "petBarColor"},
-		{ group = L["Color"], order = 2, text = L["Minion health bar color"], type = "color", var = "minionBarColor"},
-		{ group = L["Color"], order = 3, text = L["Name/health font color"], type = "color", var = "fontColor"},
+		{ group = L["Mana"], order = 1, text = L["Show mana bars"], help = L["Shows a mana bar at the bottom of the health bar, requires you or a party member to target the enemy for them to update."], type = "check", var = "manaBar"},
+		{ group = L["Mana"], order = 2, text = L["Mana bar height"], help = L["Height of the mana bars, the health bar will not resize for this however."], type = "input", numeric = true, default = 3, width = 30, var = "manaBarHeight"},
+
+		{ group = L["Color"], order = 1, text = L["Pet health bar color"], help = L["Hunter pet health bar color."], type = "color", var = "petBarColor"},
+		{ group = L["Color"], order = 2, text = L["Minion health bar color"], help = L["Warlock and Mage pet health bar color."], type = "color", var = "minionBarColor"},
+		{ group = L["Color"], order = 3, text = L["Name and health text font color"], type = "color", var = "fontColor"},
 				
-		{ group = L["Frame"], order = 1, text = L["Lock arena frame"], type = "check", var = "locked"},
-		{ group = L["Frame"], order = 2, format = L["Frame Scale: %d%%"], min = 0.0, max = 2.0, type = "slider", var = "scale"}
+		{ group = L["Frame"], order = 1, text = L["Lock arena frame"], help = L["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."], type = "check", var = "locked"},
+		{ group = L["Frame"], order = 2, format = L["Frame Scale: %d%%"], help = L["Allows you to increase, or decrease the total size of the arena frames."], min = 0.0, max = 2.0, type = "slider", var = "scale"}
 	}
 
 	-- Update the dropdown incase any new textures were added
@@ -1357,7 +1352,7 @@ function SSAF:CreateClickListUI()
 			end
 			
 			local key = row.modifier
-			if( key == "" ) then
+			if( key == "*" ) then
 				key = L["All"]
 			elseif( key == "ctrl-" ) then
 				key = L["CTRL"]			
@@ -1368,7 +1363,7 @@ function SSAF:CreateClickListUI()
 			end
 			
 			local mouse = row.button
-			if( mouse == "" ) then
+			if( mouse == "*" ) then
 				mouse = L["Any button"]
 			elseif( mouse == "1" ) then
 				mouse = L["Left button"]
@@ -1390,11 +1385,12 @@ function SSAF:CreateClickListUI()
 				end
 			end
 			
+			table.insert(config, { group = "#" .. i, type = "groupOrder", order = i })
 			table.insert(config, { group = "#" .. i, text = enabled, type = "label", xPos = 5, yPos = 0, font = GameFontHighlightSmall })
 			table.insert(config, { group = "#" .. i, text = L["Edit"], type = "button", onSet = "OpenAttributeUI", var = i})
-			table.insert(config, { group = "#" .. i, text = string.format(L["Classes: %s"], total), type = "label", xPos = 50, yPos = 0, font = GameFontHighlightSmall })
-			table.insert(config, { group = "#" .. i, text = string.format(L["Modifier: %s"], key), type = "label", xPos = 75, yPos = 0, font = GameFontHighlightSmall })
-			table.insert(config, { group = "#" .. i, text = string.format(L["Mouse: %s"], mouse), type = "label", xPos = 100, yPos = 0, font = GameFontHighlightSmall })
+			table.insert(config, { group = "#" .. i, text = string.format(L["Classes: %s"], "|cffffffff" .. total .. "|r"), type = "label", xPos = 50, yPos = 0, font = GameFontNormalSmall })
+			table.insert(config, { group = "#" .. i, text = string.format(L["Modifier: %s"], "|cffffffff" .. key .. "|r"), type = "label", xPos = 75, yPos = 0, font = GameFontNormalSmall })
+			table.insert(config, { group = "#" .. i, text = string.format(L["Mouse: %s"], "|cffffffff" .. mouse .. "|r"), type = "label", xPos = 100, yPos = 0, font = GameFontNormalSmall })
 		end
 	end
 
@@ -1432,6 +1428,7 @@ function SSAF:CreateAttributeUI(category, attributeID)
 		return
 	end
 
+	-- Laugh at this now, when we get death knights I'll be the victor!
 	local classes = {}
 	table.insert(classes, {"ALL", L["All"]})
 	table.insert(classes, {"PET", L["Pet"]})
@@ -1442,12 +1439,14 @@ function SSAF:CreateAttributeUI(category, attributeID)
 	end
 		
 	local config = {
-		{ group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "enabled"}},
-		{ group = L["Enable"], text = L["Enable for class"], help = L["Enables the macro for a specific class, or for pets only."], default = "ALL", list = classes, multi = true, type = "dropdown", var = {"attributes", attributeID, "classes"}},
-		{ group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "", var = {"attributes", attributeID, "modifier"}},
-		{ group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "", var = {"attributes", attributeID, "button"}},
-		{ group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
+		{ order = 1, group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "enabled"}},
+		{ order = 2, group = L["Enable"], text = L["Enable for class"], help = L["Enables the macro for a specific class, or for pets only."], default = "ALL", list = classes, multi = true, type = "dropdown", var = {"attributes", attributeID, "classes"}},
+		
+		{ order = 1, group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"*", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "*", var = {"attributes", attributeID, "modifier"}},
+		{ order = 2, group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"*", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "*", var = {"attributes", attributeID, "button"}},
+
+		{ order = 1, group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
 	}
 	
-	return HouseAuthority:CreateConfiguration(config, {set = "AttribSet", get = "AttribGet", onSet = "Reload", handler = self})
+	return HouseAuthority:CreateConfiguration(config, {set = "AttribSet", get = "AttribGet", onSet = "UpdateEnemies", handler = self})
 end
