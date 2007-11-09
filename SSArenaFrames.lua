@@ -172,6 +172,11 @@ function SSAF:JoinedArena()
 	for i=1, CREATED_ROWS do
 		self:UpdateToTTextures(self.rows[i], maxPlayers)
 	end
+	
+	-- Just in-case, I need to fix up the moving method to work better and not be such a pain in the ass
+	if( not self.db.profile.locked ) then
+		self:Print(L["WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."])
+	end
 end
 
 
@@ -718,7 +723,7 @@ function SSAF:ScanUnit(unit)
 				end
 			end
 
-			self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. family .. "," .. type .. "," .. UnitPowerType(unit))
+			self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. (family or "") .. "," .. type .. "," .. UnitPowerType(unit))
 			self:UpdateEnemyPetIndex()
 			self:UpdateEnemies()
 		end
