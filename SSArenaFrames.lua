@@ -143,7 +143,6 @@ function SSAF:Initialize()
 		self.db.profile.barTexture = self.db.profile.healthTexture
 		self.db.profile.healthTexture = nil
 	end
-	
 end
 
 function SSAF:JoinedArena()
@@ -169,9 +168,9 @@ function SSAF:JoinedArena()
 	end
 
 	-- Update to a different format if need be
-	for i=1, CREATED_ROWS do
-		self:UpdateToTTextures(self.rows[i], maxPlayers)
-	end
+	--for i=1, CREATED_ROWS do
+	--	self:UpdateToTTextures(self.rows[i], maxPlayers)
+	--end
 	
 	-- Just in-case, I need to fix up the moving method to work better and not be such a pain in the ass
 	if( not self.db.profile.locked ) then
@@ -198,21 +197,21 @@ function SSAF:LeftArena()
 end
 
 -- 1 = Top left / 2 = Bottom left / 3 = Bottom right / 4 = Top right
-function SSAF:UpdateToTTextures(row, maxPlayers)
-	if( row.currentStyle == maxPlayers ) then
+function SSAF:UpdateToTTextures(row, totalTargets)
+	if( row.currentStyle == totalTargets ) then
 		return
 	end
 	
-	row.currentStyle = maxPlayers
+	row.currentStyle = totalTargets
 		
-	-- 1 possible target, 1 x 16/16
-	if( maxPlayers == 2 ) then
+	-- only one targeting them
+	if( totalTargets == 1 ) then
 		row.targets[1]:SetHeight(16)
 		row.targets[1]:SetWidth(16)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 0)
 
-	-- 2 possible targets, 1 x 16/8, 2 x 8/8
-	elseif( maxPlayers == 3 ) then
+	-- 2 targeting them
+	elseif( totalTargets == 2 ) then
 		row.targets[1]:SetHeight(8)
 		row.targets[1]:SetWidth(16)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
@@ -220,9 +219,9 @@ function SSAF:UpdateToTTextures(row, maxPlayers)
 		row.targets[2]:SetHeight(8)
 		row.targets[2]:SetWidth(16)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
-		
-	-- 4 possible targets, 8/8 each
-	elseif( maxPlayers == 5 ) then
+	
+	-- 3 or more targeting them
+	else
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 7, 4)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 7, -4)
 
@@ -279,7 +278,7 @@ function SSAF:UpdateToT()
 		return
 	end
 	
-	for id, _ in pairs(usedRows) do
+	for id in pairs(usedRows) do
 		self.rows[id].usedIcons = 0
 		for _, texture in pairs(self.rows[id].targets) do
 			texture:Hide()
@@ -287,7 +286,7 @@ function SSAF:UpdateToT()
 		
 		usedRows[id] = nil
 	end
-	
+		
 	for unit, data in pairs(partyTargets) do
 		local enemy
 		if( data.isPlayer and enemyIndex[data.name] ) then
@@ -305,6 +304,11 @@ function SSAF:UpdateToT()
 			texture:SetVertexColor(RAID_CLASS_COLORS[data.class].r, RAID_CLASS_COLORS[data.class].g, RAID_CLASS_COLORS[data.class].b)
 			texture:Show()
 		end
+	end
+	
+	-- Update icon size
+	for id in pairs(usedRows) do
+		self:UpdateToTTextures(self.rows[id], self.rows[id].usedIcons)
 	end
 end
 
@@ -779,9 +783,7 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
 		end
 	end
 	
-	server = server or ""
-	
-	table.insert(enemies, { sortID = name .. "-" .. server,
+	table.insert(enemies, { sortID = name .. "-" .. (server or ""),
 				name = name,
 				health = 100,
 				maxHealth = 100,
@@ -835,7 +837,7 @@ function SSAF:PetData(event, name, owner, family, type, powerType)
 				family = family,
 				health = 100,
 				maxHealth = 100,
-				mana = 100,
+				mana = 10,
 				maxMana = 100,
 				powerType = tonumber(powerType) or defPowerType[type] or 2})
 	self:UpdateEnemyPetIndex()
@@ -1074,7 +1076,7 @@ function SSAF:CreateRow()
 	
 	self.rows[id].targets[3] = texture
 	
-	self:UpdateToTTextures(self.rows[id], 5)
+	--self:UpdateToTTextures(self.rows[id], 5)
 
 	-- Add key bindings
 	local bindKey = GetBindingKey("ARENATAR" .. id)
@@ -1174,6 +1176,14 @@ function SSAF:UPDATE_BATTLEFIELD_STATUS()
 	end
 end
 
+function SSAF:ChannelMessage(msg)
+	SendChatMessage("[SS] " .. msg, "BATTLEGROUND")
+end
+
+function SSAF:SendMessage(msg, type)
+	SendAddonMessage("SSAF", msg, "BATTLEGROUND")
+end
+
 -- Update queued frames
 function SSAF:PLAYER_REGEN_ENABLED()
 	for func in pairs(queuedUpdates) do
@@ -1191,13 +1201,6 @@ function SSAF:RegisterOOCUpdate(func)
 	queuedUpdates[func] = true
 end
 
-function SSAF:ChannelMessage(msg)
-	SendChatMessage("[SS] " .. msg, "BATTLEGROUND")
-end
-
-function SSAF:SendMessage(msg, type)
-	SendAddonMessage("SSAF", msg, "BATTLEGROUND")
-end
 
 -- Something in configuration changed
 function SSAF:Reload()
@@ -1317,6 +1320,9 @@ function SSAF:CreateUI()
 		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
 		{ group = L["General"], order = 7, text = L["Show whos targeting an enemy"], help = L["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."], type = "check", var = "targetDots"},
 
+		{ group = L["Frame"], order = 1, text = L["Lock arena frame"], help = L["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."], type = "check", var = "locked"},
+		{ group = L["Frame"], order = 2, format = L["Frame Scale: %d%%"], help = L["Allows you to increase, or decrease the total size of the arena frames."], min = 0.0, max = 2.0, type = "slider", var = "scale"},
+
 		{ group = L["Display"], order = 1, text = L["Bar texture"], help = L["Texture to use for health, mana and party target bars."], type = "dropdown", list = textures, var = "barTexture"},
 
 		{ group = L["Mana"], order = 1, text = L["Show mana bars"], help = L["Shows a mana bar at the bottom of the health bar, requires you or a party member to target the enemy for them to update."], type = "check", var = "manaBar"},
@@ -1325,9 +1331,6 @@ function SSAF:CreateUI()
 		{ group = L["Color"], order = 1, text = L["Pet health bar color"], help = L["Hunter pet health bar color."], type = "color", var = "petBarColor"},
 		{ group = L["Color"], order = 2, text = L["Minion health bar color"], help = L["Warlock and Mage pet health bar color."], type = "color", var = "minionBarColor"},
 		{ group = L["Color"], order = 3, text = L["Name and health text font color"], type = "color", var = "fontColor"},
-				
-		{ group = L["Frame"], order = 1, text = L["Lock arena frame"], help = L["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."], type = "check", var = "locked"},
-		{ group = L["Frame"], order = 2, format = L["Frame Scale: %d%%"], help = L["Allows you to increase, or decrease the total size of the arena frames."], min = 0.0, max = 2.0, type = "slider", var = "scale"}
 	}
 
 	-- Update the dropdown incase any new textures were added
@@ -1385,7 +1388,7 @@ function SSAF:CreateClickListUI()
 			-- Grab total classes enabled for this
 			local total = 0
 			if( row.classes ) then
-				for _, _ in pairs(row.classes) do
+				for _ in pairs(row.classes) do
 					total = total + 1
 				end
 			end

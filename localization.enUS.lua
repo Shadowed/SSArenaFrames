@@ -27,7 +27,7 @@ SSAFLocals = {
 	["Modifier: %s"] = "Modifier: %s",
 	["Mouse: %s"] = "Mouse: %s",
 	
-	["WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."] = "WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."
+	["WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."] = "WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them.",
 	
 	["CLASSES"] = {
 		["MAGE"] = "Mage",
