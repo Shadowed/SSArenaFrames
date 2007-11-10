@@ -1,6 +1,7 @@
-## Interface: 20200
+## Interface: 20300
 ## Title: SSArena Frames
-## Version: $Revision: 252 $
+## Version: $Revision: 322 $
+## Author: Mayen
 ## Notes: Unit frames for arenas
 ## SavedVariables: SSAFDB
 ## OptionalDeps: LibStub, OptionHouse, HousingAuthority, AceComm-2.0
