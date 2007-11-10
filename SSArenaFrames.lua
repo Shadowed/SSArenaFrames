@@ -91,7 +91,7 @@ function SSAF:Initialize()
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ enabled = true, classes = { ["ALL"] = true }, modifier = "*", button = "*", text = "/target *name" },
+				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/target *name" },
 			}
 		}
 	}
@@ -1360,7 +1360,7 @@ function SSAF:CreateClickListUI()
 			end
 			
 			local key = row.modifier
-			if( key == "*" ) then
+			if( key == "" ) then
 				key = L["All"]
 			elseif( key == "ctrl-" ) then
 				key = L["CTRL"]			
@@ -1371,7 +1371,7 @@ function SSAF:CreateClickListUI()
 			end
 			
 			local mouse = row.button
-			if( mouse == "*" ) then
+			if( mouse == "" ) then
 				mouse = L["Any button"]
 			elseif( mouse == "1" ) then
 				mouse = L["Left button"]
@@ -1450,8 +1450,8 @@ function SSAF:CreateAttributeUI(category, attributeID)
 		{ order = 1, group = L["Enable"], text = L["Enable macro case"], help = L["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."], default = false, type = "check", var = {"attributes", attributeID, "enabled"}},
 		{ order = 2, group = L["Enable"], text = L["Enable for class"], help = L["Enables the macro for a specific class, or for pets only."], default = "ALL", list = classes, multi = true, type = "dropdown", var = {"attributes", attributeID, "classes"}},
 		
-		{ order = 1, group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"*", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "*", var = {"attributes", attributeID, "modifier"}},
-		{ order = 2, group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"*", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "*", var = {"attributes", attributeID, "button"}},
+		{ order = 1, group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "", var = {"attributes", attributeID, "modifier"}},
+		{ order = 2, group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "", var = {"attributes", attributeID, "button"}},
 
 		{ order = 1, group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
 	}
