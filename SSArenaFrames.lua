@@ -1124,7 +1124,7 @@ function SSAF:ADDON_LOADED(event, addon)
 
 		-- Proximo
 		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana)
-			SSAF:EnemyData(event, name, nil, nil, SSAF:TranslateClass(class))
+			SSAF:EnemyData(event, name, nil, nil, string.upper(class))
 		end
 	end
 end
