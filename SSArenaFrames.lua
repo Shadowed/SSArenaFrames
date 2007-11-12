@@ -721,9 +721,9 @@ function SSAF:ScanUnit(unit)
 			-- Output!
 			if( self.db.profile.reportEnemies ) then
 				if( family ) then
-					SSPVP:ChannelMessage(string.format( L["[%d/%d] %s's pet, %s %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name, family))
+					self:ChannelMessage(string.format(L["[%d/%d] %s's pet, %s %s"], #(enemyPets), maxPlayers, owner, name, family))
 				else
-					SSPVP:ChannelMessage(string.format(L["[%d/%d] %s's pet, %s"], #(enemyPets), SSPVP:MaxBattlefieldPlayers(), owner, name))
+					self:ChannelMessage(string.format(L["[%d/%d] %s's pet, %s"], #(enemyPets), maxPlayers, owner, name))
 				end
 			end
 
