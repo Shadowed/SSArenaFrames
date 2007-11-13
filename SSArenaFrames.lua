@@ -91,7 +91,7 @@ function SSAF:Initialize()
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/target *name" },
+				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/targetexact *name" },
 			}
 		}
 	}
@@ -492,7 +492,7 @@ function SSAF:UpdateEnemies()
 		-- Make sure we always have at least one macro to target
 		if( not foundMacro ) then
 			row.button:SetAttribute("type", "macro")
-			row.button:SetAttribute("macrotext", "/target " .. enemy.name)
+			row.button:SetAttribute("macrotext", "/targetexact " .. enemy.name)
 		end
 		
 		row:Show()
@@ -569,7 +569,7 @@ function SSAF:UpdateEnemies()
 			-- Make sure we always have at least one macro to target
 			if( not foundMacro ) then
 				row.button:SetAttribute("type", "macro")
-				row.button:SetAttribute("macrotext", "/target " .. enemy.name)
+				row.button:SetAttribute("macrotext", "/targetexact " .. enemy.name)
 			end
 
 			row:Show()
@@ -1414,7 +1414,7 @@ function SSAF:AttribSet(var, value)
 	
 	-- Not created yet, set to default
 	if( not self.db.profile[var[1]][var[2]] ) then
-		self.db.profile[var[1]][var[2]] = { enabled = false, classes = { ["ALL"] = true }, text = "/target *name", modifier = "", button = "" }
+		self.db.profile[var[1]][var[2]] = { enabled = false, classes = { ["ALL"] = true }, text = "/targetexact *name", modifier = "", button = "" }
 	end
 	
 	self.db.profile[var[1]][var[2]][var[3]] = value
@@ -1424,7 +1424,7 @@ function SSAF:AttribGet(var)
 	-- Not created yet, set to default
 	if( not self.db.profile[var[1]][var[2]] ) then
 		cachedFrame = nil
-		self.db.profile[var[1]][var[2]] = { enabled = false, classes = { ["ALL"] = true }, text = "/target *name", modifier = "", button = "" }
+		self.db.profile[var[1]][var[2]] = { enabled = false, classes = { ["ALL"] = true }, text = "/targetexact *name", modifier = "", button = "" }
 	end
 	
 	return self.db.profile[var[1]][var[2]][var[3]]
@@ -1453,7 +1453,7 @@ function SSAF:CreateAttributeUI(category, attributeID)
 		{ order = 1, group = L["Modifiers"], text = L["Modifier key"], type = "dropdown", list = {{"", L["All"]}, {"ctrl-", L["CTRL"]}, {"shift-", L["SHIFT"]}, {"alt-", L["ALT"]}}, default = "", var = {"attributes", attributeID, "modifier"}},
 		{ order = 2, group = L["Modifiers"], text = L["Mouse button"], type = "dropdown", list = {{"", L["Any button"]}, {"1", L["Left button"]}, {"2", L["Right button"]}, {"3", L["Middle button"]}, {"4", L["Button 4"]}, {"5", L["Button 5"]}}, default = "", var = {"attributes", attributeID, "button"}},
 
-		{ order = 1, group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/target *name", var = {"attributes", attributeID, "text"}},
+		{ order = 1, group = L["Macro Text"], text = L["Command to execute when clicking the frame using the above modifier/mouse button"], type = "editbox", default = "/targetexact *name", var = {"attributes", attributeID, "text"}},
 	}
 	
 	return HouseAuthority:CreateConfiguration(config, {set = "AttribSet", get = "AttribGet", onSet = "UpdateEnemies", handler = self})
