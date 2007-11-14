@@ -167,11 +167,6 @@ function SSAF:JoinedArena()
 		self:CreateRow()
 	end
 
-	-- Update to a different format if need be
-	--for i=1, CREATED_ROWS do
-	--	self:UpdateToTTextures(self.rows[i], maxPlayers)
-	--end
-	
 	-- Just in-case, I need to fix up the moving method to work better and not be such a pain in the ass
 	if( not self.db.profile.locked ) then
 		self:Print(L["WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."])
@@ -313,19 +308,23 @@ function SSAF:UpdateToT()
 end
 
 -- Updates all the health info!
-function SSAF:UpdateHealth(enemy, unit)
-	if( unit ) then
-		enemy.maxHealth = UnitHealthMax(unit)
+function SSAF:UpdateHealth(enemy, unit, maxHealth)
+	if( unit and not maxHealth ) then
+		enemy.maxHealth = UnitHealthMax(unit) or enemy.maxHealth
 		enemy.health = UnitHealth(unit) or enemy.health
-		if( enemy.health > enemy.maxHealth ) then
-			enemy.maxHealth = enemy.health
-		end
-
-		if( enemy.health == 0 ) then
-			enemy.isDead = true
-		end
+	elseif( unit and maxHealth ) then
+		enemy.maxHealth = maxHealth or enemy.maxHealth
+		enemy.health = unit or enemy.health
 	end
 	
+	if( enemy.health > enemy.maxHealth ) then
+		enemy.maxHealth = enemy.health
+	end
+
+	if( enemy.health == 0 ) then
+		enemy.isDead = true
+	end
+
 	if( not enemy.displayRow ) then
 		return
 	end
@@ -451,13 +450,6 @@ function SSAF:UpdateEnemies()
 		row.text:SetText(name)
 		row.ownerName = enemy.name
 		row.ownerType = "PLAYER"
-		
-		-- Word wrap
-		if( row.text:GetStringWidth() >= 145 ) then
-			row.text:SetWidth(145)
-		else
-			row.text:SetWidth(row.text:GetStringWidth())
-		end
 				
 		-- Show class icon to the left of the players name
 		if( self.db.profile.showIcon ) then
@@ -525,13 +517,6 @@ function SSAF:UpdateEnemies()
 				row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.petBarColor.b, 1.0)
 			elseif( enemy.type == "MINION" ) then
 				row:SetStatusBarColor(self.db.profile.minionBarColor.r, self.db.profile.minionBarColor.g, self.db.profile.minionBarColor.b, 1.0)
-			end
-
-			-- Word wrap
-			if( row.text:GetStringWidth() >= 145 ) then
-				row.text:SetWidth(145)
-			else
-				row.text:SetWidth(row.text:GetStringWidth())
 			end
 
 			-- Quick update
@@ -703,9 +688,20 @@ function SSAF:ScanUnit(unit)
 		-- Found the pet owner
 		if( owner and owner ~= UNKNOWNOBJECT ) then
 			local family = UnitCreatureFamily(unit)
-
-			if( enemyPetIndex[name] and enemyPets[enemyPetIndex[name]].owner == owner ) then
-				return
+			
+			for id, enemy in pairs(enemyPets) do
+				if( enemy.owner == owner ) then
+					-- New pet summoned, remove old one
+					if( enemy.name ~= name ) then
+						table.remove(enemyPets, id)
+						enemyPetIndex[enemy.name] = nil
+						break
+					
+					-- Still have the same-old pet
+					else
+						return
+					end
+				end
 			end
 			
 			table.insert(enemyPets, {sortID = name .. "-" .. owner,
@@ -741,11 +737,11 @@ local function healthValueChanged(...)
 	end
 	
 	local ownerName = select(5, this:GetParent():GetRegions()):GetText()
-
+	
 	if( enemyIndex[ownerName] ) then
-		SSAF:UpdateHealth(enemies[enemyIndex[ownerName]], value, select(2, this:GetMinMaxValues()))
+		SSAF:UpdateHealth(enemies[enemyIndex[ownerName]], this:GetValue(), select(2, this:GetMinMaxValues()))
 	elseif( enemyPetIndex[ownerName] ) then
-		SSAF:UpdateHealth(enemyPets[enemyPetIndex[ownerName]], value, select(2, this:GetMinMaxValues()))
+		SSAF:UpdateHealth(enemyPets[enemyPetIndex[ownerName]], this:GetValue(), select(2, this:GetMinMaxValues()))
 	end
 
 	if( this.SSValueChanged ) then
@@ -987,16 +983,28 @@ function SSAF:CreateRow()
 	-- Player name text
 	local text = mana:CreateFontString(nil, "OVERLAY")
 	text:SetPoint("LEFT", row, "LEFT", 1, 0)
-	text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+	text:SetJustifyH("LEFT")
+	
 	text:SetFont(path, size)
+	text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+	
 	text:SetShadowOffset(1, -1)
 	text:SetShadowColor(0, 0, 0, 1)
+	
+
+	-- We have to do this for GetStringHeight()
+	text:SetText("*")
+	text:SetWidth(145)
+	text:SetHeight(text:GetStringHeight())
 	
 	-- Health percent text
 	local healthText = mana:CreateFontString(nil, "OVERLAY")
 	healthText:SetPoint("RIGHT", row, "RIGHT", -1, 0)
+	healthText:SetJustifyH("RIGHT")
+	
 	healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	healthText:SetFont(path, size)
+	
 	healthText:SetShadowOffset(1, -1)
 	healthText:SetShadowColor(0, 0, 0, 1)
 	
