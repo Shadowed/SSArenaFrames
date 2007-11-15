@@ -323,6 +323,8 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 
 	if( enemy.health == 0 ) then
 		enemy.isDead = true
+	else
+		enemy.isDead = nil
 	end
 
 	if( not enemy.displayRow ) then

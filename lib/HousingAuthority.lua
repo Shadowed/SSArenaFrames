@@ -1,5 +1,90 @@
+-- LibStub is a simple versioning stub meant for use in Libraries.  http://www.wowace.com/wiki/LibStub for more info
+-- LibStub is hereby placed in the Public Domain
+-- Credits: Kaelten, Cladhaire, ckknight, Mikk, Ammo, Nevcairiel, joshborke
+local LIBSTUB_MAJOR, LIBSTUB_MINOR = "LibStub", 2  -- NEVER MAKE THIS AN SVN REVISION! IT NEEDS TO BE USABLE IN ALL REPOS!
+local LibStub = _G[LIBSTUB_MAJOR]
+
+-- Check to see is this version of the stub is obsolete
+if not LibStub or LibStub.minor < LIBSTUB_MINOR then
+	LibStub = LibStub or {libs = {}, minors = {} }
+	_G[LIBSTUB_MAJOR] = LibStub
+	LibStub.minor = LIBSTUB_MINOR
+	
+	-- LibStub:NewLibrary(major, minor)
+	-- major (string) - the major version of the library
+	-- minor (string or number ) - the minor version of the library
+	-- 
+	-- returns nil if a newer or same version of the lib is already present
+	-- returns empty library object or old library object if upgrade is needed
+	function LibStub:NewLibrary(major, minor)
+		assert(type(major) == "string", "Bad argument #2 to `NewLibrary' (string expected)")
+		minor = assert(tonumber(strmatch(minor, "%d+")), "Minor version must either be a number or contain a number.")
+		
+		local oldminor = self.minors[major]
+		if oldminor and oldminor >= minor then return nil end
+		self.minors[major], self.libs[major] = minor, self.libs[major] or {}
+		return self.libs[major], oldminor
+	end
+	
+	-- LibStub:GetLibrary(major, [silent])
+	-- major (string) - the major version of the library
+	-- silent (boolean) - if true, library is optional, silently return nil if its not found
+	--
+	-- throws an error if the library can not be found (except silent is set)
+	-- returns the library object if found
+	function LibStub:GetLibrary(major, silent)
+		if not self.libs[major] and not silent then
+			error(("Cannot find a library instance of %q."):format(tostring(major)), 2)
+		end
+		return self.libs[major], self.minors[major]
+	end
+	
+	-- LibStub:IterateLibraries()
+	-- 
+	-- Returns an iterator for the currently registered libraries
+	function LibStub:IterateLibraries() 
+		return pairs(self.libs) 
+	end
+	
+	setmetatable(LibStub, { __call = LibStub.GetLibrary })
+end
+
+--[[-------------------------------------------------------------------------
+  Copyright (c) 2006-2007, Dongle Development Team
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
+
+      * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above
+        copyright notice, this list of conditions and the following
+        disclaimer in the documentation and/or other materials provided
+        with the distribution.
+      * Neither the name of the Dongle Development Team nor the names of
+        its contributors may be used to endorse or promote products derived
+        from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+---------------------------------------------------------------------------]]
+
+--[[-------------------------------------------------------------------------
+  Begin Library Implementation
+---------------------------------------------------------------------------]]
 local major = "HousingAuthority-1.2"
-local minor = tonumber(string.match("$Revision: 297 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 373 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 local HAInstance, oldRevision = LibStub:NewLibrary(major, minor)
@@ -291,6 +376,11 @@ local sliderBackdrop = {bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
 			edgeSize = 8, tile = true, tileSize = 8,
 			insets = { left = 3, right = 3, top = 6, bottom = 6 }}
 
+local function manualSliderShown(self)
+	self.dontSet = true
+	self:SetNumber(getValue(self.parent, self.data) * 100)
+end
+
 local function sliderShown(self)
 	local value = getValue(self.parent, self.data)
 	self:SetValue(value)
@@ -302,13 +392,9 @@ local function sliderShown(self)
 	end
 	
 	if( self.input ) then
+		manualSliderShown(self.input)
 		self.input:Show()
 	end
-end
-
-local function manualSliderShown(self)
-	self.dontSet = true
-	self:SetNumber(getValue(self.parent, self.data) * 100)
 end
 
 local function updateSliderValue(self)
@@ -394,7 +480,6 @@ local function inputClearAndChange(self)
 end
 
 -- COLOR PICKER
-local activeButton
 local function colorPickerShown(self)
 	local value = getValue(self.parent, self.data)
 	self:GetNormalTexture():SetVertexColor(value.r, value.g, value.b)
@@ -408,38 +493,32 @@ local function colorPickerLeft(self)
 	self.border:SetVertexColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
 end
 
-local rgb = { r = 0, g = 0, b = 0 }
 local function setColorValue()
 	local r, g, b = ColorPickerFrame:GetColorRGB()
 	
-	rgb.r = r
-	rgb.g = g
-	rgb.b = b
-	
-	setValue(activeButton.parent, activeButton.data, rgb)
-	activeButton:GetNormalTexture():SetVertexColor(r, g, b)
+	setValue(ColorPickerFrame.activeButton.parent, ColorPickerFrame.activeButton.data, { r = r, g = g, b = b })
+	ColorPickerFrame.activeButton:GetNormalTexture():SetVertexColor(r, g, b)
 end
 
-local function cancelColorValue(previous)
-	local self = activeButton
-	
-	setValue(self.parent, self.data, previous)
-	self:GetNormalTexture():SetVertexColor(previous.r, previous.g, previous.b)
+local function cancelColorValue(previous)	
+	setValue(ColorPickerFrame.activeButton.parent, ColorPickerFrame.activeButton.data, previous)
+	ColorPickerFrame.activeButton:GetNormalTexture():SetVertexColor(previous.r, previous.g, previous.b)
 end
 
 local function resetStrata(self)
 	self:SetFrameStrata(self.origStrata)
 	self.origStrata = nil
+	self.activeButton = nil
 end
 
 local function openColorPicker(self)
 	local value = getValue(self.parent, self.data)
-	activeButton = self
-	
+		
 	ColorPickerFrame.previousValues = value
 	ColorPickerFrame.func = setColorValue
 	ColorPickerFrame.cancelFunc = cancelColorValue
 	ColorPickerFrame.origStrata = ColorPickerFrame:GetFrameStrata()
+	ColorPickerFrame.activeButton = self
 	
 	ColorPickerFrame:SetFrameStrata("FULLSCREEN")
 	ColorPickerFrame:HookScript("OnHide", resetStrata)
@@ -556,7 +635,7 @@ local function createListRow(parent, id)
 	button:SetHighlightTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
 	
 	-- GetFontString() returns nil until we SetText
-	button:SetText("")
+	button:SetText("*")
 	button:GetFontString():SetPoint("LEFT", button, "LEFT", 40, 0)
 
 	local highlight = button:CreateTexture(nil, "BACKGROUND")
@@ -858,12 +937,15 @@ function HouseAuthority.CreateButton(config, data)
 	argcheck(data.onSet, "onSet", type, "nil")
 	
 	local button = CreateFrame("Button", nil, config.frame, data.template or "GameMenuButtonTemplate")
+	button.xPos = 10
+	--button.yPos = 0
+	
 	button.parent = config
 	button.data = data
 	button:SetScript("OnClick", buttonClicked)
 	button:SetText(data.text)
-	button:SetHeight(18)
-	button:SetWidth(button:GetFontString():GetStringWidth() + 18)
+	button:SetHeight(20)
+	button:SetWidth(data.width or (button:GetFontString():GetStringWidth() + 25))
 	
 	table.insert(config.widgets, button)
 	return button
@@ -1121,6 +1203,8 @@ function HouseAuthority.CreateSlider(config, data)
 	
 	if( data.manualInput ) then
 		slider.input = HouseAuthority.CreateInput(config, { width = 35, maxChars = string.len((data.max or 1.0) * 100), var = data.var, set = data.set, onSet = data.onSet, get = data.get, handler = data.handler, numeric = true, realTime = true })
+		slider.input.parent = config
+		slider.input.data = data
 		slider.input:SetScript("OnShow", manualSliderShown)
 		slider.input:SetScript("OnTextChanged", updateSliderValue)
 		slider.input:SetPoint("LEFT", slider, "RIGHT", 15, -2)
