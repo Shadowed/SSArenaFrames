@@ -419,7 +419,7 @@ function SSAF:UpdateEnemies()
 		local name = enemy.name
 		
 		-- Enemy talents
-		if( self.db.profile.showTalents ) then
+		if( self.db.profile.showTalents and enemy.name and enemy.server ) then
 			local found
 			if( IsAddOnLoaded("ArenaEnemyInfo") ) then
 				local data = AEI:GetSpec(enemy.name, enemy.server)
@@ -629,6 +629,20 @@ function SSAF:ScanUnit(unit)
 	if( UnitIsPlayer(unit) ) then
 		server = server or GetRealmName()
 		if( enemyIndex[name] ) then
+			if( enemies[enemyIndex[name]].server ) then
+				return
+			end
+			
+			-- When SSAF syncs from another arena mod, we're not provided server
+			-- so we have to specifically enter it if we receive a sync
+			local enemy = enemies[enemyIndex[name]]
+			enemy.sortID = name .. "-" .. server
+			enemy.server = server
+			enemy.health = UnitHealth(unit)
+			enemy.maxHealth = UnitHealthMax(unit)
+			enemy.mana = UnitMana(unit)
+			enemy.maxMana = UnitManaMax(unit)
+			enemy.powerType = UnitPowerType(unit)
 			return
 		end
 		
@@ -764,7 +778,7 @@ end
 -- Scan WorldFrame children
 local function scanFrames(...)
 	for i=1, select("#", ...) do
-		local health = findUnhookedNameplates(select( i, ...):GetChildren())
+		local health = findUnhookedNameplates(select(i, ...):GetChildren())
 		if( health ) then
 			health.SSAFHooked = true
 			health.SSValueChanged = health:GetScript("OnValueChanged")
@@ -790,7 +804,7 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
 				race = race,
 				classToken = classToken,
 				guild = guild,
-				mana = 100,
+				mana = 0,
 				maxMana = 100,
 				powerType = tonumber(powerType) or defPowerType[classToken] or 0})
 	
@@ -835,7 +849,7 @@ function SSAF:PetData(event, name, owner, family, type, powerType)
 				family = family,
 				health = 100,
 				maxHealth = 100,
-				mana = 10,
+				mana = 0,
 				maxMana = 100,
 				powerType = tonumber(powerType) or defPowerType[type] or 2})
 	self:UpdateEnemyPetIndex()
@@ -906,7 +920,7 @@ function SSAF:CreateFrame()
 	
 	-- Health monitoring
 	local timeElapsed = 0
-	local numChildren = -1;
+	local numChildren = -1
 	self.frame:SetScript("OnUpdate", function(self, elapsed)
 		-- When number of children changes, 99% of the time it's
 		-- due to a new nameplate being added
