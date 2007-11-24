@@ -24,9 +24,6 @@ local enemyPetIndex = {}
 local partyTargets = {["party1target"] = {}, ["party2target"] = {}, ["party3target"] = {}, ["party4target"] = {}}
 local usedRows = {}
 
--- Backwards compatability. REMOVE ME FOR 2.4
-local defPowerType = {["WARRIOR"] = 1, ["ROGUE"] = 3, ["PET"] = 3, ["MINION"] = 4}
-
 local PartySlain
 local SelfSlain
 local WaterDies
@@ -137,12 +134,6 @@ function SSAF:Initialize()
 	SML:Register(SML.MediaType.STATUSBAR, "Otravi",   "Interface\\Addons\\SSArenaFrames\\images\\otravi")
 	SML:Register(SML.MediaType.STATUSBAR, "Striped",  "Interface\\Addons\\SSArenaFrames\\images\\striped")
 	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
-	
-	-- REMOVE ME FOR 2.4, upgrade for our renamed variable
-	if( self.db.profile.healthTexture ) then
-		self.db.profile.barTexture = self.db.profile.healthTexture
-		self.db.profile.healthTexture = nil
-	end
 end
 
 function SSAF:JoinedArena()
@@ -672,6 +663,7 @@ function SSAF:ScanUnit(unit)
 			end
 		end
 
+		-- Sync/update
 		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit))
 		self:UpdateEnemyIndex()
 		self:UpdateEnemies()
@@ -739,6 +731,7 @@ function SSAF:ScanUnit(unit)
 				end
 			end
 
+			-- Sync/update
 			self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. (family or "") .. "," .. type .. "," .. UnitPowerType(unit))
 			self:UpdateEnemyPetIndex()
 			self:UpdateEnemies()
@@ -789,6 +782,7 @@ end
 
 -- Syncing
 function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
+	-- Make sure we haven't added them yet
 	for _, enemy in pairs(enemies) do
 		if( not enemy.owner and enemy.name == name ) then
 			return
@@ -806,7 +800,7 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
 				guild = guild,
 				mana = 0,
 				maxMana = 100,
-				powerType = tonumber(powerType) or defPowerType[classToken] or 0})
+				powerType = tonumber(powerType) or 0})
 	
 	self:UpdateEnemyIndex()
 	self:UpdateEnemies()
@@ -814,33 +808,26 @@ end
 
 -- New pet found
 function SSAF:PetData(event, name, owner, family, type, powerType)
-	if( not self.db.profile.showPets and not self.db.profile.showMinions ) then
+	if( not self.db.profile.showPets and not self.db.profile.showMinions or not type ) then
 		return
 	end
 	
-	for _, enemy in pairs(enemyPets) do
-		if( enemy.owner == owner and enemy.name == name ) then
-			return
+	-- Check if we have a pet that exists
+	for id, enemy in pairs(enemyPets) do
+		if( enemy.owner == owner ) then
+			-- New pet summoned, remove old one
+			if( enemy.name ~= name ) then
+				table.remove(enemyPets, id)
+				enemyPetIndex[enemy.name] = nil
+				break
+
+			-- Still have the same-old pet
+			else
+				return
+			end
 		end
 	end
-	
-	-- These is mainly for backwards compatability
-	-- REMOVE ME FOR 2.4
 
-	-- Water Elementals have no family
-	-- We don't pass pet type for Water Elementals, because then we have issues
-	-- with family being "" not nil, too many sanity issues.
-	if( name == L["Water Elemental"] ) then
-		type = "MINION"
-
-	-- Warlock pets
-	elseif( not type and ( family == "Felguard" or family == "Felhunter" or family == "Imp" or family == "Succubus" ) ) then
-		type = "MINION"
-	
-	-- Hunter pets
-	elseif( not type or type == "" ) then
-		type = "PET"
-	end
 
 	table.insert(enemyPets, {sortID = name .. "-" .. owner,
 				name = name,
@@ -929,7 +916,7 @@ function SSAF:CreateFrame()
 			scanFrames(WorldFrame:GetChildren())
 		end
 		
-		-- Scan party targets every 1 second
+		-- Scan party targets every 0.25 second
 		-- Really, nameplate scanning should get the info 99% of the time
 		-- so we don't need to be so aggressive with this
 		timeElapsed = timeElapsed + elapsed
@@ -1201,7 +1188,7 @@ function SSAF:UPDATE_BATTLEFIELD_STATUS()
 end
 
 function SSAF:ChannelMessage(msg)
-	SendChatMessage("[SS] " .. msg, "BATTLEGROUND")
+	SendChatMessage(msg, "BATTLEGROUND")
 end
 
 function SSAF:SendMessage(msg, type)
