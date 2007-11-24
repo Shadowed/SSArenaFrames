@@ -98,11 +98,12 @@ function SSAF:Initialize()
 	self.cmd = self:InitializeSlashCommand(L["SSArena Frames Slash Commands"], "SSAF", "ssaf", "arenaframes")
 	self.cmd:InjectDBCommands(self.db, "delete", "copy", "list", "set")
 	self.cmd:RegisterSlashHandler(L["ui - Pulls up the configuration page"], "ui", function() OptionHouse:Open("Arena Frames") end)
-
+	
 	-- Events we want active all the time
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
 	self:RegisterEvent("ADDON_LOADED")
+	self:RegisterEvent("UPDATE_BINDINGS")
 
 	-- Party/We killed someone
 	PartySlain = string.gsub(PARTYKILLOTHER, "%%s", "(.+)")
@@ -143,7 +144,6 @@ function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_ENERGY", "UPDATE_POWER")
 	self:RegisterEvent("UNIT_FOCUS", "UPDATE_POWER")
 	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-	self:RegisterEvent("UPDATE_BINDINGS", "UpdateBindings")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
 	self:RegisterEvent("PLAYER_TARGET_CHANGED")
 	self:RegisterEvent("CHAT_MSG_ADDON")
@@ -180,6 +180,7 @@ function SSAF:LeftArena()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
 	self:RegisterEvent("ADDON_LOADED")
+	self:RegisterEvent("UPDATE_BINDINGS")
 end
 
 -- 1 = Top left / 2 = Bottom left / 3 = Bottom right / 4 = Top right
@@ -219,7 +220,7 @@ function SSAF:UpdateToTTextures(row, totalTargets)
 end
 
 -- Set up bindings
-function SSAF:UpdateBindings()
+function SSAF:UPDATE_BINDINGS()
 	if( not self.frame ) then
 		return
 	end
@@ -828,7 +829,6 @@ function SSAF:PetData(event, name, owner, family, type, powerType)
 		end
 	end
 
-
 	table.insert(enemyPets, {sortID = name .. "-" .. owner,
 				name = name,
 				owner = owner,
@@ -1218,11 +1218,11 @@ function SSAF:Reload()
 	if( not self.db.profile.locked ) then
 		if( #(enemies) == 0 and #(enemyPets) == 0 ) then
 			self:EnemyData("", UnitName("player"), GetRealmName(), (UnitRace("player")), select(2, UnitClass("player")), nil, UnitPowerType("player"))
+			self:EnemyData("", "Mayen", "Icecrown", "TAUREN", "DRUID", nil, 0)
 			self:PetData("", L["Pet"], UnitName("player"), "Cat", "PET", 2)
-			self:PetData("", L["Minion"], UnitName("player"), "Felhunter", "MINION", 0)
+			self:PetData("", L["Minion"], "Mayen", "Felhunter", "MINION", 0)
 		end
-		
-	elseif( #(enemies) == 1 and #(enemyPets) == 2 ) then
+	else
 		self:ClearEnemies()
 	end
 	
@@ -1234,6 +1234,7 @@ function SSAF:Reload()
 	
 	-- Update all the rows to the current settings
 	for i=1, CREATED_ROWS do
+		-- Texture/mana bar height
 		local row = self.rows[i]
 		row.button:EnableMouse(self.db.profile.locked)
 		row:SetStatusBarTexture(self.db.profile.barTexture)
@@ -1241,6 +1242,7 @@ function SSAF:Reload()
 		row.manaBar:SetHeight(self.db.profile.manaBarHeight)
 		row:Hide()
 		
+		-- Mana Bar
 		if( self.db.profile.manaBar ) then
 			row.text:SetParent(row.manaBar)
 			row.healthText:SetParent(row.manaBar)
@@ -1251,6 +1253,7 @@ function SSAF:Reload()
 			row.manaBar:Hide()
 		end
 		
+		-- Update ToT textures
 		for _, texture in pairs(row.targets) do
 			texture:SetTexture(self.db.profile.barTexture)
 			
@@ -1259,6 +1262,7 @@ function SSAF:Reload()
 			end
 		end
 	
+		-- Update text color
 		row.text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 		row.healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	end

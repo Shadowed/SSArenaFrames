@@ -1,5 +1,5 @@
 <Bindings>
-	<Binding name="ARENATAR1">
+	<Binding name="ARENATAR1" header="SSAF">
 	-- FooBar
 	</Binding>
 	<Binding name="ARENATAR2">
