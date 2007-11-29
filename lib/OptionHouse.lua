@@ -84,7 +84,7 @@ end
   Begin Library Implementation
 ---------------------------------------------------------------------------]]
 local major = "OptionHouse-1.1"
-local minor = tonumber(string.match("$Revision: 638 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 656 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -505,29 +505,48 @@ end
 local function sortCategories(a, b)
 	if( not b ) then
 		return false
+	elseif( not a ) then
+		return true
 	end
 	
-	local aType = type(a.data.sortID)
-	local bType = type(b.data.sortID)
+	local aType = type(a.sortID)
+	local bType = type(b.sortID)
 	
 	-- Sort categories/sub categories
+	-- We're comparing two categories/sub categories
 	if( aType == "number" and bType == "number" ) then
-		if( a.data.sortID == b.data.sortID ) then
+		-- Same ID, so sort by alpha
+		if( a.sortID == b.sortID ) then
 			return ( a.name < b.name )
 		end
 
-		return ( a.data.sortID < b.data.sortID )
+		return ( a.sortID < b.sortID )
+	
+	-- Comparing mixed types, category + addon
 	elseif( aType == "number" and bType ~= "number" ) then
 		return true
+	
+
+	-- Comparing mixed types, category + addon
 	elseif( bType == "number" and aType ~= "number" ) then
 		return false
 	end
-
+	
+	-- Comparing two addons
 	return ( a.name < b.name )
 end
 
 -- Adds the actual row, will attempt to reuse the current row if able to
 local function addCategoryRow(type, name, tooltip, data, parent, addon)
+	local sortID
+	if( type == "addon" ) then
+		sortID = name
+	elseif( not data.sortID ) then
+		sortID = 9999999
+	else
+		sortID = data.sortID
+	end
+
 	local frame = regFrames.addon
 	for i=1, #(frame.categories) do
 		-- Match type/name first
@@ -538,23 +557,14 @@ local function addCategoryRow(type, name, tooltip, data, parent, addon)
 				if( (addon and frame.categories[i].addon and frame.categories[i].addon == addon) or (not addon and not frame.categories[i].addon) ) then
 					frame.categories[i].tooltip = tooltip
 					frame.categories[i].data = data
+					frame.categories[i].sortID = sortID
 					return
 				end
 			end
 		end
 	end
-	
-	if( not data ) then
-		data = {}
-	end
-		
-	if( type == "addon" ) then
-		data.sortID = name
-	elseif( not data.sortID ) then
-		data.sortID = 9999999
-	end
 
-	table.insert(frame.categories, {name = name, type = type, tooltip = tooltip, data = data, parent = parent, addon = addon} )
+	table.insert(frame.categories, {name = name, type = type, tooltip = tooltip, sortID = sortID, data = data, parent = parent, addon = addon} )
 	frame.resortList = true
 end
 

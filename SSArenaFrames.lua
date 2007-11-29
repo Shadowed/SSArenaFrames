@@ -8,7 +8,7 @@ local L = SSAFLocals
 local CREATED_ROWS = 0
 local TOTAL_CLICKIES = 10
 
-local activeBF = -1
+local instanceType
 local maxPlayers = 0
 local queuedUpdates = {}
 
@@ -100,8 +100,11 @@ function SSAF:Initialize()
 	self.cmd:RegisterSlashHandler(L["ui - Pulls up the configuration page"], "ui", function() OptionHouse:Open("Arena Frames") end)
 	
 	-- Events we want active all the time
+	-- The only reason we do a ZCNA check in UBS is mostly to be safe incase you log in
+	-- I guess this isn't possible....but if you reload in an arena it is
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
-	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("ADDON_LOADED")
 	self:RegisterEvent("UPDATE_BINDINGS")
 
@@ -168,7 +171,6 @@ end
 
 function SSAF:LeftArena()
 	self:UnregisterOOCUpdate("UpdateEnemies")
-
 	if( InCombatLockdown() ) then
 		self:RegisterOOCUpdate("ClearEnemies")
 	else
@@ -178,7 +180,8 @@ function SSAF:LeftArena()
 	self:UnregisterAllMessages()
 	self:UnregisterAllEvents()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
-	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("ADDON_LOADED")
 	self:RegisterEvent("UPDATE_BINDINGS")
 end
@@ -382,6 +385,28 @@ function SSAF:UPDATE_POWER(event, unit)
 	end
 end
 
+function SSAF:GetTalents(name, server)
+	if( IsAddOnLoaded("ArenaEnemyInfo") ) then
+		local data = AEI:GetSpec(name, server)
+		if( data ~= "" ) then
+			return data
+		end
+
+	elseif( IsAddOnLoaded("Tattle") ) then
+		local data = Tattle:GetPlayerData(name, server)
+		if( data ) then
+			return "[" .. data.tree1 .. "/" .. data.tree2 .. "/" .. data.tree3 .. "]"
+		end
+	end
+
+	if( IsAddOnLoaded("Remembrance") ) then
+		local tree1, tree2, tree3 = Remembrance:GetTalents(name, server)
+		if( tree1 and tree2 and tree3 ) then
+			return "[" .. tree1 .. "/" .. tree2 .. "/" .. tree3 .. "]"
+		end
+	end
+end
+
 -- Update the entire frame and everything in it
 function SSAF:UpdateEnemies()
 	-- Can't update in combat of course
@@ -410,29 +435,15 @@ function SSAF:UpdateEnemies()
 		-- Players name
 		local name = enemy.name
 		
-		-- Enemy talents
-		if( self.db.profile.showTalents and enemy.name and enemy.server ) then
-			local found
-			if( IsAddOnLoaded("ArenaEnemyInfo") ) then
-				local data = AEI:GetSpec(enemy.name, enemy.server)
-				if( data ~= "" ) then
-					found = true
-					name = "|cffffffff" .. data .. "|r " .. name
-				end
-				
-			elseif( IsAddOnLoaded("Tattle") ) then
-				local data = Tattle:GetPlayerData(enemy.name, enemy.server)
-				if( data ) then
-					found = true
-					name = "|cffffffff[" .. data.tree1 .. "/" .. data.tree2 .. "/" .. data.tree3 .. "]|r " .. name
-				end
+		if( self.db.profile.showTalents ) then
+			-- Grab their talents if we don't have it
+			if( not enemy.talents and enemy.name and enemy.server ) then
+				enemy.talents = SSAF:GetTalents(enemy.name, enemy.server)
 			end
 			
-			if( IsAddOnLoaded("Remembrance") and not found ) then
-				local tree1, tree2, tree3 = Remembrance:GetTalents(enemy.name, enemy.server)
-				if( tree1 and tree2 and tree3 ) then
-					name = "|cffffffff[" .. tree1 .. "/" .. tree2 .. "/" .. tree3 .. "]|r " .. name
-				end
+			-- Display talents
+			if( enemy.talents ) then
+				name = "|cffffffff" .. enemy.talents .. "|r " .. name
 			end
 		end
 		
@@ -641,6 +652,7 @@ function SSAF:ScanUnit(unit)
 		local race = UnitRace(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
+		local talents = SSAF:GetTalents(name, server)
 		
 		table.insert(enemies, {	sortID = name .. "-" .. server,
 					name = name,
@@ -649,28 +661,32 @@ function SSAF:ScanUnit(unit)
 					race = race,
 					class = class,
 					classToken = classToken,
+					talents = talents,
 					guild = guild,
 					health = UnitHealth(unit),
 					maxHealth = UnitHealthMax(unit),
 					mana = UnitMana(unit),
 					maxMana = UnitManaMax(unit),
 					powerType = UnitPowerType(unit)})
+
+		-- Blank if need be string so concating it for syncing won't whine
+		talents = talents or ""
 		
 		if( self.db.profile.reportEnemies ) then
 			if( guild ) then
-				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class, guild))
+				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class, guild) .. " " .. talents)
 			else
-				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class))
+				self:ChannelMessage(string.format(L["[%d/%d] %s / %s / %s / %s"], #(enemies), maxPlayers, name, server, race, class) .. " " .. talents)
 			end
 		end
 
 		-- Sync/update
-		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit))
+		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit) .. "," .. talents)
 		self:UpdateEnemyIndex()
 		self:UpdateEnemies()
 		
 	-- Hunter pet, or Warlock/Mage minion
-	elseif( ( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) ) then
+	elseif( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) then
 		-- Need to find the pets owner
 		if( not self.tooltip ) then
 			self.tooltip = CreateFrame("GameTooltip", "SSArenaTooltip", UIParent, "GameTooltipTemplate")
@@ -693,7 +709,7 @@ function SSAF:ScanUnit(unit)
 			owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Pet"])
 			type = "PET"
 		end
-		
+				
 		-- Found the pet owner
 		if( owner and owner ~= UNKNOWNOBJECT ) then
 			local family = UnitCreatureFamily(unit)
@@ -742,7 +758,7 @@ end
 
 -- Health value updated, rescan our saved enemies
 local function healthValueChanged(...)
-	if( activeBF == -1 ) then
+	if( not instanceType ) then
 		return
 	end
 	
@@ -782,7 +798,7 @@ local function scanFrames(...)
 end
 
 -- Syncing
-function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
+function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType, talents)
 	-- Make sure we haven't added them yet
 	for _, enemy in pairs(enemies) do
 		if( not enemy.owner and enemy.name == name ) then
@@ -799,10 +815,10 @@ function SSAF:EnemyData(event, name, server, race, classToken, guild, powerType)
 				race = race,
 				classToken = classToken,
 				guild = guild,
+				talents = talents,
 				mana = 0,
 				maxMana = 100,
 				powerType = tonumber(powerType) or 0})
-	
 	self:UpdateEnemyIndex()
 	self:UpdateEnemies()
 end
@@ -816,15 +832,15 @@ function SSAF:PetData(event, name, owner, family, type, powerType)
 	-- Check if we have a pet that exists
 	for id, enemy in pairs(enemyPets) do
 		if( enemy.owner == owner ) then
-			-- New pet summoned, remove old one
-			if( enemy.name ~= name ) then
+			-- Old pet, nothing to do
+			if( enemy.name == name ) then
+				return
+			
+			-- New pet, remove old
+			else
 				table.remove(enemyPets, id)
 				enemyPetIndex[enemy.name] = nil
 				break
-
-			-- Still have the same-old pet
-			else
-				return
 			end
 		end
 	end
@@ -1087,8 +1103,6 @@ function SSAF:CreateRow()
 	
 	self.rows[id].targets[3] = texture
 	
-	--self:UpdateToTTextures(self.rows[id], 5)
-
 	-- Add key bindings
 	local bindKey = GetBindingKey("ARENATAR" .. id)
 
@@ -1171,20 +1185,29 @@ function SSAF:CHAT_MSG_ADDON(event, prefix, msg, type, author)
 end
 
 -- Are we inside an arena?
-function SSAF:UPDATE_BATTLEFIELD_STATUS()
-	for i=1, MAX_BATTLEFIELD_QUEUES do
-		local status, map, id, _, _, teamSize = GetBattlefieldStatus(i)
-		if( teamSize > 0 and status == "active" and i ~= activeBF ) then
-			activeBF = i
-			maxPlayers = teamSize
-			self:JoinedArena()
-
-		elseif( teamSize > 0 and status ~= "active" and i == activeBF ) then
-			activeBF = -1
-			maxPlayers = 0
-			self:LeftArena()
+function SSAF:ZONE_CHANGED_NEW_AREA()
+	local type = select(2, IsInInstance())
+	-- Inside an arena, but wasn't already
+	if( type == "arena" and type ~= instanceType ) then
+		maxPlayers = 0
+		-- Figure out how many players are in this
+		for i=1, MAX_BATTLEFIELD_QUEUES do
+			local status, map, id, _, _, teamSize = GetBattlefieldStatus(i)
+			if( status == "active" and map == GetRealZoneText() ) then
+				maxPlayers = teamSize
+				break
+			end
 		end
+		
+		self:JoinedArena()
+	
+
+	-- Was in an arena, but left it
+	elseif( type ~= "arena" and instanceType == "arena" ) then
+		self:LeftArena()
 	end
+	
+	instanceType = type
 end
 
 function SSAF:ChannelMessage(msg)
