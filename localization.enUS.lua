@@ -6,11 +6,11 @@ SSAFLocals = {
 	
 	["The Arena battle has begun!"] = "The Arena battle has begun!",
 	
-	["[%d/%d] %s / %s / %s / %s"] = "[%d/%d] %s / %s / %s / %s",
-	["[%d/%d] %s / %s / %s / %s / %s"] = "[%d/%d] %s / %s / %s / %s / %s",
+	["%s / %s / %s / %s"] = "%s / %s / %s / %s",
+	["%s / %s / %s / %s / %s"] = "%s / %s / %s / %s / %s",
 
-	["[%d/%d] %s's pet, %s %s"] = "[%d/%d] %s's pet, %s %s",
-	["[%d/%d] %s's pet, %s"] = "[%d/%d] %s's pet, %s",
+	["%s's pet, %s %s"] = "%s's pet, %s %s",
+	["%s's pet, %s"] = "%s's pet, %s",
 
 	["%s's %s"] = "%s's %s",
 	["([a-zA-Z]+)%'s Minion"] = "([a-zA-Z]+)%'s Minion",
