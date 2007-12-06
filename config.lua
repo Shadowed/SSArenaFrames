@@ -1,4 +1,4 @@
-local Config = SSAF:NewModule("Config", "AceConsole-3.0")
+local Config = SSAF:NewModule("Config")
 local L = SSAFLocals
 
 local TOTAL_CLICKIES = 10
@@ -10,10 +10,12 @@ local SML
 function Config:OnEnable()
 	if( OptionHouse ) then return end
 
-	-- SSPVP slash commands
-	self:RegisterChatCommand("ssaf", function(input)
+	-- Open the OH UI
+	SLASH_SSAF1 = "/ssaf"
+	SLASH_SSAF2 = "/ssarenaframes"
+	SlashCmdList["SSAF"] = function()
 		OptionHouse:Open("Arena Frames")
-	end)
+	end
 	
 
 	-- Register with OptionHouse

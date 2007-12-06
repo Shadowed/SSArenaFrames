@@ -9,10 +9,8 @@
 lib\LibStub-1.0\LibStub-1.0.xml
 lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
 lib\AceAddon-3.0\AceAddon-3.0.xml
-lib\AceConsole-3.0\AceConsole-3.0.xml
 lib\AceDB-3.0\AceDB-3.0.xml
 lib\AceEvent-3.0\AceEvent-3.0.xml
-lib\AceTimer-3.0\AceTimer-3.0.xml
 lib\OptionHouse.lua
 lib\HousingAuthority.lua
 lib\LibSharedMedia-2.0.lua
