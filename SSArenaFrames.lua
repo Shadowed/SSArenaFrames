@@ -299,8 +299,8 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 		enemy.health = unit or enemy.health
 	end
 	
-	-- Mostly a just incase
-	if( enemy.health > enemy.maxHealth ) then
+	-- Just incase
+	if( unit and enemy.health > enemy.maxHealth ) then
 		enemy.maxHealth = enemy.health
 	end
 
@@ -683,7 +683,16 @@ function SSAF:ScanUnit(unit)
 	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) or GetPlayerBuffTexture(L["Arena Preparation"]) ) then
 		return
 	end
-
+	
+	-- Check if we should update their health/mana/ect info
+	if( enemies[name] ) then
+		self:UpdateMana(enemies[name], unit)
+		self:UpdateHealth(enemies[name], unit)	
+	elseif( enemyPets[name] ) then
+		self:UpdateMana(enemyPets[name], unit)
+		self:UpdateHealth(enemyPets[name], unit)
+	end
+	
 	if( UnitIsPlayer(unit) ) then
 		server = server or GetRealmName()
 		
@@ -768,6 +777,15 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 		return
 	end
 	
+	local health, mana, maxHealth, maxMana
+	if( unit ) then
+		health = UnitHealth(unit)
+		maxHealth = UnitHealthMax(unit)
+		
+		mana = UnitMana(unit)
+		maxMana = UnitManaMax(unit)
+	end
+	
 	enemies[name] = {sortID = name .. "-" .. (server or ""),
 			name = name,
 			type = "PLAYER",
@@ -776,10 +794,10 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 			classToken = classToken,
 			guild = guild,
 			talents = talents,
-			health = unit and UnitHealth(unit) or 0,
-			maxHealth = unit and UnitHealthMax(unit) or 100,
-			mana = unit and UnitMana(unit) or 0,
-			maxMana = unit and UnitManaMax(unit) or 100,
+			health = health or 100,
+			maxHealth = maxHealth or 100,
+			mana = mana or 0,
+			maxMana = maxMana or 100,
 			powerType = tonumber(powerType) or 0}
 
 	self:UpdateEnemies()
@@ -792,16 +810,25 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
 	if( not type or (enemyPets[owner] and enemyPets[owner].name == name) ) then
 		return nil
 	end
+	
+	local health, mana, maxHealth, maxMana
+	if( unit ) then
+		health = UnitHealth(unit)
+		maxHealth = UnitHealthMax(unit)
+		
+		mana = UnitMana(unit)
+		maxMana = UnitManaMax(unit)
+	end
 
 	enemyPets[owner] = {	sortID = name .. "-" .. owner,
 				name = name,
 				owner = owner,
 				type = type,
 				family = family,
-				health = unit and UnitHealth(unit) or 0,
-				maxHealth = unit and UnitHealthMax(unit) or 100,
-				mana = unit and UnitMana(unit) or 0,
-				maxMana = unit and UnitManaMax(unit) or 100,
+				health = health or 0,
+				maxHealth = maxHealth or 100,
+				mana = mana or 0,
+				maxMana = maxMana or 100,
 				powerType = tonumber(powerType) or 2}
 	self:UpdateEnemies()
 	return true

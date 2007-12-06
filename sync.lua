@@ -56,10 +56,6 @@ end
 
 -- Sync with other addons
 function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
-	if( author == UnitName("player") ) then
-		return
-	end
-
 	-- SSArena Frames
 	if( prefix == "SSAF" ) then
 		local dataType, data = string.match(msg, "([^:]+)%:(.+)")
