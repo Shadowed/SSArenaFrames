@@ -184,7 +184,6 @@ function SSAF:UpdateToTTextures(row, totalTargets)
 		row.targets[3]:SetHeight(16)
 		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 0)
 	
-
 	-- 4 dots
 	else
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
@@ -291,6 +290,8 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 		
 		if( UnitIsDeadOrGhost(unit) ) then
 			enemy.isDead = true
+			enemy.health = 0
+			enemy.mana = 0
 		end
 		
 	-- We're specifically updating off set health/maxHealth values
@@ -752,11 +753,19 @@ function SSAF:ScanUnit(unit)
 		-- Found the pet owner
 		if( owner and owner ~= UNKNOWNOBJECT ) then
 			local family = UnitCreatureFamily(unit)
-						
-			if( enemyPets[owner] and enemyPets[owner].name == name ) then
-				return
-			end
 			
+			for id, enemy in pairs(enemyPets) do
+				if( enemy.owner == owner ) then
+					-- New pet summoned, remove the old
+					if( enemy.name ~= name ) then
+						enemyPets[id] = nil
+						break
+					else
+						return
+					end
+				end
+			end
+					
 			self:AddEnemyPet(name, owner, family, type, UnitPowerType(unit), unit)
 			if( self.db.profile.reportEnemies ) then
 				if( family ) then
@@ -806,10 +815,27 @@ end
 
 -- New pet found
 function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
-	-- Bad results either old sync, or we already added them
-	if( not type or (enemyPets[owner] and enemyPets[owner].name == name) ) then
+	-- Old sync
+	if( not type ) then
 		return nil
 	end
+
+	-- When a unit is passed, we verified it ourselve
+	if( not unit ) then
+		-- Check for dup
+		for id, enemy in pairs(enemyPets) do
+			if( enemy.owner == owner ) then
+				-- New pet summoned, remove the old
+				if( enemy.name ~= name ) then
+					enemyPets[id] = nil
+					break
+				else
+					return
+				end
+			end
+		end
+	end
+	
 	
 	local health, mana, maxHealth, maxMana
 	if( unit ) then
@@ -820,12 +846,12 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
 		maxMana = UnitManaMax(unit)
 	end
 
-	enemyPets[owner] = {	sortID = name .. "-" .. owner,
+	enemyPets[name] = {	sortID = name .. "-" .. owner,
 				name = name,
 				owner = owner,
 				type = type,
 				family = family,
-				health = health or 0,
+				health = health or 100,
 				maxHealth = maxHealth or 100,
 				mana = mana or 0,
 				maxMana = maxMana or 100,
@@ -841,19 +867,20 @@ function SSAF:EnemyDied(name)
 		if( not enemy.isDead ) then
 			enemy.isDead = true
 			enemy.health = 0
+			enemy.mana = 0
 
 			self:UpdateHealth(enemy)
 		end
 	
-	else
-		for _, enemy in pairs(enemyPets) do
-			if( enemy.name == name ) then
-				enemy.isDead = true
-				enemy.health = 0
-				
-				self:UpdateHealth(enemy)
-			end
-		end		
+	elseif( enemyPets[name] ) then
+		local enemy = enemyPets[name]
+		if( not enemy.isDead ) then
+			enemy.isDead = true
+			enemy.health = 0
+			enemy.mana = 0
+			
+			self:UpdateHealth(enemy)
+		end
 	end
 end
 
