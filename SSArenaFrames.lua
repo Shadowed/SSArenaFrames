@@ -641,7 +641,9 @@ function SSAF:UpdateEnemies()
 	
 	-- Nothing displayed, hide frame
 	if( id == 0 ) then
-		self.frame:Hide()
+		if( self.frame ) then
+			self.frame:Hide()
+		end
 		return
 	end
 		

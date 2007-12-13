@@ -1,4 +1,4 @@
---[[ $Id: AceDB-3.0.lua 56363 2007-12-01 09:04:51Z nevcairiel $ ]]
+--[[ $Id: AceDB-3.0.lua 56882 2007-12-12 09:26:28Z nevcairiel $ ]]
 local ACEDB_MAJOR, ACEDB_MINOR = "AceDB-3.0", 1
 local AceDB, oldminor = LibStub:NewLibrary(ACEDB_MAJOR, ACEDB_MINOR)
 
@@ -188,7 +188,8 @@ local preserve_keys = {
 	["callbacks"] = true,
 	["RegisterCallback"] = true,
 	["UnregisterCallback"] = true,
-	["UnregisterAllCallbacks"] = true
+	["UnregisterAllCallbacks"] = true,
+	["children"] = true,
 }
 
 local realmKey = GetRealmName()
@@ -198,7 +199,7 @@ local _, raceKey = UnitRace("player")
 local factionKey = UnitFactionGroup("player")
 local factionrealmKey = factionKey .. " - " .. realmKey
 -- Actual database initialization function
-local function initdb(sv, defaults, defaultProfile, olddb)
+local function initdb(sv, defaults, defaultProfile, olddb, parent)
 	-- Generate the database keys for each section
 	
 	-- Make a container for profile keys
@@ -241,8 +242,13 @@ local function initdb(sv, defaults, defaultProfile, olddb)
 	-- Copy methods locally into the database object, to avoid hitting
 	-- the metatable when calling methods
 	
-	for name, func in pairs(DBObjectLib) do
-		db[name] = func
+	if not parent then
+		for name, func in pairs(DBObjectLib) do
+			db[name] = func
+		end
+	else
+		-- hack this one in
+		db.RegisterDefaults = DBObjectLib.RegisterDefaults
 	end
 	
 	-- Set some properties in the database object
@@ -338,6 +344,13 @@ function DBObjectLib:SetProfile(name)
 
 	-- Callback: OnProfileChanged, database, newProfileKey
 	self.callbacks:Fire("OnProfileChanged", self, name)
+	
+	-- populate to child namespaces
+	if self.children then
+		for _, db in pairs(self.children) do
+			DBObjectLib.SetProfile(db, name)
+		end
+	end
 end
 
 -- DBObject:GetProfiles(tbl)
@@ -399,6 +412,13 @@ function DBObjectLib:DeleteProfile(name)
 	self.sv.profiles[name] = nil
 	-- Callback: OnProfileDeleted, database, profileKey
 	self.callbacks:Fire("OnProfileDeleted", self, name)
+	
+	-- populate to child namespaces
+	if self.children then
+		for _, db in pairs(self.children) do
+			DBObjectLib.DeleteProfile(db, name)
+		end
+	end
 end
 
 -- DBObject:CopyProfile(name)
@@ -420,7 +440,7 @@ function DBObjectLib:CopyProfile(name)
 	end
 	
 	-- Reset the profile before copying
-	self:ResetProfile()
+	DBObjectLib.ResetProfile(self)
 	
 	local profile = self.profile
 	local source = self.sv.profiles[name]
@@ -429,6 +449,13 @@ function DBObjectLib:CopyProfile(name)
 	
 	-- Callback: OnProfileCopied, database, sourceProfileKey
 	self.callbacks:Fire("OnProfileCopied", self, name)
+	
+	-- populate to child namespaces
+	if self.children then
+		for _, db in pairs(self.children) do
+			DBObjectLib.CopyProfile(db, name)
+		end
+	end
 end
 
 -- DBObject:ResetProfile()
@@ -448,6 +475,13 @@ function DBObjectLib:ResetProfile()
 
 	-- Callback: OnProfileReset, database
 	self.callbacks:Fire("OnProfileReset", self)
+	
+	-- populate to child namespaces
+	if self.children then
+		for _, db in pairs(self.children) do
+			DBObjectLib.ResetProfile(db)
+		end
+	end
 end
 
 -- DBObject:ResetDB(defaultProfile)
@@ -474,6 +508,15 @@ function DBObjectLib:ResetDB(defaultProfile)
 	-- Callback: OnProfileChanged, database, profileKey
 	self.callbacks:Fire("OnProfileChanged", self, self.keys["profile"])
 	
+	-- fix the child namespaces
+	if self.children then
+		if not sv.namespaces then sv.namespaces = {} end
+		for name, db in pairs(self.children) do
+			if not sv.namespaces[name] then sv.namespaces[name] = {} end
+			initdb(sv.namespaces[name], db.defaults, self.keys.profile, db, self)
+		end
+	end
+	
 	return self
 end
 
@@ -491,6 +534,9 @@ function DBObjectLib:RegisterNamespace(name, defaults)
 	if defaults and type(defaults) ~= "table" then
 		error("Usage: AceDBObject:RegisterNamespace(name, defaults): 'defaults' - table or nil expected.", 2)
 	end
+	if self.children and self.children[name] then
+		error ("Usage: AceDBObject:RegisterNamespace(name, defaults): 'name' - a namespace with that name already exists.", 2)
+	end
 	
 	local sv = self.sv
 	if not sv.namespaces then sv.namespaces = {} end
@@ -498,13 +544,10 @@ function DBObjectLib:RegisterNamespace(name, defaults)
 		sv.namespaces[name] = {}
 	end
 	
-	local newDB = initdb(sv.namespaces[name], defaults, self.keys.profile)
-	-- TODO: Make this a cleaner method
-	-- Remove the :SetProfile method from newDB
-	newDB.SetProfile = nil
+	local newDB = initdb(sv.namespaces[name], defaults, self.keys.profile, nil, self)
 	
 	if not self.children then self.children = {} end
-	table.insert(self.children, newDB)
+	self.children[name] = newDB
 	return newDB
 end
 

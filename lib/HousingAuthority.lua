@@ -1,90 +1,5 @@
--- LibStub is a simple versioning stub meant for use in Libraries.  http://www.wowace.com/wiki/LibStub for more info
--- LibStub is hereby placed in the Public Domain
--- Credits: Kaelten, Cladhaire, ckknight, Mikk, Ammo, Nevcairiel, joshborke
-local LIBSTUB_MAJOR, LIBSTUB_MINOR = "LibStub", 2  -- NEVER MAKE THIS AN SVN REVISION! IT NEEDS TO BE USABLE IN ALL REPOS!
-local LibStub = _G[LIBSTUB_MAJOR]
-
--- Check to see is this version of the stub is obsolete
-if not LibStub or LibStub.minor < LIBSTUB_MINOR then
-	LibStub = LibStub or {libs = {}, minors = {} }
-	_G[LIBSTUB_MAJOR] = LibStub
-	LibStub.minor = LIBSTUB_MINOR
-	
-	-- LibStub:NewLibrary(major, minor)
-	-- major (string) - the major version of the library
-	-- minor (string or number ) - the minor version of the library
-	-- 
-	-- returns nil if a newer or same version of the lib is already present
-	-- returns empty library object or old library object if upgrade is needed
-	function LibStub:NewLibrary(major, minor)
-		assert(type(major) == "string", "Bad argument #2 to `NewLibrary' (string expected)")
-		minor = assert(tonumber(strmatch(minor, "%d+")), "Minor version must either be a number or contain a number.")
-		
-		local oldminor = self.minors[major]
-		if oldminor and oldminor >= minor then return nil end
-		self.minors[major], self.libs[major] = minor, self.libs[major] or {}
-		return self.libs[major], oldminor
-	end
-	
-	-- LibStub:GetLibrary(major, [silent])
-	-- major (string) - the major version of the library
-	-- silent (boolean) - if true, library is optional, silently return nil if its not found
-	--
-	-- throws an error if the library can not be found (except silent is set)
-	-- returns the library object if found
-	function LibStub:GetLibrary(major, silent)
-		if not self.libs[major] and not silent then
-			error(("Cannot find a library instance of %q."):format(tostring(major)), 2)
-		end
-		return self.libs[major], self.minors[major]
-	end
-	
-	-- LibStub:IterateLibraries()
-	-- 
-	-- Returns an iterator for the currently registered libraries
-	function LibStub:IterateLibraries() 
-		return pairs(self.libs) 
-	end
-	
-	setmetatable(LibStub, { __call = LibStub.GetLibrary })
-end
-
---[[-------------------------------------------------------------------------
-  Copyright (c) 2006-2007, Dongle Development Team
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are
-  met:
-
-      * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-      * Redistributions in binary form must reproduce the above
-        copyright notice, this list of conditions and the following
-        disclaimer in the documentation and/or other materials provided
-        with the distribution.
-      * Neither the name of the Dongle Development Team nor the names of
-        its contributors may be used to endorse or promote products derived
-        from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
----------------------------------------------------------------------------]]
-
---[[-------------------------------------------------------------------------
-  Begin Library Implementation
----------------------------------------------------------------------------]]
 local major = "HousingAuthority-1.2"
-local minor = tonumber(string.match("$Revision: 373 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 555 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 local HAInstance, oldRevision = LibStub:NewLibrary(major, minor)
@@ -151,6 +66,8 @@ local function hideTooltip(self)
 end
 
 local function positionWidgets(columns, parent, widgets, positionGroup, isGroup)
+	-- If we're positioning an actual group, or we're using more then one column we need to shift
+	-- everything down to start with
 	local heightUsed = 10
 	if( positionGroup or columns > 1 ) then
 		heightUsed = 8 + (widgets[1].yPos or 0)
@@ -161,40 +78,52 @@ local function positionWidgets(columns, parent, widgets, positionGroup, isGroup)
 	if( columns == 1 ) then
 		local height = 0
 		for i, widget in pairs(widgets) do
+			widget.yPos = widget.yPos or 0
 			widget:ClearAllPoints()
 			
+			-- Add the height used
 			if( i > 1 ) then
-				heightUsed = heightUsed + height + 5 + ( widget.yPos or 0 )
+				heightUsed = heightUsed + height + 5 + widget.yPos
 			end
 
 			local xPos = widget.xPos
 			if( widget.infoButton and widget.infoButton.type ) then
-				xPos = ( xPos or 0 ) + 15
+				-- Shift the info button slightly down for anything besides input
+				-- so it appears centered on the widget
+				local pad = 0
+				if( widget.data.type ~= "input" ) then
+					pad = -3
+				end
+
 				if( not positionGroup ) then
-					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -heightUsed)
+					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -heightUsed + pad)
 				else
-					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -heightUsed)
+					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -heightUsed + pad)
 				end
 				
 				widget.infoButton:Show()
+			
+				xPos = ( xPos or 0 ) + 15
 			end
 
 			widget:SetPoint("TOPLEFT", parent, "TOPLEFT", xPos or 5, -heightUsed)
 			widget:Show()
-			height = widget:GetHeight() + ( widget.yPos or 0 )
+			height = widget:GetHeight() + widget.yPos
 		end
-				
+		
 		local checkPos = #(widgets)
 		if( checkPos == 1 ) then
 			heightUsed = 8
 		end
 		
+		-- When we're using only one widget we need to pad out the frame a bit more so
+		-- the frame doesn't clip into our widget
 		local widget = widgets[checkPos]
 		if( widget.data and widget.data.type ~= "color" and widget.data.type ~= "check" ) then
 			if( widget:GetHeight() >= 35 ) then
 				heightUsed = heightUsed + widget:GetHeight()
 			else
-				heightUsed = heightUsed + (widget.yPos or 0) + 5
+				heightUsed = heightUsed + widget.yPos + 5
 			end
 		end
 	else
@@ -210,31 +139,42 @@ local function positionWidgets(columns, parent, widgets, positionGroup, isGroup)
 		end
 
 		for i, widget in pairs(widgets) do
+			widget.yPos = widget.yPos or 0
+			
+			-- Done with this row, reset to next
 			if( row == columns or row == resetOn ) then
 				heightUsed = heightUsed + height
 				height = 0
 				row = 0
 			end
 			
-			-- How far away it is from the next row
+			-- Spacing between the row
 			local spacing = 0
 			if( row > 0 ) then
 				spacing = ( spacePerRow * ( row + 1 ) )
 			end
 
-			local xPos = widget.xPos or 0
+			local xPos = widget.xPos
 			if( widget.infoButton and widget.infoButton.type ) then
-				xPos = ( xPos or 0 ) + 15
+				-- Shift the info button slightly down for anything besides input
+				-- so it appears centered on the widget
+				local pad = 0
+				if( widgets.data.type ~= "input" ) then
+					pad = -3
+				end
 				
 				if( not positionGroup ) then
-					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", spacing, -heightUsed)
+					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", spacing, -heightUsed + pad)
 				else
-					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", spacing + 6, -heightUsed)
+					widget.infoButton:SetPoint("TOPLEFT", parent, "TOPLEFT", spacing + 6, -heightUsed + pad)
 				end
 				
 				widget.infoButton:Show()
+				xPos = ( xPos or 0 ) + 15
 			end
 			
+			-- Sliders need extra padding since the text above and below it
+			-- aren't included in GetHeight()
 			local extraPad = 0
 			if( widget.data.type == "slider" and i > columns ) then
 				extraPad = 10
@@ -245,15 +185,15 @@ local function positionWidgets(columns, parent, widgets, positionGroup, isGroup)
 			widget:SetPoint("TOPLEFT", parent, "TOPLEFT", spacing + xPos, -heightUsed - extraPad)			
 			widget:Show()
 			
-			-- Find the heightest widget out of this group and use that
-			local widgetHeight = widget:GetHeight() + ( widget.yPos or 0 ) + 5
+			-- Find the heightest widget out of this group and use that for next rows padding
+			local widgetHeight = widget:GetHeight() + widget.yPos + 5
 			if( widgetHeight > height ) then
 				height = widgetHeight
 			end
 			
 			-- Add the extra padding so we don't get overlap
 			if( i == resetOn ) then
-				heightUsed = heightUsed + ( widget.yPos or 0 )
+				heightUsed = heightUsed + widget.yPos
 			end
 
 			row = row + 1
@@ -281,6 +221,7 @@ local function setupWidgetInfo(widget, config, type, msg, skipCall)
 		widget.infoButton:SetScript("OnEnter", showInfoTooltip)
 		widget.infoButton:SetScript("OnLeave", hideTooltip)
 		widget.infoButton:SetTextFontObject(GameFontNormalSmall)
+		widget.infoButton:SetPushedTextOffset(0,0)
 		widget.infoButton:SetHeight(18)
 		widget.infoButton:SetWidth(18)
 	end
@@ -292,7 +233,6 @@ local function setupWidgetInfo(widget, config, type, msg, skipCall)
 	end
 	
 	if( type == "help" ) then
-		widget.infoButton:SetPushedTextOffset(0,0)
 		widget.infoButton:SetText(GREEN_FONT_COLOR_CODE .. "[?]" .. FONT_COLOR_CODE_CLOSE)
 	elseif( type == "validate" ) then
 		widget.infoButton:SetText(RED_FONT_COLOR_CODE .. "[!]" .. FONT_COLOR_CODE_CLOSE)
@@ -349,6 +289,7 @@ local function getValue(config, data)
 		val = get(data.var)
 	end
 	
+	-- Setting a default
 	if( val == nil and data.default ~= nil ) then
 		setValue(config, data, data.default)
 		return data.default
@@ -538,6 +479,9 @@ local dropdownBackdrop = {
 	insets = { left = 11, right = 12, top = 12, bottom = 11 },
 }
 
+-- Defined later
+local dropdownListShown
+
 local function showHighlight(self)
 	self.highlight:Show()
 
@@ -563,14 +507,19 @@ local function showDropdown(self)
 	for id, info in pairs(self.data.list) do
 		self.text:SetText(info[2])
 		if( self.text:GetStringWidth() > self.width ) then
-			self.width = self.text:GetStringWidth() + 75
+			self.width = self.text:GetStringWidth()
 		end
 
 		if( ( not self.data.multi and info[1] == selectedValues ) or ( self.data.multi and selectedValues[info[1]] ) ) then
 			selectedText = info[2]
 		end
 	end
-		
+	
+	-- Add our final padding
+	if( self.width > 0 ) then
+		self.width = self.width + 50
+	end
+	
 	-- Bad, means we couldn't find the selected text so we default to the first row
 	if( not selectedText ) then
 		if( not self.data.multi ) then
@@ -607,10 +556,6 @@ local function dropdownRowClicked(self)
 	
 		setValue(parent.parent, parent.data, selectedKeys)
 
-		-- Yes, this is INCREDIBLY hackish
-		self:GetParent():Hide()
-		self:GetParent():Show()
-		
 		showDropdown(parent)
 	end
 end
@@ -630,6 +575,8 @@ local function createListRow(parent, id)
 	button:SetWidth(100)
 	button:SetHeight(16)
 	button:SetScript("OnClick", dropdownRowClicked)
+	button:SetScript("OnEnter", showHighlight)
+	button:SetScript("OnLeave", hideHighlight)
 	button:SetTextFontObject(GameFontHighlightSmall)
 	button:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
 	button:SetHighlightTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
@@ -638,23 +585,18 @@ local function createListRow(parent, id)
 	button:SetText("*")
 	button:GetFontString():SetPoint("LEFT", button, "LEFT", 40, 0)
 
-	local highlight = button:CreateTexture(nil, "BACKGROUND")
-	highlight:ClearAllPoints()
-	highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 12, 0)
-	highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-	highlight:SetAlpha(0.5)
-	highlight:SetBlendMode("ADD")
-	highlight:Hide()
-	button.highlight = highlight
-
+	button.highlight = button:CreateTexture(nil, "BACKGROUND")
+	button.highlight:ClearAllPoints()
+	button.highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 12, 0)
+	button.highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+	button.highlight:SetAlpha(0.5)
+	button.highlight:SetBlendMode("ADD")
+	button.highlight:Hide()
+	
 	button.check = button:CreateTexture(nil, "ARTWORK")
 	button.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
 	button.check:SetHeight(24)
-	button.check:SetWidth(24)
-	
-	button:SetScript("OnEnter", showHighlight)
-	button:SetScript("OnLeave", hideHighlight)
-	
+	button.check:SetWidth(24)	
 	
 	if( id > 1 ) then
 		button:SetPoint("TOPLEFT", parent.rows[id - 1], "TOPLEFT", 0, -16)
@@ -682,10 +624,9 @@ local function updateDropdownList(self, frame)
 
 	local parent = frame.parentFrame
 	local selectedValues = getValue(parent.parent, parent.data)
-	local totalRows = #(parent.data.list)
 	local usedRows = 0
 	
-	OptionHouse:UpdateScroll(frame.scroll, totalRows + 1)
+	OptionHouse:UpdateScroll(frame.scroll, #(parent.data.list) + 1)
 		
 	for id, info in pairs(parent.data.list) do
 		if( id >= frame.scroll.offset and usedRows < DROPDOWN_ROWS ) then
@@ -741,7 +682,7 @@ local function openDropdown(self)
 		self.listFrame:SetToplevel(true)
 		self.listFrame:SetFrameStrata("FULLSCREEN")
 		self.listFrame:SetScript("OnShow", dropdownListShown)
-		--self.listFrame:SetScript("OnUpdate", dropdownCounter)
+		self.listFrame:SetScript("OnUpdate", dropdownCounter)
 		self.listFrame:Hide()
 
 		OptionHouse:CreateScrollFrame(self.listFrame, 10, updateDropdownList)
@@ -753,7 +694,7 @@ local function openDropdown(self)
 		self.listFrame.scroll.barDownTexture:Hide()
 	end
 
-	-- Toggle it open or close
+	-- Toggle visibility
 	if( self.listFrame:IsVisible() ) then
 		if( openedList == self.listFrame ) then
 			openedList = nil
@@ -1396,7 +1337,7 @@ function HouseAuthority.CreateDropdown(config, data)
 	frame.text = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	frame.text:SetJustifyH("RIGHT")
 	frame.text:SetHeight(10)
-	frame.text:SetPoint("RIGHT", frame.rightTexture, -43, 2)
+	frame.text:SetPoint("RIGHT", frame.rightTexture, -43, 1)
 	
 	frame.testText = frame:CreateFontString(nil, "ARTWORK")
 	
