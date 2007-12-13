@@ -287,13 +287,6 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 	if( unit and not maxHealth ) then
 		enemy.maxHealth = UnitHealthMax(unit) or enemy.maxHealth
 		enemy.health = UnitHealth(unit) or enemy.health
-		
-		if( UnitIsDeadOrGhost(unit) ) then
-			enemy.isDead = true
-			enemy.health = 0
-			enemy.mana = 0
-		end
-		
 	-- We're specifically updating off set health/maxHealth values
 	elseif( unit and maxHealth ) then
 		enemy.maxHealth = maxHealth or enemy.maxHealth
