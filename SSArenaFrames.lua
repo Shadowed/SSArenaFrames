@@ -124,11 +124,6 @@ function SSAF:JoinedArena()
 	for i=CREATED_ROWS, 10 do
 		self:CreateRow()
 	end
-
-	-- Just in-case, I need to fix up the moving method to work better and not be such a pain in the ass
-	if( not self.db.profile.locked ) then
-		self:Print(L["WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."])
-	end
 end
 
 function SSAF:LeftArena()
@@ -689,16 +684,18 @@ function SSAF:ScanUnit(unit)
 		self:UpdateHealth(enemyPets[name], unit)
 	end
 	
+	-- Check for a new player
 	if( UnitIsPlayer(unit) ) then
 		server = server or GetRealmName()
 		
 		if( enemies[name] ) then
+			-- Already found them, AND server is provided
 			if( enemies[name].server ) then
 				return
 			end
 			
-			-- When SSAF syncs with another arena mod, they don't provide server
-			-- so we have to fill it in ourselves to be sure if it's not available yet
+			-- All the current arena mods do not provide server meaning we have to add it ourself
+			-- in order to do talent lookups
 			enemies[name].sortID = name .. "-" .. server
 			enemies[name].server = server
 		end
@@ -713,9 +710,9 @@ function SSAF:ScanUnit(unit)
 		talents = talents or ""
 		if( self.db.profile.reportEnemies ) then
 			if( guild ) then
-				self:ChannelMessage(string.format(L["%s / %s / %s / %s / %s"], name, server, race, class, guild) .. " " .. talents)
+				self:ChannelMessage(string.format("%s / %s / %s / %s / %s", name, server, race, class, guild) .. " " .. talents)
 			else
-				self:ChannelMessage(string.format(L["%s / %s / %s / %s"], name, server, race, class) .. " " .. talents)
+				self:ChannelMessage(string.format("%s / %s / %s / %s", name, server, race, class) .. " " .. talents)
 			end
 		end
 
@@ -881,43 +878,61 @@ end
 
 
 -- Create the master frame to hold everything
+local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+		edgeFile = "Interface\\ChatFrame\\ChatFrameBackground", edgeSize = 0.6,
+		insets = {left = 1, right = 1, top = 1, bottom = 1}}
 function SSAF:CreateFrame()
 	if( self.frame ) then
 		return
 	end
 	
 	self.frame = CreateFrame("Frame")
-	self.frame:SetBackdrop({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-		edgeFile = "Interface\\ChatFrame\\ChatFrameBackground", edgeSize = 0.6,
-		insets = {left = 1, right = 1, top = 1, bottom = 1}})
-
+	self.frame:SetBackdrop(backdrop)
 	self.frame:SetBackdropColor(0, 0, 0, 1.0)
 	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.frame:SetScale(self.db.profile.scale)
 	self.frame:SetWidth(180)
 	self.frame:SetHeight(18)
 	self.frame:SetMovable(true)
-	self.frame:EnableMouse(not self.db.profile.locked)
+	self.frame:EnableMouse(false)
 	self.frame:SetClampedToScreen(true)
 	self.frame:Hide()
 
-	-- Moving the frame
-	self.frame:SetScript("OnMouseDown", function(self)
-		if( not SSAF.db.profile.locked ) then
+	-- Create our anchor for moving the frame
+	self.anchor = CreateFrame("Frame")
+	self.anchor:SetWidth(180)
+	self.anchor:SetHeight(12)
+	self.anchor:SetBackdrop(backdrop)
+	self.anchor:SetBackdropColor(0, 0, 0, 1.0)
+	self.anchor:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
+	self.anchor:SetClampedToScreen(true)
+	self.anchor:EnableMouse(true)
+	self.anchor:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 0, 14)
+	self.anchor:SetScript("OnMouseDown", function(self)
+		if( not SSAF.db.profile.locked and IsAltKeyDown() ) then
 			self.isMoving = true
-			self:StartMoving()
+			SSAF.frame:StartMoving()
 		end
 	end)
 
-	self.frame:SetScript("OnMouseUp", function(self)
+	self.anchor:SetScript("OnMouseUp", function(self)
 		if( self.isMoving ) then
 			self.isMoving = nil
-			self:StopMovingOrSizing()
+			SSAF.frame:StopMovingOrSizing()
 
-			SSAF.db.profile.position.x = self:GetLeft()
-			SSAF.db.profile.position.y = self:GetTop()
+			SSAF.db.profile.position.x = SSAF.frame:GetLeft()
+			SSAF.db.profile.position.y = SSAF.frame:GetTop()
 		end
 	end)	
+	
+	self.anchor.text = self.anchor:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	self.anchor.text:SetText(L["SSArena Frames"])
+	self.anchor.text:SetPoint("CENTER", self.anchor, "CENTER")
+	
+	-- Hide anchor if locked
+	if( self.db.profile.locked ) then
+		self.anchor:Hide()
+	end
 	
 	-- Health monitoring
 	local timeElapsed = 0
@@ -1177,6 +1192,13 @@ function SSAF:Reload()
 		self.frame:SetMovable(not self.db.profile.locked)
 		self.frame:EnableMouse(not self.db.profile.locked)
 		self.frame:SetScale(self.db.profile.scale)
+
+		-- Change anchor visability
+		if( self.db.profile.locked ) then
+			self.anchor:Hide()
+		else
+			self.anchor:Show()
+		end
 	end
 		
 	-- Update all the rows to the current settings
@@ -1212,7 +1234,7 @@ function SSAF:Reload()
 		row.text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 		row.healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	end
-	
+		
 	-- Update it if we're already showing something
 	if( self.rows[1] and self.rows[1]:IsVisible() ) then
 		self:UpdateEnemies()
@@ -1225,7 +1247,6 @@ function SSAF:ClearEnemies()
 		enemies[k] = nil
 
 	end
-	
 
 	for k in pairs(enemyPets) do
 		enemyPets[k] = nil

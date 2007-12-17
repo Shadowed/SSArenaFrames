@@ -6,9 +6,6 @@ SSAFLocals = {
 	
 	["The Arena battle has begun!"] = "The Arena battle has begun!",
 	
-	["%s / %s / %s / %s"] = "%s / %s / %s / %s",
-	["%s / %s / %s / %s / %s"] = "%s / %s / %s / %s / %s",
-
 	["%s's pet, %s %s"] = "%s's pet, %s %s",
 	["%s's pet, %s"] = "%s's pet, %s",
 
@@ -27,7 +24,7 @@ SSAFLocals = {
 	["Modifier: %s"] = "Modifier: %s",
 	["Mouse: %s"] = "Mouse: %s",
 	
-	["WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them."] = "WARNING: The arena frames are unlocked, you won't be able to target anyone until you lock them.",
+	["SSArena Frames"] = "SSArena Frames",
 	
 	["CLASSES"] = {
 		["MAGE"] = "Mage",
