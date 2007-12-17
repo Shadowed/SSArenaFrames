@@ -1056,7 +1056,7 @@ function SSAF:CreateRow()
 	button:SetHeight(16)
 	button:SetWidth(179)
 	button:SetPoint("LEFT", row, "LEFT", 1, 0)
-	button:EnableMouse(self.db.profile.locked)
+	button:EnableMouse(true)
 	button:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp", "Button4Up", "Button5Up")
 	
 	-- Position
@@ -1189,8 +1189,6 @@ function SSAF:Reload()
 	end
 	
 	if( self.frame ) then
-		self.frame:SetMovable(not self.db.profile.locked)
-		self.frame:EnableMouse(not self.db.profile.locked)
 		self.frame:SetScale(self.db.profile.scale)
 
 		-- Change anchor visability
@@ -1205,7 +1203,6 @@ function SSAF:Reload()
 	for i=1, CREATED_ROWS do
 		-- Texture/mana bar height
 		local row = self.rows[i]
-		row.button:EnableMouse(self.db.profile.locked)
 		row:SetStatusBarTexture(self.db.profile.barTexture)
 		row.manaBar:SetStatusBarTexture(self.db.profile.barTexture)
 		row.manaBar:SetHeight(self.db.profile.manaBarHeight)
