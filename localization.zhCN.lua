@@ -3,7 +3,6 @@ if( GetLocale() ~= "zhCN" ) then
 	return
 end
 
-SSAFLocals = setmetatable({
 SSAFLocals["SSArena Frames Slash Commands"] = "SSArena Frames命令行";
 	SSAFLocals["Water Elemental"] = "水元素";
 	
@@ -11,8 +10,8 @@ SSAFLocals["SSArena Frames Slash Commands"] = "SSArena Frames命令行";
 	
 	SSAFLocals["The Arena battle has begun!"] = "竞技比赛已经开始了!";
 	
-	SSAFLocals["%s's pet, %s %s"] = "%s's 宠物, %s %s",
-	SSAFLocals["%s's pet, %s"] = "%s's 宠物, %s",
+	SSAFLocals["%s's pet, %s %s"] = "%s's 宠物, %s %s";
+	SSAFLocals["%s's pet, %s"] = "%s's 宠物, %s";
 
 	SSAFLocals["%s's %s"] = "%s's %s";
 	SSAFLocals["([a-zA-Z]+)%'s Minion"] = "([a-zA-Z]+)%'s 仆从";
@@ -29,7 +28,7 @@ SSAFLocals["SSArena Frames Slash Commands"] = "SSArena Frames命令行";
 	SSAFLocals["Modifier: %s"] = "控制键: %s";
 	SSAFLocals["Mouse: %s"] = "鼠标: %s";
 	
-	SSAFLocals["SSArena Frames"] = "SSArena Frames",
+	SSAFLocals["SSArena Frames"] = "SSArena Frames";
 	
 	SSAFLocals["CLASSES"] = {
 		["MAGE"] = "法师",
@@ -127,4 +126,3 @@ SSAFLocals["SSArena Frames Slash Commands"] = "SSArena Frames命令行";
 	
 	SSAFLocals["Show whos targeting an enemy"] = "显示敌对目标的目标";
 	SSAFLocals["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."] = "显示一个小按键在敌对目标行的右边,这个按键表示了敌对目标选择了谁为目标(你的队友), 按键颜色使用敌对目标对应的职业色彩。";
-}, { __index = SSAFLocals })
