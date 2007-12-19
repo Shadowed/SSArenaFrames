@@ -786,7 +786,7 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 		mana = UnitMana(unit)
 		maxMana = UnitManaMax(unit)
 	end
-	
+		
 	enemies[name] = {sortID = name .. "-" .. (server or ""),
 			name = name,
 			type = "PLAYER",
