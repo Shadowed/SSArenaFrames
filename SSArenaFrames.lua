@@ -906,6 +906,7 @@ function SSAF:CreateFrame()
 	self.anchor:SetBackdropColor(0, 0, 0, 1.0)
 	self.anchor:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.anchor:SetClampedToScreen(true)
+	self.anchor:SetScale(self.db.profile.scale)
 	self.anchor:EnableMouse(true)
 	self.anchor:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 0, 14)
 	self.anchor:SetScript("OnMouseDown", function(self)
@@ -1190,6 +1191,7 @@ function SSAF:Reload()
 	
 	if( self.frame ) then
 		self.frame:SetScale(self.db.profile.scale)
+		self.anchor:SetScale(self.db.profile.scale)
 
 		-- Change anchor visability
 		if( self.db.profile.locked ) then

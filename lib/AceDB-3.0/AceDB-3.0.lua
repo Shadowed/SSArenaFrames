@@ -1,4 +1,4 @@
---[[ $Id: AceDB-3.0.lua 56882 2007-12-12 09:26:28Z nevcairiel $ ]]
+--[[ $Id: AceDB-3.0.lua 56968 2007-12-14 09:24:47Z ammo $ ]]
 local ACEDB_MAJOR, ACEDB_MINOR = "AceDB-3.0", 1
 local AceDB, oldminor = LibStub:NewLibrary(ACEDB_MAJOR, ACEDB_MINOR)
 
@@ -271,7 +271,7 @@ local function logoutHandler(frame, event)
 		for db in pairs(AceDB.db_registry) do
 			db.callbacks:Fire("OnDatabaseShutdown", db)
 			for section, key in pairs(db.keys) do
-				if db.defaults[section] and rawget(db, section) then
+				if db.defaults and db.defaults[section] and rawget(db, section) then
 					removeDefaults(db[section], db.defaults[section])
 				end
 			end

@@ -1,4 +1,4 @@
---[[ $Id: AceEvent-3.0.lua 54400 2007-11-12 17:15:56Z mikk $ ]]
+--[[ $Id: AceEvent-3.0.lua 56939 2007-12-13 20:03:55Z nevcairiel $ ]]
 local MAJOR, MINOR = "AceEvent-3.0", 2
 local AceEvent = LibStub:NewLibrary(MAJOR, MINOR)
 
@@ -51,6 +51,7 @@ function AceEvent:Embed(target)
 		target[v] = self[v]
 	end
 	self.embeds[target] = true
+	return target
 end
 
 -- AceEvent:OnEmbedDisable( target )
