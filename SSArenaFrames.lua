@@ -379,6 +379,8 @@ function SSAF:GetTalents(name, server)
 			return "[" .. data.tree1 .. "/" .. data.tree2 .. "/" .. data.tree3 .. "]"
 		end
 	end
+	
+	return nil
 end
 
 -- Health value updated, rescan our saved enemies
@@ -496,7 +498,7 @@ function SSAF:UpdateEnemies()
 			end
 			
 			-- Display talents
-			if( enemy.talents ) then
+			if( enemy.talents and enemy.talents ~= "" ) then
 				name = "|cffffffff" .. enemy.talents .. "|r " .. name
 			end
 		end
@@ -774,7 +776,8 @@ end
 
 -- Syncing
 function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents, unit)
-	if( enemies[name] ) then
+	-- Prevent bad syncs from adding people in our group
+	if( enemies[name] or UnitInParty(name) or UnitInRaid(name) ) then
 		return
 	end
 	
