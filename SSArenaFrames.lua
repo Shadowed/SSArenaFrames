@@ -320,6 +320,10 @@ function SSAF:UpdateMana(enemy, unit)
 		enemy.mana = UnitMana(unit)
 		enemy.maxMana = UnitManaMax(unit)
 		enemy.powerType = UnitPowerType(unit)
+		
+		if( enemy.classToken == "SHAMAN" ) then
+			enemy.powerType = 3
+		end
 	end
 	
 	if( not enemy.displayRow ) then
@@ -400,7 +404,6 @@ local function healthValueChanged(...)
 
 	else
 		for _, enemy in pairs(enemyPets) do
-
 			if( enemy.name == ownerName ) then
 				SSAF:UpdateHealth(enemy, this:GetValue(), select(2, this:GetMinMaxValues()))
 			end
@@ -788,6 +791,11 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 		
 		mana = UnitMana(unit)
 		maxMana = UnitManaMax(unit)
+	end
+
+	-- Use Rogue energy indicator so you can actually see mana
+	if( classToken == "SHAMAN" ) then
+		powerType = 3
 	end
 		
 	enemies[name] = {sortID = name .. "-" .. (server or ""),
