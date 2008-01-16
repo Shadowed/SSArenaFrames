@@ -1,4 +1,4 @@
---[[ $Id: AceDB-3.0.lua 56968 2007-12-14 09:24:47Z ammo $ ]]
+--[[ $Id: AceDB-3.0.lua 58237 2008-01-11 10:46:00Z nevcairiel $ ]]
 local ACEDB_MAJOR, ACEDB_MINOR = "AceDB-3.0", 1
 local AceDB, oldminor = LibStub:NewLibrary(ACEDB_MAJOR, ACEDB_MINOR)
 
@@ -12,7 +12,8 @@ local setmetatable = setmetatable
 AceDB.db_registry = setmetatable(AceDB.db_registry or {}, {__mode = "k"})
 AceDB.frame = AceDB.frame or CreateFrame("Frame")
 
-local CallbackHandler = LibStub:GetLibrary("CallbackHandler-1.0")
+local CallbackHandler
+local CallbackDummy = { Fire = function() end }
 
 local DBObjectLib = {}
 
@@ -39,6 +40,8 @@ end
 -- and set in the host table.  These tables must be cleaned up by removeDefaults
 -- in order to ensure we don't write empty default tables.
 local function copyDefaults(dest, src)
+	-- this happens if some value in the SV overwrites our default value with a non-table
+	--if type(dest) ~= "table" then return end
 	for k, v in pairs(src) do
 		if k == "*" or k == "**" then
 			if type(v) == "table" then
@@ -66,9 +69,11 @@ local function copyDefaults(dest, src)
 			end
 		elseif type(v) == "table" then
 			if not rawget(dest, k) then rawset(dest, k, {}) end
-			copyDefaults(dest[k], v)
-			if src['**'] then
-				copyDefaults(dest[k], src['**'])
+			if type(dest[k]) == "table" then
+				copyDefaults(dest[k], v)
+				if src['**'] then
+					copyDefaults(dest[k], src['**'])
+				end
 			end
 		else
 			if rawget(dest, k) == nil then
@@ -85,12 +90,14 @@ local function removeDefaults(db, defaults, blocker)
 			if type(v) == "table" then
 				-- Loop through all the actual k,v pairs and remove
 				for key, value in pairs(db) do
-					-- if the key was not explicitly specified in the defaults table, just strip everything from * and ** tables
-					if defaults[key] == nil then
-						removeDefaults(value, v)
-					-- if it was specified, only strip ** content, but block values which were set in the key table
-					elseif k == "**" then 
-						removeDefaults(value, v, defaults[key])
+					if type(value) == "table" then
+						-- if the key was not explicitly specified in the defaults table, just strip everything from * and ** tables
+						if defaults[key] == nil then
+							removeDefaults(value, v)
+						-- if it was specified, only strip ** content, but block values which were set in the key table
+						elseif k == "**" then 
+							removeDefaults(value, v, defaults[key])
+						end
 					end
 				end
 			elseif k == "*" then
@@ -101,7 +108,7 @@ local function removeDefaults(db, defaults, blocker)
 					end
 				end
 			end
-		elseif type(v) == "table" and db[k] then
+		elseif type(v) == "table" and type(db[k]) == "table" then
 			-- if a blocker was set, dive into it, to allow multi-level defaults
 			removeDefaults(db[k], v, blocker and blocker[k])
 			if not next(db[k]) then
@@ -236,7 +243,9 @@ local function initdb(sv, defaults, defaultProfile, olddb, parent)
 	local db = setmetatable(olddb or {}, dbmt)
 	
 	if not rawget(db, "callbacks") then 
-		db.callbacks = CallbackHandler:New(db)
+		-- try to load CallbackHandler-1.0 if it loaded after our library
+		if not CallbackHandler then CallbackHandler = LibStub:GetLibrary("CallbackHandler-1.0", true) end
+		db.callbacks = CallbackHandler and CallbackHandler:New(db) or CallbackDummy
 	end
 	
 	-- Copy methods locally into the database object, to avoid hitting
@@ -341,6 +350,7 @@ function DBObjectLib:SetProfile(name)
 	
 	self.profile = nil
 	self.keys["profile"] = name
+	self.sv.profileKeys[charKey] = name
 
 	-- Callback: OnProfileChanged, database, newProfileKey
 	self.callbacks:Fire("OnProfileChanged", self, name)

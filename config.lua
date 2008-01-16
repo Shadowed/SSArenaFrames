@@ -17,7 +17,6 @@ function Config:OnEnable()
 		OptionHouse:Open("Arena Frames")
 	end
 	
-
 	-- Register with OptionHouse
 	OptionHouse = LibStub("OptionHouse-1.1")
 	HouseAuthority = LibStub("HousingAuthority-1.2")
@@ -117,7 +116,7 @@ function Config:CreateClickListUI()
 				enabled = RED_FONT_COLOR_CODE .. L["Disabled"] .. FONT_COLOR_CODE_CLOSE
 			end
 			
-			local key = row.modifier
+			local key = row.modifier or ""
 			if( key == "" ) then
 				key = L["All"]
 			elseif( key == "ctrl-" ) then
@@ -128,7 +127,7 @@ function Config:CreateClickListUI()
 				key = L["ALT"]			
 			end
 			
-			local mouse = row.button
+			local mouse = row.button or ""
 			if( mouse == "" ) then
 				mouse = L["Any button"]
 			elseif( mouse == "1" ) then

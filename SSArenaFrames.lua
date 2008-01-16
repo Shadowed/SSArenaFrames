@@ -129,8 +129,8 @@ end
 function SSAF:LeftArena()
 	-- Disable syncing
 	self.modules.Sync:DisableModule()
-
 	self:UnregisterOOCUpdate("UpdateEnemies")
+
 	if( InCombatLockdown() ) then
 		self:RegisterOOCUpdate("ClearEnemies")
 	else
@@ -282,6 +282,7 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 	if( unit and not maxHealth ) then
 		enemy.maxHealth = UnitHealthMax(unit) or enemy.maxHealth
 		enemy.health = UnitHealth(unit) or enemy.health
+	
 	-- We're specifically updating off set health/maxHealth values
 	elseif( unit and maxHealth ) then
 		enemy.maxHealth = maxHealth or enemy.maxHealth
@@ -293,7 +294,6 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 		enemy.maxHealth = enemy.health
 	end
 
-	-- Not displaying it yet
 	if( not enemy.displayRow ) then
 		return
 	end
@@ -376,7 +376,6 @@ function SSAF:GetTalents(name, server)
 		if( data ~= "" ) then
 			return data
 		end
-
 	elseif( IsAddOnLoaded("Tattle") ) then
 		local data = Tattle:GetPlayerData(name, server)
 		if( data ) then
@@ -387,25 +386,52 @@ function SSAF:GetTalents(name, server)
 	return nil
 end
 
+-- Update displayed talents even if we're in combat
+function SSAF:UpdateTalentDisplay()
+	for _, row in pairs(self.rows) do
+		if( row.ownerType == "PLAYER" and row.talents == "") then
+			local enemy = enemies[row.ownerName]
+			if( enemy ) then
+				if( not enemy.talents and enemy.name and enemy.server ) then
+					enemy.talents = SSAF:GetTalents(enemy.name, enemy.server)
+				end
+
+				if( enemy.talents and enemy.talents ~= "" ) then
+					row.talents = "|cffffffff" .. enemy.talents .. "|r "
+				end
+
+				row.text:SetText(row.talents .. row.nameID .. enemy.name)
+			end
+ 		end
+	end
+end
+
 -- Health value updated, rescan our saved enemies
 local function healthValueChanged(...)
-	if( this.SSValueChanged ) then
-		this.SSValueChanged(...)
+	if( this.SSAFValueChanged ) then
+		this.SSAFValueChanged(...)
 	end
 
 	if( not instanceType ) then
 		return
 	end
 	
-	local ownerName = select(5, this:GetParent():GetRegions()):GetText()
+	local name = select(5, this:GetParent():GetRegions()):GetText()	
 	
-	if( enemies[ownerName] ) then
-		SSAF:UpdateHealth(enemies[ownerName], this:GetValue(), select(2, this:GetMinMaxValues()))
 
+	-- The "isCorrupted" flag is a way of letting us know to disregard any health updates from them
+	-- due to Hunters naming the pet the same as someone on the friendly team
+	if( enemies[name] and enemies[name].isCorrupted ) then
+		return
+	end
+	
+	if( enemies[name] ) then
+		SSAF:UpdateHealth(enemies[name], this:GetValue(), select(2, this:GetMinMaxValues()))
 	else
 		for _, enemy in pairs(enemyPets) do
-			if( enemy.name == ownerName ) then
+			if( enemy.name == name ) then
 				SSAF:UpdateHealth(enemy, this:GetValue(), select(2, this:GetMinMaxValues()))
+				break
 			end
 		end
 	end
@@ -427,7 +453,7 @@ local function scanFrames(...)
 		local health = findUnhookedNameplates(select(i, ...):GetChildren())
 		if( health ) then
 			health.SSAFHooked = true
-			health.SSValueChanged = health:GetScript("OnValueChanged")
+			health.SSAFValueChanged = health:GetScript("OnValueChanged")
 			health:SetScript("OnValueChanged", healthValueChanged)
 		end
 	end
@@ -489,11 +515,9 @@ function SSAF:UpdateEnemies()
 		
 		-- So we can update the row quickly from health/mana
 		enemy.displayRow = id
-		
-		-- Set name
-		local name = enemy.name
-		
+				
 		-- Show talents
+		row.talents = ""
 		if( self.db.profile.showTalents ) then
 			-- Grab their talents if we don't have it
 			if( not enemy.talents and enemy.name and enemy.server ) then
@@ -502,16 +526,18 @@ function SSAF:UpdateEnemies()
 			
 			-- Display talents
 			if( enemy.talents and enemy.talents ~= "" ) then
-				name = "|cffffffff" .. enemy.talents .. "|r " .. name
+				row.talents = "|cffffffff" .. enemy.talents .. "|r "
 			end
 		end
 		
 		-- ID to make it easier to call out
 		if( self.db.profile.showID ) then
-			name = "|cffffffff" .. id .. "|r " .. name
+			row.nameID = "|cffffffff" .. id .. "|r "
+		else
+			row.nameID = ""
 		end
 			
-		row.text:SetText(name)
+		row.text:SetText(row.talents .. row.nameID .. enemy.name)
 		row.ownerName = enemy.name
 		row.ownerType = "PLAYER"
 				
@@ -536,11 +562,11 @@ function SSAF:UpdateEnemies()
 		-- Set up all the macro things
 		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
-			if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
+			if( macro.modifier and macro.button and macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
 				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
 				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
 				foundMacro = true
-			else
+			elseif( macro.modifier and macro.button ) then
 				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
 				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
 			end
@@ -580,13 +606,15 @@ function SSAF:UpdateEnemies()
 			-- So we can update the row quickly from health/mana
 			enemy.displayRow = id
 
-			-- Show it as "<owner>'s <pet family> or <pet name> if no family"
-			local name = string.format(L["%s's %s"], enemy.owner, (enemy.family or enemy.name))
+			-- ID to make it easier to call out
 			if( self.db.profile.showID ) then
-				name = "|cffffffff" .. id .. "|r " .. name
+				row.nameID = "|cffffffff" .. id .. "|r "
+			else
+				row.nameID = ""
 			end
 
-			row.text:SetText(name)
+			-- Show it as "<owner>'s <pet family> or <pet name> if no family"
+			row.text:SetFormattedText("%s%s's %s", row.nameID, enemy.owner, enemy.family or enemy.name)
 			row.ownerName = enemy.name
 			row.ownerType = enemy.type
 
@@ -621,11 +649,11 @@ function SSAF:UpdateEnemies()
 			-- Set up all the macro things
 			local foundMacro
 			for _, macro in pairs(self.db.profile.attributes) do
-				if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
+				if( macro.modifier and macro.button and macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
 					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
 					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
 					foundMacro = true
-				else
+				elseif( macro.modifier and macro.button ) then
 					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
 					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
 				end
@@ -711,17 +739,21 @@ function SSAF:ScanUnit(unit)
 		local talents = SSAF:GetTalents(name, server)
 		
 		self:AddEnemy(name, server, race, classToken, guild, UnitPowerType(unit), talents, unit)
+		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit) .. "," .. (talents or ""))
 
-		talents = talents or ""
 		if( self.db.profile.reportEnemies ) then
-			if( guild ) then
-				self:ChannelMessage(string.format("%s / %s / %s / %s / %s", name, server, race, class, guild) .. " " .. talents)
+			if( talents ) then
+				talents = "[" .. talents .. "] "
 			else
-				self:ChannelMessage(string.format("%s / %s / %s / %s", name, server, race, class) .. " " .. talents)
+				talents = ""
+			end
+			
+			if( guild ) then
+				self:ChannelMessage(string.format("%s%s / %s / %s / %s / %s", talents, name, server, race, class, guild))
+			else
+				self:ChannelMessage(string.format("%s%s / %s / %s / %s", talents, name, server, race, class))
 			end
 		end
-
-		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit) .. "," .. talents)
 
 	-- Hunter pet, or Warlock/Mage minion
 	elseif( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) then
@@ -732,7 +764,6 @@ function SSAF:ScanUnit(unit)
 		end
 		
 		self.tooltip:SetUnit(unit)
-		
 		if( self.tooltip:NumLines() == 0 ) then
 			return
 		end
@@ -764,6 +795,8 @@ function SSAF:ScanUnit(unit)
 			end
 					
 			self:AddEnemyPet(name, owner, family, type, UnitPowerType(unit), unit)
+			self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. (family or "") .. "," .. type .. "," .. UnitPowerType(unit))
+
 			if( self.db.profile.reportEnemies ) then
 				if( family ) then
 					self:ChannelMessage(string.format(L["%s's pet, %s %s"], owner, name, family))
@@ -771,8 +804,6 @@ function SSAF:ScanUnit(unit)
 					self:ChannelMessage(string.format(L["%s's pet, %s"], owner, name))
 				end
 			end
-
-			self:SendMessage("ENEMYPET:" .. name .. "," .. owner .. "," .. (family or "") .. "," .. type .. "," .. UnitPowerType(unit))
 		end
 	end
 end
@@ -787,9 +818,9 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 	local health, mana, maxHealth, maxMana
 	if( unit ) then
 		health = UnitHealth(unit)
-		maxHealth = UnitHealthMax(unit)
-		
 		mana = UnitMana(unit)
+		
+		maxHealth = UnitHealthMax(unit)
 		maxMana = UnitManaMax(unit)
 	end
 
@@ -811,6 +842,11 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 			mana = mana or 0,
 			maxMana = maxMana or 100,
 			powerType = tonumber(powerType) or 0}
+	
+	-- Check if a pet has the same as this player
+	if( enemyPets[name] ) then
+		enemies[name].isCorrupted = true
+	end
 
 	self:UpdateEnemies()
 	return true
@@ -818,7 +854,7 @@ end
 
 -- New pet found
 function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
-	-- Old sync
+	-- Old SSAF sync
 	if( not type ) then
 		return nil
 	end
@@ -839,7 +875,6 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
 		end
 	end
 	
-	
 	local health, mana, maxHealth, maxMana
 	if( unit ) then
 		health = UnitHealth(unit)
@@ -848,7 +883,12 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
 		mana = UnitMana(unit)
 		maxMana = UnitManaMax(unit)
 	end
-
+	
+	-- Check if the pet has the same name as a player
+	if( enemies[name] ) then
+		enemies[name].isCorrupted = true
+	end
+	
 	enemyPets[name] = {	sortID = name .. "-" .. owner,
 				name = name,
 				owner = owner,
@@ -859,6 +899,7 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, unit)
 				mana = mana or 0,
 				maxMana = maxMana or 100,
 				powerType = tonumber(powerType) or 2}
+				
 	self:UpdateEnemies()
 	return true
 end

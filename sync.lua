@@ -1,12 +1,15 @@
 local Sync = SSAF:NewModule("Sync", "AceEvent-3.0")
 local L = SSAFLocals
+local playerName
 
 function Sync:EnableModule()
 	self:RegisterEvent("ADDON_LOADED")
 	self:RegisterEvent("CHAT_MSG_ADDON")
 
 	-- Check if it was loaded already
-	self:ADDON_LOADED("ADDON_LOADED", "FooBar")
+	self:ADDON_LOADED()
+	
+	playerName = UnitName("player")
 end
 
 function Sync:DisableModule()
@@ -44,12 +47,12 @@ function Sync:ADDON_LOADED(event, addon)
 		
 		-- Gladiator
 		function AceComm.OnCommReceive:Add(prefix, sender, distribution, name, class, health, talents)
-			SSAF:AddEnemy(name, nil, nil, class)
+			SSAF:AddEnemy(name, nil, nil, class, nil, nil, talents)
 		end
 
 		-- Proximo
-		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana)
-			SSAF:AddEnemy(name, nil, nil, string.upper(class))
+		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana, talents)
+			SSAF:AddEnemy(name, nil, nil, string.upper(class), nil, nil, talents)
 		end
 	end
 end
@@ -75,7 +78,7 @@ function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
 	-- Arena Live Frames
 	elseif( prefix == "ALF_T" ) then
 		local name, class = string.split( ",", msg )
-		SSAF:AddEnemy(name, nil, nil, SSAF:TranslateClass(class))
+		SSAF:AddEnemy(name, nil, nil, self:TranslateClass(class))
 	
 	-- Arena Unit Frames
 	elseif( prefix == "ArenaUnitFrames" ) then
