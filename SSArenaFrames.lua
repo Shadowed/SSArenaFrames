@@ -369,17 +369,12 @@ function SSAF:GetTalents(name, server)
 	if( IsAddOnLoaded("Remembrance") ) then
 		local tree1, tree2, tree3 = Remembrance:GetTalents(name, server)
 		if( tree1 and tree2 and tree3 ) then
-			return "[" .. tree1 .. "/" .. tree2 .. "/" .. tree3 .. "]"
-		end
-	elseif( IsAddOnLoaded("ArenaEnemyInfo") ) then
-		local data = AEI:GetSpec(name, server)
-		if( data ~= "" ) then
-			return data
+			return tree1 .. "/" .. tree2 .. "/" .. tree3
 		end
 	elseif( IsAddOnLoaded("Tattle") ) then
 		local data = Tattle:GetPlayerData(name, server)
 		if( data ) then
-			return "[" .. data.tree1 .. "/" .. data.tree2 .. "/" .. data.tree3 .. "]"
+			return data.tree1 .. "/" .. data.tree2 .. "/" .. data.tree3
 		end
 	end
 	
@@ -397,7 +392,7 @@ function SSAF:UpdateTalentDisplay()
 				end
 
 				if( enemy.talents and enemy.talents ~= "" ) then
-					row.talents = "|cffffffff" .. enemy.talents .. "|r "
+					row.talents = "[" .. enemy.talents .. "] "
 				end
 
 				row.text:SetText(row.talents .. row.nameID .. enemy.name)
@@ -526,13 +521,13 @@ function SSAF:UpdateEnemies()
 			
 			-- Display talents
 			if( enemy.talents and enemy.talents ~= "" ) then
-				row.talents = "|cffffffff" .. enemy.talents .. "|r "
+				row.talents = "[" .. enemy.talents .. "] "
 			end
 		end
 		
 		-- ID to make it easier to call out
 		if( self.db.profile.showID ) then
-			row.nameID = "|cffffffff" .. id .. "|r "
+			row.nameID = "#" .. id .. " "
 		else
 			row.nameID = ""
 		end
@@ -562,13 +557,15 @@ function SSAF:UpdateEnemies()
 		-- Set up all the macro things
 		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
-			if( macro.modifier and macro.button and macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
-				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
-				foundMacro = true
-			elseif( macro.modifier and macro.button ) then
-				row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
-				row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
+			if( macro.modifier and macro.button ) then
+				if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+					foundMacro = true
+				else
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
+					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
+				end
 			end
 		end
 
@@ -608,7 +605,7 @@ function SSAF:UpdateEnemies()
 
 			-- ID to make it easier to call out
 			if( self.db.profile.showID ) then
-				row.nameID = "|cffffffff" .. id .. "|r "
+				row.nameID = "#" .. id .. " "
 			else
 				row.nameID = ""
 			end
@@ -649,13 +646,15 @@ function SSAF:UpdateEnemies()
 			-- Set up all the macro things
 			local foundMacro
 			for _, macro in pairs(self.db.profile.attributes) do
-				if( macro.modifier and macro.button and macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
-					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
-					foundMacro = true
-				elseif( macro.modifier and macro.button ) then
-					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
-					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
+				if( macro.modifier and macro.button ) then
+					if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
+						row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+						row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
+						foundMacro = true
+					else
+						row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
+						row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
+					end
 				end
 			end
 			
@@ -742,7 +741,7 @@ function SSAF:ScanUnit(unit)
 		self:SendMessage("ENEMY:" .. name .. "," .. server .. "," .. race .. "," .. classToken .. "," .. (guild or "") .. "," .. UnitPowerType(unit) .. "," .. (talents or ""))
 
 		if( self.db.profile.reportEnemies ) then
-			if( talents ) then
+			if( talents and talents ~= "" ) then
 				talents = "[" .. talents .. "] "
 			else
 				talents = ""
