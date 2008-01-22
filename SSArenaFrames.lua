@@ -1002,6 +1002,8 @@ function SSAF:CreateFrame()
 		-- so we don't need to be so aggressive with this
 		timeElapsed = timeElapsed + elapsed
 		if( timeElapsed >= 0.25 ) then
+			timeElapsed = 0
+			
 			for i=1, GetNumPartyMembers() do
 				local unit = "party" .. i .. "target"
 				local name = UnitName(unit)
