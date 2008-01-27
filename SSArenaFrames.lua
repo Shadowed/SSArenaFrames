@@ -18,7 +18,9 @@ local enemyPets = {}
 local displayRows = {}
 
 -- For ToT
-local partyTargets = {["party1target"] = {}, ["party2target"] = {}, ["party3target"] = {}, ["party4target"] = {}}
+local partyTargets = {}
+local partyUnit = {}
+local partyTargetUnit = {}
 local usedRows = {}
 
 local PartySlain
@@ -104,6 +106,13 @@ function SSAF:OnInitialize()
 	WaterDies = string.format(UNITDIESOTHER, L["Water Elemental"])	
 	
 	self.rows = {}
+	
+	-- Default party units
+	for i=1, MAX_PARTY_MEMBERS do
+		partyUnit[i] = "party" .. i
+		partyTargets["party" .. i .. "target"] = {}
+		partyTargetUnit[i] = "party" .. i .. "target"
+	end
 end
 
 function SSAF:JoinedArena()
@@ -150,13 +159,6 @@ function SSAF:UpdateToTTextures(row, totalTargets)
 		return
 	end
 	
-		
-	-- Reset size
-	for _, target in pairs(row.targets) do
-		target:SetHeight(8)
-		target:SetWidth(8)
-	end
-		
 	-- 1 dot
 	if( totalTargets == 1 ) then
 		row.targets[1]:SetHeight(16)
@@ -165,24 +167,40 @@ function SSAF:UpdateToTTextures(row, totalTargets)
 
 	-- 2 dots
 	elseif( totalTargets == 2 ) then
+		row.targets[1]:SetWidth(8)
 		row.targets[1]:SetWidth(16)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
 
+		row.targets[2]:SetWidth(8)
 		row.targets[2]:SetWidth(16)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
 	
 	-- 3 dots
 	elseif( totalTargets == 3 ) then
+		row.targets[1]:SetWidth(8)
+		row.targets[1]:SetWidth(8)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+
+		row.targets[2]:SetWidth(8)
+		row.targets[2]:SetWidth(8)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
 
+		row.targets[3]:SetWidth(8)
 		row.targets[3]:SetHeight(16)
 		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 0)
 	
 	-- 4 dots
 	else
+		row.targets[1]:SetWidth(8)
+		row.targets[1]:SetHeight(8)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+
+		row.targets[2]:SetWidth(8)
+		row.targets[2]:SetHeight(8)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
+
+		row.targets[3]:SetWidth(8)
+		row.targets[3]:SetHeight(8)
 		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, -4)
 	end
 
@@ -191,17 +209,14 @@ end
 
 -- Set up bindings
 function SSAF:UPDATE_BINDINGS()
-	if( not self.frame ) then
-		return
-	end
-	
-	for i=1, CREATED_ROWS do
-		local bindKey = GetBindingKey("ARENATAR" .. i)
-				
-		if( bindKey ) then
-			SetOverrideBindingClick(self.rows[i].button, false, bindKey, self.rows[i].button:GetName())	
-		else
-			ClearOverrideBindings(self.rows[i].button)
+	if( self.frame ) then
+		for i=1, CREATED_ROWS do
+			local bindKey = GetBindingKey("ARENATAR" .. i)
+			if( bindKey ) then
+				SetOverrideBindingClick(self.rows[i].button, false, bindKey, self.rows[i].button:GetName())	
+			else
+				ClearOverrideBindings(self.rows[i].button)
+			end
 		end
 	end
 end
@@ -289,17 +304,11 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 		enemy.health = unit or enemy.health
 	end
 	
-	-- Just incase
-	if( unit and enemy.health > enemy.maxHealth ) then
-		enemy.maxHealth = enemy.health
-	end
-
 	if( not enemy.displayRow ) then
 		return
 	end
 	
 	local row = self.rows[enemy.displayRow]
-	
 
 	-- Fade out the bar if they're dead
 	if( enemy.isDead ) then
@@ -412,7 +421,6 @@ local function healthValueChanged(...)
 	end
 	
 	local name = select(5, this:GetParent():GetRegions()):GetText()	
-	
 
 	-- The "isCorrupted" flag is a way of letting us know to disregard any health updates from them
 	-- due to Hunters naming the pet the same as someone on the friendly team
@@ -1005,7 +1013,7 @@ function SSAF:CreateFrame()
 			timeElapsed = 0
 			
 			for i=1, GetNumPartyMembers() do
-				local unit = "party" .. i .. "target"
+				local unit = partyTargetUnit[i]
 				local name = UnitName(unit)
 				local isPlayer = UnitIsPlayer(unit)
 				
@@ -1013,7 +1021,7 @@ function SSAF:CreateFrame()
 				if( partyTargets[unit].name ~= name or partyTargets[unit].isPlayer ~= isPlayer ) then
 					partyTargets[unit].name = name
 					partyTargets[unit].isPlayer = isPlayer
-					partyTargets[unit].class = select(2, UnitClass("party" .. i))
+					partyTargets[unit].class = select(2, UnitClass(partyUnit[i]))
 										
 					SSAF:UpdateToT()
 				end
@@ -1076,8 +1084,7 @@ function SSAF:CreateRow()
 	text:SetShadowOffset(1, -1)
 	text:SetShadowColor(0, 0, 0, 1)
 	
-
-	-- We have to do this for GetStringHeight()
+	-- We have to do this for GetStringHeight() to actually return a useful value
 	text:SetText("*")
 	text:SetWidth(145)
 	text:SetHeight(text:GetStringHeight())
@@ -1112,23 +1119,10 @@ function SSAF:CreateRow()
 	button:SetPoint("LEFT", row, "LEFT", 1, 0)
 	button:EnableMouse(true)
 	button:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp", "Button4Up", "Button5Up")
-	
-	-- Position
-	if( id > 1 ) then
-		row:SetPoint("TOPLEFT", self.rows[id - 1], "BOTTOMLEFT", 0, -2)
-	else
-		row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
-	end
-
-	self.rows[id] = row
-	self.rows[id].targets = {}
-	self.rows[id].text = text
-	self.rows[id].manaBar = mana
-	self.rows[id].classTexture = texture
-	self.rows[id].button = button
-	self.rows[id].healthText = healthText
-	
+		
 	-- Add the "whos targeting us" buttons
+	local targets = {}
+	
 	-- Top left
 	local texture = row:CreateTexture(nil, "OVERLAY")
 	texture:SetHeight(8)
@@ -1137,7 +1131,7 @@ function SSAF:CreateRow()
 	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 	
-	self.rows[id].targets[1] = texture
+	targets[1] = texture
 
 	-- Top right
 	local texture = row:CreateTexture(nil, "OVERLAY")
@@ -1147,7 +1141,7 @@ function SSAF:CreateRow()
 	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 
-	self.rows[id].targets[4] = texture
+	targets[4] = texture
 
 	-- Bottom left
 	local texture = row:CreateTexture(nil, "OVERLAY")
@@ -1157,7 +1151,7 @@ function SSAF:CreateRow()
 	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 	
-	self.rows[id].targets[2] = texture
+	targets[2] = texture
 
 	-- Bottom right
 	local texture = row:CreateTexture(nil, "OVERLAY")
@@ -1167,8 +1161,24 @@ function SSAF:CreateRow()
 	texture:SetTexture(self.db.profile.barTexture)
 	texture:Hide()
 	
-	self.rows[id].targets[3] = texture
+	targets[3] = texture
+
+	-- Position
+	if( id > 1 ) then
+		row:SetPoint("TOPLEFT", self.rows[id - 1], "BOTTOMLEFT", 0, -2)
+	else
+		row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
+	end
 	
+	-- So we can access it else where
+	self.rows[id] = row
+	self.rows[id].targets = targets
+	self.rows[id].text = text
+	self.rows[id].manaBar = mana
+	self.rows[id].classTexture = texture
+	self.rows[id].button = button
+	self.rows[id].healthText = healthText
+
 	-- Add key bindings
 	local bindKey = GetBindingKey("ARENATAR" .. id)
 
