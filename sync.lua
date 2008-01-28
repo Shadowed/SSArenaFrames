@@ -35,14 +35,14 @@ function Sync:ADDON_LOADED(event, addon)
 		AceComm:SetCommPrefix("SSAF")
 		AceComm:RegisterComm("Gladiator", "BATTLEGROUND")
 		AceComm:RegisterComm("Proximo", "GROUP")
-		AceComm:RegisterComm("ControlArena", "GROUP")
+		AceComm:RegisterComm("cta", "GROUP")
 		AceComm:RegisterMemoizations("Add", "Discover",
 		"Druid", "Hunter", "Mage", "Paladin", "Priest", "Rogue", "Shaman", "Warlock", "Warrior",
 		"DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST", "SHAMAN", "ROGUE", "WARLOCK", "WARRIOR")
 		
 		-- Arena mod #19634871
-		function AceComm.OnCommReceive:Discover(prefix, sender, distribution, name, class, health)
-			SSAF:AddEnemy(name, nil, nil, class)
+		function AceComm.OnCommReceive:Discover(self, distribution, sender, name, class, health, mana, powertype, talent)
+			SSAF:AddEnemy(name, nil, nil, class, nil, powertype, talent)
 		end
 		
 		-- Gladiator
