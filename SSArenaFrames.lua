@@ -1107,10 +1107,10 @@ function SSAF:CreateRow()
 	end
 
 	-- Class icon
-	local texture = row:CreateTexture(nil, "OVERLAY")
-	texture:SetHeight(16)
-	texture:SetWidth(16)
-	texture:SetPoint("CENTER", row, "LEFT", -12, 0)
+	local classTexture = row:CreateTexture(nil, "OVERLAY")
+	classTexture:SetHeight(16)
+	classTexture:SetWidth(16)
+	classTexture:SetPoint("CENTER", row, "LEFT", -12, 0)
 	
 	-- So we can actually run macro text
 	local button = CreateFrame("Button", "SSArenaButton" .. id, row, "SecureActionButtonTemplate")
@@ -1118,7 +1118,7 @@ function SSAF:CreateRow()
 	button:SetWidth(179)
 	button:SetPoint("LEFT", row, "LEFT", 1, 0)
 	button:EnableMouse(true)
-	button:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp", "Button4Up", "Button5Up")
+	button:RegisterForClicks("AnyUp")
 		
 	-- Add the "whos targeting us" buttons
 	local targets = {}
@@ -1175,7 +1175,7 @@ function SSAF:CreateRow()
 	self.rows[id].targets = targets
 	self.rows[id].text = text
 	self.rows[id].manaBar = mana
-	self.rows[id].classTexture = texture
+	self.rows[id].classTexture = classTexture
 	self.rows[id].button = button
 	self.rows[id].healthText = healthText
 

@@ -1,5 +1,5 @@
 local major = "OptionHouse-1.1"
-local minor = tonumber(string.match("$Revision: 660 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 661 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -18,7 +18,7 @@ local L = {
 	["NO_SUBCATEXISTS"] = "No sub-category '%s' exists in '%s' for the addon '%s'.",
 	["NO_PARENTCAT"] = "No parent category named '%s' exists in %s'",
 	["SUBCATEGORY_ALREADYREG"] = "The sub-category named '%s' already exists in the category '%s' for '%s'",
-	["UNKNOWN_FRAMETYPE"] = "Unknown frame type given '%s', only 'main', 'perf', 'addon', 'config' are supported.",
+	["UNKNOWN_FRAMETYPE"] = "Unknown frame type given '%s', only 'main', 'perf', 'addon', 'config', 'graph' are supported.",
 	["OPTION_HOUSE"] = "OptionHouse",
 	["ENTERED_COMBAT"] = "|cFF33FF99OptionHouse|r: Configuration window closed due to entering combat.",
 	["IN_COMBAT"] = "|cFF33FF99OptionHouse|r: Configuration window cannot be opened while in combat.",
@@ -29,6 +29,7 @@ local L = {
 	["TOTAL_SUBCATEGORIES"] = "Sub Categories: %d",
 	["TAB_MANAGEMENT"] = "Management",
 	["TAB_PERFORMANCE"] = "Performance",
+	["TAB_GRAPH"] = "Performance Graph",
 	["SECURE_FRAME"] = "OptionHouse is currently a secure frame and cannot be opened in combat.",
 	["INSECURE_FRAME"] = "OptionHouse is not a secure frame, and can be opened while in combat.",
 }
@@ -773,7 +774,7 @@ local function updateConfigList(openAlso)
 		end
 	end
 	
-	if( opened ) then
+	if( opened and type(openAlso) == "boolean" ) then
 		openConfigFrame(opened)
 	end
 
@@ -817,7 +818,7 @@ end
 
 local function expandConfigList(self)
 	local frame = regFrames.addon
-
+	
 	if( self.type == "addon" ) then
 		if( frame.selectedAddon == self.catText ) then
 			frame.selectedAddon = ""
@@ -829,7 +830,7 @@ local function expandConfigList(self)
 		frame.selectedSubCat = ""
 
 	elseif( self.type == "category" ) then
-		if( frame.selectedCategory == self.catText ) then
+		if( frame.selectedCategory == self.catText and frame.selectedSubCat == "" ) then
 			frame.selectedCategory = ""
 			self.data = nil
 		else
@@ -1114,7 +1115,7 @@ end
 function OptionHouse.RegisterTab(self, text, func, type)
 	-- Simple, effective you can't register a tab unless we list it here
 	-- I highly doubt will ever need to add another one
-	if( text ~= L["TAB_MANAGEMENT"] and text ~= L["TAB_PERFORMANCE"] ) then return end
+	if( text ~= L["TAB_MANAGEMENT"] and text ~= L["TAB_PERFORMANCE"] and text ~= L["TAB_GRAPH"] ) then return end
 
 	table.insert(tabfunctions, {func = func, handler = self, text = text, type = type})
 
@@ -1151,7 +1152,7 @@ function OptionHouse.GetAddOnData(self, name)
 end
 
 function OptionHouse.RegisterFrame(self, type, frame)
-	if( type ~= "addon" and type ~= "manage" and type ~= "perf" and type ~= "main" ) then
+	if( type ~= "addon" and type ~= "manage" and type ~= "perf" and type ~= "main" and type ~= "graph" ) then
 		error(string.format(L["UNKNOWN_FRAMETYPE"], type), 3)
 	end
 	
@@ -1160,7 +1161,7 @@ end
 
 -- PUBLIC API's
 function OptionHouse:GetFrame(type)
-	if( type ~= "addon" and type ~= "manage" and type ~= "perf" and type ~= "main" ) then
+	if( type ~= "addon" and type ~= "manage" and type ~= "perf" and type ~= "main" and type ~= "graph" ) then
 		error(string.format(L["UNKNOWN_FRAMETYPE"], type), 3)
 	end
 		
@@ -1202,7 +1203,9 @@ function OptionHouse:OpenTab(id)
 	argcheck(id, 1, "number")
 	
 	createOHFrame()
-	assert(3, #(tabfunctions) > id, string.format(L["UNKNOWN_TAB"], id, #(tabfunctions)))
+	if( #(tabfunctions) > id ) then
+		assert(string.format(L["UNKNOWN_TAB"], id, #(tabfunctions)), 3)
+	end
 
 	tabOnClick(id)
 	ShowUIPanel(frame)
@@ -1236,7 +1239,7 @@ function OptionHouse.RegisterCategory(addon, name, handler, func, noCache, sortI
 	argcheck(handler, 3, "string", "function", "table")
 	argcheck(func, 4, "string", "function", "nil")
 	argcheck(noCache, 5, "boolean", "number", "nil")
-	argcheck(sortID, 6, "number", "nil")
+	argcheck(sortID, 6, "number", "string", "nil")
 	assert(3, handler or func, L["NO_FUNC_PASSED"])
 	assert(3, addons[addon.name], string.format(L["MUST_CALL"], "RegisterCategory"))
 	assert(3, addons[addon.name].categories, string.format(L["CATEGORY_ALREADYREG"], name, addon.name))
@@ -1257,7 +1260,7 @@ function OptionHouse.RegisterSubCategory(addon, parentCat, name, handler, func, 
 	argcheck(handler, 4, "string", "function", "table")
 	argcheck(func, 5, "string", "function", "nil")
 	argcheck(noCache, 6, "boolean", "number", "nil")
-	argcheck(sortID, 7, "number", "nil")
+	argcheck(sortID, 7, "number", "string", "nil")
 	assert(3, handler or func, L["NO_FUNC_PASSED"])
 	assert(3, addons[addon.name], string.format(L["MUST_CALL"], "RegisterSubCategory"))
 	assert(3, addons[addon.name].categories[parentCat], string.format(L["NO_PARENTCAT"], parentCat, addon.name))
