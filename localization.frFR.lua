@@ -2,7 +2,7 @@ if( GetLocale() ~= "frFR" ) then
 	return
 end
 
-SSAF = setmetatable({
+SSAFLocals = setmetatable({
 
-}, {__index = SSAF})
+}, {__index = SSAFLocals})
 
