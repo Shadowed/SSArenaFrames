@@ -1,5 +1,5 @@
---[[ $Id: AceAddon-3.0.lua 59523 2008-01-27 17:41:47Z nevcairiel $ ]]
-local MAJOR, MINOR = "AceAddon-3.0", 0
+--[[ $Id: AceAddon-3.0.lua 60131 2008-02-03 13:03:56Z nevcairiel $ ]]
+local MAJOR, MINOR = "AceAddon-3.0", 1
 local AceAddon, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not AceAddon then return end -- No Upgrade needed.
@@ -332,7 +332,7 @@ function AceAddon:EnableAddon(addon)
 		local lib = LibStub:GetLibrary(embeds[i], true)
 		if lib then safecall(lib.OnEmbedEnable, lib, addon) end
 	end
-	self.statuses[addon.name] = true
+	self.statuses[addon.name] = addon.enabledState
 	
 	-- enable possible modules.
 	for name, module in pairs(addon.modules) do
@@ -356,7 +356,7 @@ function AceAddon:DisableAddon(addon)
 		local lib = LibStub:GetLibrary(embeds[i], true)
 		if lib then safecall(lib.OnEmbedDisable, lib, addon) end
 	end
-	self.statuses[addon.name] = nil
+	self.statuses[addon.name] = addon.enabledState
 	
 	-- disable possible modules.
 	for name, module in pairs(addon.modules) do

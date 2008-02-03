@@ -1,5 +1,5 @@
---[[ $Id: AceDB-3.0.lua 58237 2008-01-11 10:46:00Z nevcairiel $ ]]
-local ACEDB_MAJOR, ACEDB_MINOR = "AceDB-3.0", 1
+--[[ $Id: AceDB-3.0.lua 60131 2008-02-03 13:03:56Z nevcairiel $ ]]
+local ACEDB_MAJOR, ACEDB_MINOR = "AceDB-3.0", 2
 local AceDB, oldminor = LibStub:NewLibrary(ACEDB_MAJOR, ACEDB_MINOR)
 
 if not AceDB then return end -- No upgrade needed
