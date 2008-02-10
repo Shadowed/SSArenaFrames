@@ -7,9 +7,7 @@ local OptionHouse
 local HouseAuthority
 local SML
 
-function Config:OnEnable()
-	if( OptionHouse ) then return end
-
+function Config:OnInitialize()
 	-- Open the OH UI
 	SLASH_SSAF1 = "/ssaf"
 	SLASH_SSAF2 = "/ssarenaframes"

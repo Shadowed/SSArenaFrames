@@ -99,6 +99,9 @@ function SSAF:OnInitialize()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("UPDATE_BINDINGS")
+	
+	-- Quick to see if we joined an arena from a LoD thing
+	self:ZONE_CHANGED_NEW_AREA()
 
 	-- Party/We killed someone
 	PartySlain = string.gsub(PARTYKILLOTHER, "%%s", "(.+)")
@@ -979,9 +982,10 @@ function SSAF:CreateFrame()
 		if( self.isMoving ) then
 			self.isMoving = nil
 			SSAF.frame:StopMovingOrSizing()
-
-			SSAF.db.profile.position.x = SSAF.frame:GetLeft()
-			SSAF.db.profile.position.y = SSAF.frame:GetTop()
+			
+			local scale = SSAF.frame:GetEffectiveScale()
+			SSAF.db.profile.position.x = SSAF.frame:GetLeft() * scale
+			SSAF.db.profile.position.y = SSAF.frame:GetTop() * scale
 		end
 	end)	
 	
@@ -1041,7 +1045,12 @@ function SSAF:CreateFrame()
 	end)
 	
 	-- Position to last saved area
-	self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", self.db.profile.position.x, self.db.profile.position.y)
+	--self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", self.db.profile.position.x, self.db.profile.position.y)
+	local x, y = self.db.profile.position.x, self.db.profile.position.y
+	local scale = self.frame:GetEffectiveScale()
+	
+	self.frame:ClearAllPoints()
+	self.frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
 end
 
 -- Create a single row
