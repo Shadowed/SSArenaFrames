@@ -9,55 +9,23 @@ local CREATED_ROWS = 0
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
 
-local instanceType
-local queuedUpdates = {}
-
-local enemies = {}
-local enemyPets = {}
-
 local displayRows = {}
-
--- For ToT
-local partyTargets = {}
-local partyUnit = {}
-local partyTargetUnit = {}
-local usedRows = {}
-
-local PartySlain
-local SelfSlain
-local WaterDies
-
-local AceComm
+local enemies, enemyPets = {}, {}
+local queuedUpdates, displayRows = {}, {}
+local partyTargets, partyUnit, partyTargetUnit, usedRows = {}, {}, {}, {}
+local instanceType, PartySlain, SelfSlain, WaterDies
 
 -- Map of pet type to icon
 local petClassIcons = {
-	["Voidwalker"] = "Interface\\Icons\\Spell_Shadow_SummonVoidWalker",
-	["Felhunter"] = "Interface\\Icons\\Spell_Shadow_SummonFelHunter",
-	["Felguard"] = "Interface\\Icons\\Spell_Shadow_SummonFelGuard",
-	["Succubus"] = "Interface\\Icons\\Spell_Shadow_SummonSuccubus",
-	["Imp"] = "Interface\\Icons\\Spell_Shadow_SummonImp",
-	["Cat"] = "Interface\\Icons\\Ability_Hunter_Pet_Cat",
-	["Bat"] = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
-	["Bear"] = "Interface\\Icons\\Ability_Hunter_Pet_Bear",
-	["Boar"] = "Interface\\Icons\\Ability_Hunter_Pet_Boar",
-	["Crab"] = "Interface\\Icons\\Ability_Hunter_Pet_Crab",
-	["Crocolisk"] = "Interface\\Icons\\Ability_Hunter_Pet_Crocolisk",
-	["Dragonhawk"] = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
-	["Gorilla"] = "Interface\\Icons\\Ability_Hunter_Pet_Gorilla",
-	["Hyena"] = "Interface\\Icons\\Ability_Hunter_Pet_Hyena",
-	["Netherray"] = "Interface\\Icons\\Ability_Hunter_Pet_NetherRay",
-	["Owl"] = "Interface\\Icons\\Ability_Hunter_Pet_Owl",
-	["Raptor"] = "Interface\\Icons\\Ability_Hunter_Pet_Raptor",
-	["Ravager"] = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
-	["Scorpid"] = "Interface\\Icons\\Ability_Hunter_Pet_Scorpid",
-	["Spider"] = "Interface\\Icons\\Ability_Hunter_Pet_Spider",
-	["Sporebat"] = "Interface\\Icons\\Ability_Hunter_Pet_Sporebat",
-	["Tallstrider"] = "Interface\\Icons\\Ability_Hunter_Pet_TallStrider",
-	["Turtle"] = "Interface\\Icons\\Ability_Hunter_Pet_Turtle",
-	["Vulture"] = "Interface\\Icons\\Ability_Hunter_Pet_Vulture",
-	["Warp Stalker"] = "Interface\\Icons\\Ability_Hunter_Pet_WarpStalker",
-	["Windserpent"] = "Interface\\Icons\\Ability_Hunter_Pet_WindSerpent",
-	["Wolf"] = "Interface\\Icons\\Ability_Hunter_Pet_Wolf",
+	["Voidwalker"] = "Interface\\Icons\\Spell_Shadow_SummonVoidWalker", ["Felhunter"] = "Interface\\Icons\\Spell_Shadow_SummonFelHunter", ["Felguard"] = "Interface\\Icons\\Spell_Shadow_SummonFelGuard",
+	["Succubus"] = "Interface\\Icons\\Spell_Shadow_SummonSuccubus", ["Imp"] = "Interface\\Icons\\Spell_Shadow_SummonImp", ["Cat"] = "Interface\\Icons\\Ability_Hunter_Pet_Cat",
+	["Bat"] = "Interface\\Icons\\Ability_Hunter_Pet_Bat", ["Bear"] = "Interface\\Icons\\Ability_Hunter_Pet_Bear", ["Boar"] = "Interface\\Icons\\Ability_Hunter_Pet_Boar",
+	["Crab"] = "Interface\\Icons\\Ability_Hunter_Pet_Crab", ["Crocolisk"] = "Interface\\Icons\\Ability_Hunter_Pet_Crocolisk", ["Dragonhawk"] = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
+	["Gorilla"] = "Interface\\Icons\\Ability_Hunter_Pet_Gorilla", ["Hyena"] = "Interface\\Icons\\Ability_Hunter_Pet_Hyena", ["Netherray"] = "Interface\\Icons\\Ability_Hunter_Pet_NetherRay",
+	["Owl"] = "Interface\\Icons\\Ability_Hunter_Pet_Owl", ["Raptor"] = "Interface\\Icons\\Ability_Hunter_Pet_Raptor", ["Ravager"] = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
+	["Scorpid"] = "Interface\\Icons\\Ability_Hunter_Pet_Scorpid", ["Spider"] = "Interface\\Icons\\Ability_Hunter_Pet_Spider", ["Sporebat"] = "Interface\\Icons\\Ability_Hunter_Pet_Sporebat",
+	["Tallstrider"] = "Interface\\Icons\\Ability_Hunter_Pet_TallStrider", ["Turtle"] = "Interface\\Icons\\Ability_Hunter_Pet_Turtle", ["Vulture"] = "Interface\\Icons\\Ability_Hunter_Pet_Vulture",
+	["Warp Stalker"] = "Interface\\Icons\\Ability_Hunter_Pet_WarpStalker", ["Windserpent"] = "Interface\\Icons\\Ability_Hunter_Pet_WindSerpent", ["Wolf"] = "Interface\\Icons\\Ability_Hunter_Pet_Wolf",
 	[L["Water Elemental"]] = "Interface\\Icons\\Spell_Frost_SummonWaterElemental_2",
 }
 
@@ -85,6 +53,7 @@ function SSAF:OnInitialize()
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
 				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/targetexact *name" },
+				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/targetexact *name\n/focus\n/targetlasttarget" },
 			}
 		}
 	}
@@ -97,12 +66,9 @@ function SSAF:OnInitialize()
 	-- I guess this isn't possible....but if you reload in an arena it is
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("UPDATE_BINDINGS")
 	
-	-- Quick to see if we joined an arena from a LoD thing
-	self:ZONE_CHANGED_NEW_AREA()
-
 	-- Party/We killed someone
 	PartySlain = string.gsub(PARTYKILLOTHER, "%%s", "(.+)")
 	SelfSlain = string.gsub(SELFKILLOTHER, "%%s", "(.+)")
@@ -116,6 +82,9 @@ function SSAF:OnInitialize()
 		partyTargets["party" .. i .. "target"] = {}
 		partyTargetUnit[i] = "party" .. i .. "target"
 	end
+
+	-- Quick to see if we joined an arena from a LoD thing
+	self:ZONE_CHANGED_NEW_AREA()
 end
 
 function SSAF:JoinedArena()
@@ -152,7 +121,7 @@ function SSAF:LeftArena()
 	self:UnregisterAllEvents()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("UPDATE_BINDINGS")
 end
 
@@ -714,7 +683,7 @@ function SSAF:ScanUnit(unit)
 	-- 3) ????
 	-- 4) Profit! Because all arena mods check for the name "Unknown" before exiting
 	local name, server = UnitName(unit)
-	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) or GetPlayerBuffTexture(L["Arena Preparation"]) ) then
+	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) or UnitIsCharmed(unit) or UnitIsCharmed("player") or GetPlayerBuffTexture(L["Arena Preparation"]) ) then
 		return
 	end
 	

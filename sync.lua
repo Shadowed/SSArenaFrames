@@ -8,7 +8,7 @@ function Sync:EnableModule()
 
 	-- Check if it was loaded already
 	self:ADDON_LOADED()
-	
+
 	playerName = UnitName("player")
 end
 
@@ -50,7 +50,7 @@ function Sync:ADDON_LOADED(event, addon)
 			SSAF:AddEnemy(name, nil, nil, class, nil, nil, talents)
 		end
 
-		-- Proximo
+		-- Proximo 1.4
 		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana, talents)
 			SSAF:AddEnemy(name, nil, nil, string.upper(class), nil, nil, talents)
 		end
@@ -59,11 +59,10 @@ end
 
 -- Sync with other addons
 function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
+	ChatFrame1:AddMessage(tostring(prefix) .. " [" .. tostring(msg) .. "]")
 	if( author == playerName ) then
 		return
-
 	end
-	
 
 	-- SSArena Frames
 	if( prefix == "SSAF" ) then
@@ -76,6 +75,14 @@ function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
 			SSAF:EnemyDied(string.split(",", data))
 		end
 	
+	-- Proximo2
+	elseif( prefix == "Proximo" ) then
+		local dataType, data = string.match(msg, "([^:]+)%:(.+)")
+		if( dataType == "ReceiveSync" ) then
+			local name, server, classToken, race, _, _, _, talents = string.split(",", data)
+			SSAF:AddEnemy(name, server, race, classToken, nil, nil, talents)
+		end
+
 	-- Arena Master
 	elseif( prefix == "ArenaMaster" ) then
 		local name, class = string.split(" ", msg)
