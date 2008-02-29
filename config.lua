@@ -69,7 +69,8 @@ function Config:CreateUI()
 		{ group = L["General"], order = 4, text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
 		{ group = L["General"], order = 5, text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
 		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
-		{ group = L["General"], order = 7, text = L["Show whos targeting an enemy"], help = L["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."], type = "check", var = "targetDots"},
+		{ group = L["General"], order = 7, text = L["Show talents trees when available"], help = L["Shows the talent tree the player has the most points in when syncing talents from Remembrance, will show regular talent totals if the data is unavailable."], type = "check", var = "showTrees"},
+		{ group = L["General"], order = 8, text = L["Show whos targeting an enemy"], help = L["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."], type = "check", var = "targetDots"},
 
 		{ group = L["Frame"], type = "groupOrder", order = 2 },
 		{ group = L["Frame"], order = 1, text = L["Lock arena frame"], help = L["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."], type = "check", var = "locked"},

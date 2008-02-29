@@ -1,10 +1,10 @@
-## Interface: 20300
+## Interface: 20400
 ## Title: SSArena Frames
 ## Version: $Revision: 322 $
 ## Author: Mayen
 ## Notes: Unit frames for arenas
 ## SavedVariables: SSAFDB
-## OptionalDeps: LibStub, OptionHouse, HousingAuthority, AceComm-2.0
+## OptionalDeps: LibStub, OptionHouse, HousingAuthority, Ace3, Ace2, AceComm-2.0
 
 lib\LibStub-1.0\LibStub-1.0.xml
 lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
@@ -23,4 +23,5 @@ localization.zhCN.lua
 
 SSArenaFrames.lua
 sync.lua
+frame.lua
 config.lua

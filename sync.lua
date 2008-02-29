@@ -59,7 +59,6 @@ end
 
 -- Sync with other addons
 function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
-	ChatFrame1:AddMessage(tostring(prefix) .. " [" .. tostring(msg) .. "]")
 	if( author == playerName ) then
 		return
 	end
@@ -68,13 +67,13 @@ function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
 	if( prefix == "SSAF" ) then
 		local dataType, data = string.match(msg, "([^:]+)%:(.+)")
 		if( dataType == "ENEMY" ) then
-			SSAF:AddEnemy(string.split(",", data))			
+			SSAF:AddEnemy(string.split(",", data))
 		elseif( dataType == "ENEMYPET" ) then
 			SSAF:AddEnemyPet(string.split(",", data))
 		elseif( dataType == "ENEMYDIED" ) then
 			SSAF:EnemyDied(string.split(",", data))
 		end
-	
+
 	-- Proximo2
 	elseif( prefix == "Proximo" ) then
 		local dataType, data = string.match(msg, "([^:]+)%:(.+)")

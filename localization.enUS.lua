@@ -84,6 +84,9 @@ SSAFLocals = {
 	["Show talents when available"] = "Show talents when available",
 	["Requires Remembrance, ArenaEnemyInfo or Tattle."] = "Requires Remembrance, ArenaEnemyInfo or Tattle.",
 	
+	["Show talents trees when available"] = "Show talents trees when available",
+	["Shows the talent tree the player has the most points in when syncing talents from Remembrance, will show regular talent totals if the data is unavailable."] = "Shows the talent tree the player has the most points in when syncing talents from Remembrance, will show regular talent totals if the data is unavailable.",
+	
 	["Show enemy mage/warlock minions"] = "Show enemy mage/warlock minions",
 	["Will display Warlock and Mage minions in the arena frames below all the players."] = "Will display Warlock and Mage minions in the arena frames below all the players.",
 	
@@ -109,7 +112,6 @@ SSAFLocals = {
 	
 	["Lock arena frame"] = "Lock arena frame",
 	["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."] = "Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked.",
-	
 	
 	["Frame Scale: %d%%"] = "Frame Scale: %d%%",
 	["Allows you to increase, or decrease the total size of the arena frames."] = "Allows you to increase, or decrease the total size of the arena frames.",
