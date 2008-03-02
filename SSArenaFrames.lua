@@ -82,7 +82,7 @@ function SSAF:OnInitialize()
 	self.partyTargets = partyTargets
 	
 	-- We want Remembrance data now too!
-	Remembrance:RegisterCallback(SSAF, "UpdateTalentDisplay")
+	Remembrance:RegisterCallback(self, "UpdateTalentDisplay")
 end
 
 function SSAF:JoinedArena()
@@ -150,7 +150,7 @@ end
 function SSAF:UPDATE_BINDINGS()
 	if( self.frame ) then
 		for id, row in pairs(self.rows) do
-			local bindKey = GetBindingKey("ARENATAR" .. i)
+			local bindKey = GetBindingKey("ARENATAR" .. id)
 			if( bindKey ) then
 				SetOverrideBindingClick(row.button, false, bindKey, row.button:GetName())	
 			else
