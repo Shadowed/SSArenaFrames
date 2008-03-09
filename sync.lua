@@ -41,18 +41,18 @@ function Sync:ADDON_LOADED(event, addon)
 		"DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST", "SHAMAN", "ROGUE", "WARLOCK", "WARRIOR")
 		
 		-- Arena mod #19634871
-		function AceComm.OnCommReceive:Discover(self, distribution, sender, name, class, health, mana, powertype, talent)
-			SSAF:AddEnemy(name, nil, nil, class, nil, powertype, talent)
+		function AceComm.OnCommReceive:Discover(self, distribution, sender, name, class, health, mana, powertype)
+			SSAF:AddEnemy(name, nil, nil, class, nil, powertype)
 		end
 		
 		-- Gladiator
-		function AceComm.OnCommReceive:Add(prefix, sender, distribution, name, class, health, talents)
-			SSAF:AddEnemy(name, nil, nil, class, nil, nil, talents)
+		function AceComm.OnCommReceive:Add(prefix, sender, distribution, name, class, health)
+			SSAF:AddEnemy(name, nil, nil, class)
 		end
 
 		-- Proximo 1.4
-		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana, talents)
-			SSAF:AddEnemy(name, nil, nil, string.upper(class), nil, nil, talents)
+		function AceComm.OnCommReceive:ReceiveSync(prefix, sender, distribution, name, class, health, mana)
+			SSAF:AddEnemy(name, nil, nil, string.upper(class))
 		end
 	end
 end
@@ -78,8 +78,8 @@ function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
 	elseif( prefix == "Proximo" ) then
 		local dataType, data = string.match(msg, "([^:]+)%:(.+)")
 		if( dataType == "ReceiveSync" ) then
-			local name, server, classToken, race, _, _, _, talents = string.split(",", data)
-			SSAF:AddEnemy(name, server, race, classToken, nil, nil, talents)
+			local name, server, classToken, race = string.split(",", data)
+			SSAF:AddEnemy(name, server, race, classToken)
 		end
 
 	-- Arena Master

@@ -31,7 +31,8 @@ function Config:OnInitialize()
 	end
 
 	-- Register our default list of textures with SML
-	SML = LibStub:GetLibrary("LibSharedMedia-2.0")
+	SML = SSAF.SML
+
 	SML:Register(SML.MediaType.STATUSBAR, "BantoBar", "Interface\\Addons\\SSArenaFrames\\images\\banto")
 	SML:Register(SML.MediaType.STATUSBAR, "Smooth",   "Interface\\Addons\\SSArenaFrames\\images\\smooth")
 	SML:Register(SML.MediaType.STATUSBAR, "Perl",     "Interface\\Addons\\SSArenaFrames\\images\\perl")
@@ -58,7 +59,7 @@ end
 function Config:CreateUI()
 	local textures = {}
 	for _, name in pairs(SML:List(SML.MediaType.STATUSBAR)) do
-		table.insert(textures, {SML:Fetch(SML.MediaType.STATUSBAR, name), name})
+		table.insert(textures, {name, name})
 	end
 
 	local config = {
@@ -68,8 +69,6 @@ function Config:CreateUI()
 		{ group = L["General"], order = 3, text = L["Show class icon"], help = L["Displays the players class icon to the left of the arena frame on their row."], type = "check", var = "showIcon"},
 		{ group = L["General"], order = 4, text = L["Show enemy mage/warlock minions"], help = L["Will display Warlock and Mage minions in the arena frames below all the players."], type = "check", var = "showMinions"},
 		{ group = L["General"], order = 5, text = L["Show enemy hunter pets"], help = L["Will display Hunter pets in the arena frames below all the players."], type = "check", var = "showPets"},
-		{ group = L["General"], order = 6, text = L["Show talents when available"], help = L["Requires Remembrance, ArenaEnemyInfo or Tattle."], type = "check", var = "showTalents"},
-		{ group = L["General"], order = 7, text = L["Show talents trees when available"], help = L["Shows the talent tree the player has the most points in when syncing talents from Remembrance, will show regular talent totals if the data is unavailable."], type = "check", var = "showTrees"},
 		{ group = L["General"], order = 8, text = L["Show whos targeting an enemy"], help = L["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."], type = "check", var = "targetDots"},
 
 		{ group = L["Frame"], type = "groupOrder", order = 2 },

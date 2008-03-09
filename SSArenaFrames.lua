@@ -34,13 +34,11 @@ function SSAF:OnInitialize()
 			locked = true,
 			targetDots = true,
 			reportEnemies = true,
-			barTexture = "Interface\\TargetingFrame\\UI-StatusBar",
+			barTexture = "BantoBar",
 			showID = false,
 			showIcon = false,
 			showMinions = true,
 			showPets = false,
-			showTalents = true,
-			showTrees = false,
 			manaBar = true,
 			manaBarHeight = 3,
 			position = { x = 300, y = 600 },
@@ -63,8 +61,11 @@ function SSAF:OnInitialize()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("UPDATE_BINDINGS")
-		
-	-- Tekkub would be so proud, we're using metatables!
+	
+	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
+
+	
+	-- Tekkub would be so proud, we're using metatables
 	self.rows = setmetatable({}, {__index = function(t, k)
 		local row = SSAF.modules.Frame:CreateRow(k)
 		rawset(t, k, row)
@@ -80,9 +81,6 @@ function SSAF:OnInitialize()
 	end
 	
 	self.partyTargets = partyTargets
-	
-	-- We want Remembrance data now too!
-	Remembrance:RegisterCallback(self, "UpdateTalentDisplay")
 end
 
 function SSAF:JoinedArena()
@@ -189,7 +187,7 @@ function SSAF:UPDATE_POWER(event, unit)
 end
 
 -- ENEMY DEATH
-local COMBATLOG_OBJECT_REACTION_HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE or 0x00000040
+local COMBATLOG_OBJECT_REACTION_HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE
 function SSAF:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags)
 	if( eventType == "PARTY_KILL" and bit.band(destFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == COMBATLOG_OBJECT_REACTION_HOSTILE ) then
 		self:EnemyDied(destGUID)
@@ -227,7 +225,7 @@ function SSAF:UpdateToT()
 			enemy = enemyPets[data.name]
 		end
 				
-		if( enemy and enemy.displayRow ) then
+		if( enemy and enemy.displayRow and self.rows[enemy.displayRow] ) then
 			-- Set the row to having a dot active
 			usedRows[enemy.displayRow] = true
 			
@@ -254,7 +252,7 @@ local function healthValueChanged(...)
 		this.SSAFValueChanged(...)
 	end
 
-	if( instanceType ~= "instanceType" ) then
+	if( instanceType ~= "arena" ) then
 		return
 	end
 	
@@ -399,61 +397,6 @@ function SSAF:UpdateMana(enemy, unit)
 	row.manaBar:SetValue(enemy.mana)
 end
 
--- LOAD TALENTS
-function SSAF:GetTalents(name, server)
-	if( IsAddOnLoaded("Remembrance") ) then
-		local talentTree
-		if( self.db.profile.showTrees ) then
-			local talents = Remembrance:GetSpecName(name, server)
-			if( talents ) then
-				talentTree = talents
-			end
-		end
-		
-		local tree1, tree2, tree3 = Remembrance:GetTalents(name, server)
-		local talentPoints
-		if( tree1 and tree2 and tree3 ) then
-			talentPoints = tree1 .. "/" .. tree2 .. "/" .. tree3
-		end
-		
-		if( talentPoints or talentTree ) then
-			return talentTree or talentPoints, talentPoints
-		end
-		
-	elseif( IsAddOnLoaded("Tattle") ) then
-		local data = Tattle:GetPlayerData(name, server)
-		if( data ) then
-			local talents = data.tree1 .. "/" .. data.tree2 .. "/" .. data.tree3
-			return talents, talents
-		end
-	end
-	
-	return nil
-end
-
--- UPDATE TALENT DISPLAY
-function SSAF:UpdateTalentDisplay(inspectType, name, server)
-	if( instanceType ~= "arena" ) then
-		return
-	end
-		
-	local enemy = enemies[name]
-	if( enemy and enemy.displayRow ) then
-		local row = self.rows[enemy.displayRow]
-		local talents = SSAF:GetTalents(name, server)
-		
-		if( talents and talents ~= "" ) then
-			row.talents = "[" .. talents .. "] "
-			enemy.talents = talents
-		else
-			row.talents = ""
-			enemy.talents = nil
-		end
-		
-		row.text:SetFormattedText("%s%s%s", row.talents, row.nameID, enemy.name)
-	end
-end
-
 -- UPDATE NEEMY DISPLAY
 local function sortEnemies(a, b)
 	if( not a ) then
@@ -476,7 +419,6 @@ function SSAF:UpdateEnemies()
 	for _, row in pairs(self.rows) do
 		row.listID = "C"
 		row:Hide()
-
 	end
 	
 	local id = 0
@@ -486,25 +428,10 @@ function SSAF:UpdateEnemies()
 		id = id + 1
 		
 		local row = self.rows[id]
-		row:Show()
-		
-		-- Show talents
-		row.talents = ""
-		if( self.db.profile.showTalents ) then
-			-- Grab their talents if we don't have it
-			if( not enemy.talents and enemy.name and enemy.server ) then
-				enemy.talents = SSAF:GetTalents(enemy.name, enemy.server)
-			end
-			
-			-- Display talents
-			if( enemy.talents and enemy.talents ~= "" ) then
-				row.talents = "[" .. enemy.talents .. "] "
-			end
-		end
-			
 		row.ownerName = enemy.name
 		row.ownerType = "PLAYER"
 		row.listID = "A" .. enemy.sortID
+		row:Show()
 				
 		-- Show class icon to the left of the players name
 		if( self.db.profile.showIcon ) then
@@ -623,6 +550,13 @@ function SSAF:UpdateEnemies()
 	
 	for id, row in pairs(self.rows) do
 		if( row.listID ~= "C" ) then
+			usedRows[id] = nil
+			row.usedIcons = 0
+
+			for _, texture in pairs(row.targets) do
+				texture:Hide()
+			end
+		
 			if( self.db.profile.showID ) then
 				row.nameID = "#" .. id
 			else
@@ -632,7 +566,7 @@ function SSAF:UpdateEnemies()
 			if( row.ownerType == "PLAYER" ) then
 				local enemy = enemies[row.ownerName]			
 				enemy.displayRow = id
-				row.text:SetFormattedText("%s%s%s", row.talents, row.nameID, enemy.name)
+				row.text:SetFormattedText("%s%s", row.nameID, enemy.name)
 			else
 				local enemy = enemyPets[row.ownerName]
 				enemy.displayRow = id
@@ -707,26 +641,15 @@ function SSAF:ScanUnit(unit)
 		local race = UnitRace(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
-		local talents, talentPoints = SSAF:GetTalents(name, server)
 		
-		self:AddEnemy(name, server, race, classToken, guild, UnitPowerType(unit), talents, nil, unit)
-		self:SendMessage(string.format("ENEMY:%s,%s,%s,%s,%s,%s,%s,%s", name, server, race, classToken, guild or "", UnitPowerType(unit), talentPoints or "", UnitGUID(unit)))
+		self:AddEnemy(name, server, race, classToken, guild, UnitPowerType(unit), nil, nil, unit)
+		self:SendMessage(string.format("ENEMY:%s,%s,%s,%s,%s,%s,%s,%s", name, server, race, classToken, guild or "", UnitPowerType(unit), "", UnitGUID(unit)))
 
 		if( self.db.profile.reportEnemies ) then
-			if( talents and talents ~= "" ) then
-				if( talents == talentPoints ) then
-					talents = "[" .. talents .. "] "
-				else
-					talents = "[" .. talents .. " (" .. talentPoints .. ")] "
-				end
-			else
-				talents = ""
-			end
-			
 			if( guild ) then
-				self:ChannelMessage(string.format("%s%s / %s / %s / %s / %s", talents, name, server, race, class, guild))
+				self:ChannelMessage(string.format("%s / %s / %s / %s / %s", name, server, race, class, guild))
 			else
-				self:ChannelMessage(string.format("%s%s / %s / %s / %s", talents, name, server, race, class))
+				self:ChannelMessage(string.format("%s / %s / %s / %s", name, server, race, class))
 			end
 		end
 
@@ -812,7 +735,6 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 			race = race,
 			classToken = classToken,
 			guild = guild,
-			talents = talents,
 			health = health or 100,
 			maxHealth = maxHealth or 100,
 			mana = mana or 0,

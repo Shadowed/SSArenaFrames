@@ -3,6 +3,11 @@ local L = SSAFLocals
 
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
+local SML
+
+function Frame:OnInitialize()
+	SML = SSAF.SML
+end
 
 function Frame:UpdateToTTextures(row, totalTargets)
 	if( row.currentStyle == totalTargets ) then
@@ -17,22 +22,22 @@ function Frame:UpdateToTTextures(row, totalTargets)
 
 	-- 2 dots
 	elseif( totalTargets == 2 ) then
-		row.targets[1]:SetWidth(8)
+		row.targets[1]:SetHeight(8)
 		row.targets[1]:SetWidth(16)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
 
-		row.targets[2]:SetWidth(8)
+		row.targets[2]:SetHeight(8)
 		row.targets[2]:SetWidth(16)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
 	
 	-- 3 dots
 	elseif( totalTargets == 3 ) then
 		row.targets[1]:SetWidth(8)
-		row.targets[1]:SetWidth(8)
+		row.targets[1]:SetHeight(8)
 		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
 
 		row.targets[2]:SetWidth(8)
-		row.targets[2]:SetWidth(8)
+		row.targets[2]:SetHeight(8)
 		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
 
 		row.targets[3]:SetWidth(8)
@@ -140,14 +145,14 @@ function Frame:CreateRow(id)
 	local row = CreateFrame("StatusBar", nil, self.frame)
 	row:SetHeight(16)
 	row:SetWidth(178)
-	row:SetStatusBarTexture(self.db.profile.barTexture)
+	row:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	row:Hide()
 	
 	-- Mana bar
 	local mana = CreateFrame("StatusBar", nil, row)
 	mana:SetWidth(178)
 	mana:SetHeight(self.db.profile.manaBarHeight)
-	mana:SetStatusBarTexture(self.db.profile.barTexture)
+	mana:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
 	
 	if( not self.db.profile.manaBar ) then
@@ -211,7 +216,7 @@ function Frame:CreateRow(id)
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
-	texture:SetTexture(self.db.profile.barTexture)
+	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 	
 	targets[1] = texture
@@ -221,7 +226,7 @@ function Frame:CreateRow(id)
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 4)
-	texture:SetTexture(self.db.profile.barTexture)
+	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 
 	targets[4] = texture
@@ -231,7 +236,7 @@ function Frame:CreateRow(id)
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
-	texture:SetTexture(self.db.profile.barTexture)
+	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 	
 	targets[2] = texture
@@ -241,7 +246,7 @@ function Frame:CreateRow(id)
 	texture:SetHeight(8)
 	texture:SetWidth(8)
 	texture:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, -4)
-	texture:SetTexture(self.db.profile.barTexture)
+	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 	
 	targets[3] = texture

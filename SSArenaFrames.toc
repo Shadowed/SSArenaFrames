@@ -13,7 +13,7 @@ lib\AceDB-3.0\AceDB-3.0.xml
 lib\AceEvent-3.0\AceEvent-3.0.xml
 lib\OptionHouse.lua
 lib\HousingAuthority.lua
-lib\LibSharedMedia-2.0.lua
+lib\LibSharedMedia-3.0\lib.xml
 
 localization.enUS.lua
 localization.deDE.lua
