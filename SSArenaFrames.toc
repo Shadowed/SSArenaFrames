@@ -4,7 +4,7 @@
 ## Author: Mayen
 ## Notes: Unit frames for arenas
 ## SavedVariables: SSAFDB
-## OptionalDeps: LibStub, OptionHouse, HousingAuthority, Ace3, Ace2, AceComm-2.0
+## OptionalDeps: LibStub, GTB, Ace3, LibSharedMedia-3.0, OptionHouse, HousingAuthority, Ace2, AceComm-2.0
 
 lib\LibStub-1.0\LibStub-1.0.xml
 lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
