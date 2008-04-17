@@ -50,7 +50,7 @@ function SSAF:OnInitialize()
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
 				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/targetexact *name" },
-				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/targetexact *name\n/focus\n/targetlasttarget" },
+				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/targetexact *name\n/focus\n/targetlasttarget\n/script SSAF:Print(string.format(\"Set focus %s\", UnitName(\"focus\") or \"<no focus>\"));" },
 			}
 		}
 	}
@@ -447,10 +447,6 @@ function SSAF:UpdateEnemies()
 		-- Color the health bar by class
 		row:SetStatusBarColor(RAID_CLASS_COLORS[enemy.classToken].r, RAID_CLASS_COLORS[enemy.classToken].g, RAID_CLASS_COLORS[enemy.classToken].b, 1.0)
 		
-		-- Now do a quick basic update of other info
-		self:UpdateHealth(enemy)
-		self:UpdateMana(enemy)
-
 		-- Set up all the macro things
 		local foundMacro
 		for _, macro in pairs(self.db.profile.attributes) do
@@ -494,10 +490,6 @@ function SSAF:UpdateEnemies()
 			elseif( enemy.type == "MINION" ) then
 				row:SetStatusBarColor(self.db.profile.minionBarColor.r, self.db.profile.minionBarColor.g, self.db.profile.minionBarColor.b, 1.0)
 			end
-
-			-- Quick update
-			self:UpdateHealth(enemy)
-			self:UpdateMana(enemy)
 
 			-- Show pet icon like we show class icons
 			if( self.db.profile.showIcon ) then
@@ -553,26 +545,35 @@ function SSAF:UpdateEnemies()
 			usedRows[id] = nil
 			row.usedIcons = 0
 
+			-- Hide the ToT icons
 			for _, texture in pairs(row.targets) do
 				texture:Hide()
 			end
 		
+			-- Add # for easier identification
 			if( self.db.profile.showID ) then
 				row.nameID = "#" .. id
 			else
 				row.nameID = ""
 			end
-		
+			
+			-- Set name
+			local enemy
 			if( row.ownerType == "PLAYER" ) then
-				local enemy = enemies[row.ownerName]			
+				enemy = enemies[row.ownerName]			
 				enemy.displayRow = id
 				row.text:SetFormattedText("%s%s", row.nameID, enemy.name)
 			else
-				local enemy = enemyPets[row.ownerName]
+				enemy = enemyPets[row.ownerName]
 				enemy.displayRow = id
 				row.text:SetFormattedText("%s%s's %s", row.nameID, enemy.owner, enemy.family or enemy.name)
 			end
 
+			-- Now do a quick basic update of other info
+			self:UpdateHealth(enemy)
+			self:UpdateMana(enemy)
+
+			-- Reposition
 			if( id > 1 ) then
 				row:SetPoint("TOPLEFT", self.rows[id - 1], "BOTTOMLEFT", 0, -2)
 			else
@@ -585,8 +586,7 @@ function SSAF:UpdateEnemies()
 	self.frame:SetHeight(18 * id)
 	self.frame:Show()
 
-	-- Update all of the ToT info whenever we update everything
-	-- incase it's done AFTER the person targets
+	-- Update all of the ToT info whenever we update everything incase it's done AFTER the person targets
 	self:UpdateToT()
 end
 
@@ -615,8 +615,6 @@ function SSAF:ScanUnit(unit)
 	if( enemies[name] and isPlayer ) then
 		self:UpdateMana(enemies[name], unit)
 		self:UpdateHealth(enemies[name], unit)	
-	
-
 	elseif( enemyPets[name] and not isPlayer ) then
 		self:UpdateMana(enemyPets[name], unit)
 		self:UpdateHealth(enemyPets[name], unit)
@@ -809,6 +807,8 @@ function SSAF:EnemyDied(guid)
 			enemy.health = 0
 			enemy.mana = 0
 			
+			self:UpdateMana(enemy)
+			self:UpdateHealth(enemy)
 			return true
 		end
 	end
@@ -819,6 +819,8 @@ function SSAF:EnemyDied(guid)
 			enemy.health = 0
 			enemy.mana = 0
 			
+			self:UpdateMana(enemy)
+			self:UpdateHealth(enemy)
 			return true
 		end
 	end
@@ -943,4 +945,8 @@ function SSAF:ClearEnemies()
 	if( self.frame ) then
 		self.frame:Hide()
 	end
+end
+
+function SSAF:Print(msg)
+	DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99SSAF|r: " .. msg)
 end
