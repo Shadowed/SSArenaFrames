@@ -162,7 +162,7 @@ function Frame:CreateRow(id)
 	local path, size = GameFontNormalSmall:GetFont()
 
 	-- Player name text
-	local text = mana:CreateFontString(nil, "OVERLAY")
+	local text = row:CreateFontString(nil, "OVERLAY")
 	text:SetPoint("LEFT", row, "LEFT", 1, 0)
 	text:SetJustifyH("LEFT")
 	
@@ -178,7 +178,7 @@ function Frame:CreateRow(id)
 	text:SetHeight(text:GetStringHeight())
 	
 	-- Health percent text
-	local healthText = mana:CreateFontString(nil, "OVERLAY")
+	local healthText = row:CreateFontString(nil, "OVERLAY")
 	healthText:SetPoint("RIGHT", row, "RIGHT", -1, 0)
 	healthText:SetJustifyH("RIGHT")
 	
@@ -188,11 +188,6 @@ function Frame:CreateRow(id)
 	healthText:SetShadowOffset(1, -1)
 	healthText:SetShadowColor(0, 0, 0, 1)
 	
-	-- Reparent text so they'll show if mana bars are disabled
-	if( not self.db.profile.manaBar ) then
-		text:SetParent(row)
-		healthText:SetParent(row)
-	end
 
 	-- Class icon
 	local classTexture = row:CreateTexture(nil, "OVERLAY")

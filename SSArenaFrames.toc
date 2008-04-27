@@ -4,7 +4,7 @@
 ## Author: Mayen
 ## Notes: Unit frames for arenas
 ## SavedVariables: SSAFDB
-## OptionalDeps: LibStub, GTB, Ace3, LibSharedMedia-3.0, OptionHouse, HousingAuthority, Ace2, AceComm-2.0
+## OptionalDeps: LibStub, Ace3, LibSharedMedia-3.0, OptionHouse, HousingAuthority
 
 lib\LibStub-1.0\LibStub-1.0.xml
 lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
@@ -24,4 +24,5 @@ localization.zhCN.lua
 SSArenaFrames.lua
 sync.lua
 frame.lua
+nameplates.lua
 config.lua
