@@ -34,7 +34,7 @@ function SSAF:OnInitialize()
 			locked = true,
 			targetDots = true,
 			reportEnemies = true,
-			barTexture = "BantoBar",
+			barTexture = "Minimalist",
 			showID = false,
 			showIcon = false,
 			showMinions = true,
@@ -63,9 +63,7 @@ function SSAF:OnInitialize()
 	self:RegisterEvent("UPDATE_BINDINGS")
 	
 	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
-
 	
-	-- Tekkub would be so proud, we're using metatables
 	self.rows = setmetatable({}, {__index = function(t, k)
 		local row = SSAF.modules.Frame:CreateRow(k)
 		rawset(t, k, row)
@@ -99,7 +97,9 @@ function SSAF:JoinedArena()
 	
 	-- Pre-create if need be
 	for i=1, 10 do
-		local val = self.rows[i]
+		if( not self.rows[i] ) then
+			SSAF.modules.Frame:CreateRow(i)
+		end
 	end
 end
 
@@ -260,16 +260,23 @@ local function healthValueChanged(...)
 
 	-- The "isCorrupted" flag is a way of letting us know to disregard any health updates from them
 	-- due to Hunters naming the pet the same as someone on the friendly team
-	if( enemies[name] and enemies[name].isCorrupted ) then
+	local enemy = enemies[name]
+	if( enemy and enemy.isCorrupted ) then
 		return
 	end
 	
-	if( enemies[name] ) then
-		SSAF:UpdateHealth(enemies[name], this:GetValue(), select(2, this:GetMinMaxValues()))
+	if( enemy ) then
+		enemy.health = this:GetValue()
+		enemy.maxHealth = select(2, this:GetMinMaxValues())
+		
+		SSAF:UpdateHealth(enemy)
 	else
 		for _, enemy in pairs(enemyPets) do
 			if( enemy.name == name ) then
-				SSAF:UpdateHealth(enemy, this:GetValue(), select(2, this:GetMinMaxValues()))
+				enemy.health = this:GetValue()
+				enemy.maxHealth = select(2, this:GetMinMaxValues())
+				
+				SSAF:UpdateHealth(enemy)
 				break
 			end
 		end
@@ -307,11 +314,11 @@ function SSAF.ScanPartyTargets(self, elapsed)
 		scanFrames(WorldFrame:GetChildren())
 	end
 
-	-- Scan party targets every 0.25 second
+	-- Scan party targets every 0.50 second
 	-- Really, nameplate scanning should get the info 99% of the time
 	-- so we don't need to be so aggressive with this
 	timeElapsed = timeElapsed + elapsed
-	if( timeElapsed >= 0.25 ) then
+	if( timeElapsed >= 0.50 ) then
 		timeElapsed = 0
 
 		for i=1, GetNumPartyMembers() do
@@ -343,16 +350,10 @@ function SSAF.ScanPartyTargets(self, elapsed)
 end
 
 -- HEALTH UPDATES
-function SSAF:UpdateHealth(enemy, unit, maxHealth)
-	-- We have a unitid provided, so update based off that
-	if( unit and not maxHealth ) then
+function SSAF:UpdateHealth(enemy, unit)
+	if( unit ) then
 		enemy.maxHealth = UnitHealthMax(unit) or enemy.maxHealth
 		enemy.health = UnitHealth(unit) or enemy.health
-	
-	-- We're specifically updating off set health/maxHealth values
-	elseif( unit and maxHealth ) then
-		enemy.maxHealth = maxHealth or enemy.maxHealth
-		enemy.health = unit or enemy.health
 	end
 	
 	if( not enemy.displayRow ) then
@@ -360,18 +361,17 @@ function SSAF:UpdateHealth(enemy, unit, maxHealth)
 	end
 	
 	local row = self.rows[enemy.displayRow]
-
-	-- Fade out the bar if they're dead
-	if( enemy.isDead ) then
-		row:SetAlpha(0.75)
-	else
-		row:SetAlpha(1.0)
-	end
-	
-	-- Update value/percent text
 	row:SetMinMaxValues(0, enemy.maxHealth)
 	row:SetValue(enemy.health)
 	row.healthText:SetText(math.floor((enemy.health / enemy.maxHealth) * 100 + 0.5) .. "%")
+
+	-- Fade out the bar if they're dead
+	if( enemy.health == 0 or enemy.isDead ) then
+		row:SetValue(0)
+		row:SetAlpha(0.70)
+	else
+		row:SetAlpha(1.0)
+	end
 end
 
 -- MANA UPDATES
@@ -381,10 +381,6 @@ function SSAF:UpdateMana(enemy, unit)
 		enemy.mana = UnitMana(unit)
 		enemy.maxMana = UnitManaMax(unit)
 		enemy.powerType = UnitPowerType(unit)
-		
-		if( enemy.classToken == "SHAMAN" ) then
-			enemy.powerType = 3
-		end
 	end
 	
 	if( not enemy.displayRow ) then
@@ -392,16 +388,19 @@ function SSAF:UpdateMana(enemy, unit)
 	end
 
 	local row = self.rows[enemy.displayRow]
-	row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
 	row.manaBar:SetMinMaxValues(0, enemy.maxMana)
 	row.manaBar:SetValue(enemy.mana)
+	row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
+		
+	if( enemy.health == 0 or enemy.isDead ) then
+		row.manaBar:SetValue(0)
+	end
 end
 
 -- UPDATE NEEMY DISPLAY
 local function sortEnemies(a, b)
 	if( not a ) then
 		return true
-
 	elseif( not b ) then
 		return false
 	end
@@ -418,6 +417,8 @@ function SSAF:UpdateEnemies()
 	
 	for _, row in pairs(self.rows) do
 		row.listID = "C"
+		row.ownerType = ""
+		row.displayRow = nil
 		row:Hide()
 	end
 	
@@ -440,8 +441,10 @@ function SSAF:UpdateEnemies()
 			row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
 			row.classTexture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 			row.classTexture:Show()
+			row.petTexture:Hide()
 		else
 			row.classTexture:Hide()
+			row.petTexture:Hide()
 		end
 		
 		-- Color the health bar by class
@@ -481,8 +484,6 @@ function SSAF:UpdateEnemies()
 			row.ownerName = enemy.name
 			row.ownerType = enemy.type
 			row.listID = "B" .. enemy.sortID
-
-			row:SetMinMaxValues(0, enemy.maxHealth)
 			
 			-- Color health bar based on type
 			if( enemy.type == "PET" ) then
@@ -495,14 +496,16 @@ function SSAF:UpdateEnemies()
 			if( self.db.profile.showIcon ) then
 				local path = petClassIcons[enemy.family or enemy.name]
 				if( path ) then
-					row.classTexture:SetTexture(path)
+					row.petTexture:SetTexture(path)
 				else
-					row.classTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-					row.classTexture:SetTexCoord(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0)
+					row.petTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+					row.petTexture:SetTexCoord(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0)
 				end
 
-				row.classTexture:Show()
+				row.petTexture:Show()
+				row.classTexture:Hide()
 			else
+				row.petTexture:Hide()
 				row.classTexture:Hide()
 			end
 			
@@ -540,6 +543,14 @@ function SSAF:UpdateEnemies()
 	-- Sort and position
 	table.sort(self.rows, sortEnemies)
 	
+	-- Sort out how much space is between each row + mana bar if included
+	local heightUsed = 0
+	local manaBar = 0
+	if( self.db.profile.manaBar ) then
+		manaBar = self.db.profile.manaBarHeight
+	end
+
+	-- Position/update displays
 	for id, row in pairs(self.rows) do
 		if( row.listID ~= "C" ) then
 			usedRows[id] = nil
@@ -573,17 +584,19 @@ function SSAF:UpdateEnemies()
 			self:UpdateHealth(enemy)
 			self:UpdateMana(enemy)
 
+			heightUsed = heightUsed + 18 + manaBar
+
 			-- Reposition
 			if( id > 1 ) then
-				row:SetPoint("TOPLEFT", self.rows[id - 1], "BOTTOMLEFT", 0, -2)
+				row:SetPoint("TOPLEFT", self.rows[id - 1], "BOTTOMLEFT", 0, -2 - manaBar)
 			else
 				row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
 			end
 		end
 	end
 	
-	-- Resize it
-	self.frame:SetHeight(18 * id)
+	-- Resize it, I really should learn how to do SetPoint correctly to avoid this hackery
+	self.frame:SetHeight(heightUsed)
 	self.frame:Show()
 
 	-- Update all of the ToT info whenever we update everything incase it's done AFTER the person targets
@@ -624,15 +637,16 @@ function SSAF:ScanUnit(unit)
 	if( isPlayer ) then
 		server = server or GetRealmName()
 		
-		if( enemies[name] ) then
+		local enemy = enemies[name]
+		if( enemy ) then
 			-- Most syncs from other addons don't provide server or GUID
-			if( enemies[name].server and enemies[name].guid ) then
+			if( enemy.server and enemy.guid ) then
 				return
 			end
 			
-			enemies[name].sortID = name .. "-" .. server
-			enemies[name].server = server
-			enemies[name].guid = UnitGUID(unit)
+			enemy.sortID = name .. "-" .. server
+			enemy.server = server
+			enemy.guid = UnitGUID(unit)
 			return
 		end
 		
@@ -675,13 +689,14 @@ function SSAF:ScanUnit(unit)
 		end
 				
 		-- Found the pet owner
-		if( owner and owner ~= UNKNOWNOBJECT ) then
+		if( owner ~= UNKNOWNOBJECT ) then
 			local family = UnitCreatureFamily(unit)
+			local guid = UnitGUID(unit)
 			
 			for id, enemy in pairs(enemyPets) do
 				if( enemy.owner == owner ) then
 					-- New pet summoned, remove the old
-					if( enemy.name ~= name ) then
+					if( enemy.guid ~= guid ) then
 						enemyPets[id] = nil
 						break
 					else
@@ -690,8 +705,8 @@ function SSAF:ScanUnit(unit)
 				end
 			end
 					
-			self:AddEnemyPet(name, owner, family, type, UnitPowerType(unit), unit)
-			self:SendMessage(string.format("ENEMYPET:%s,%s,%s,%s,%s,%s", name, owner, family or "", type, UnitPowerType(unit), UnitGUID(unit)))
+			self:AddEnemyPet(name, owner, family, type, UnitPowerType(unit), guid, unit)
+			self:SendMessage(string.format("ENEMYPET:%s,%s,%s,%s,%s,%s", name, owner, family or "", type, UnitPowerType(unit), guid))
 
 			if( self.db.profile.reportEnemies ) then
 				if( family ) then
@@ -721,11 +736,6 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 		guid = UnitGUID(unit)
 	end
 
-	-- Use Rogue energy indicator so you can actually see mana
-	if( classToken == "SHAMAN" ) then
-		powerType = 3
-	end
-	
 	enemies[name] = {sortID = name .. "-" .. (server or ""),
 			name = name,
 			type = "PLAYER",
@@ -746,14 +756,13 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 	end
 
 	self:UpdateEnemies()
-	return true
 end
 
 -- New pet found
 function SSAF:AddEnemyPet(name, owner, family, type, powerType, guid, unit)
 	-- When a unit is passed, we verified it ourselve
 	if( not unit ) then
-		-- Check for dup
+		-- Check for dups
 		for id, enemy in pairs(enemyPets) do
 			if( enemy.owner == owner ) then
 				-- New pet summoned, remove the old
@@ -777,55 +786,52 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, guid, unit)
 		
 		guid = UnitGUID(unit)
 	end
-	
+		
+	enemyPets[name] = {sortID = name .. "-" .. owner,
+			name = name,
+			owner = owner,
+			type = type,
+			family = family,
+			health = health or 100,
+			maxHealth = maxHealth or 100,
+			mana = mana or 0,
+			maxMana = maxMana or 100,
+			guid = guid,
+			powerType = tonumber(powerType) or 2}
+				
 	-- Check if the pet has the same name as a player
 	if( enemies[name] ) then
 		enemies[name].isCorrupted = true
 	end
-	
-	enemyPets[name] = {	sortID = name .. "-" .. owner,
-				name = name,
-				owner = owner,
-				type = type,
-				family = family,
-				health = health or 100,
-				maxHealth = maxHealth or 100,
-				mana = mana or 0,
-				maxMana = maxMana or 100,
-				guid = guid,
-				powerType = tonumber(powerType) or 2}
-				
+
 	self:UpdateEnemies()
-	return true
 end
 
 -- Kill an enemy by the GUID
 function SSAF:EnemyDied(guid)
 	for name, enemy in pairs(enemies) do
-		if( not enemy.isDead and enemy.guid and enemy.guid == guid ) then
+		if( enemy.guid == guid ) then
 			enemy.isDead = true
 			enemy.health = 0
 			enemy.mana = 0
 			
 			self:UpdateMana(enemy)
 			self:UpdateHealth(enemy)
-			return true
+			return
 		end
 	end
 
 	for name, enemy in pairs(enemyPets) do
-		if( not enemy.isDead and enemy.guid and enemy.guid == guid ) then
+		if( enemy.guid == guid ) then
 			enemy.isDead = true
 			enemy.health = 0
 			enemy.mana = 0
 			
 			self:UpdateMana(enemy)
 			self:UpdateHealth(enemy)
-			return true
+			return
 		end
 	end
-	
-	return false
 end
 
 -- Output
@@ -861,8 +867,8 @@ function SSAF:Reload()
 		if( noEnemies ) then
 			self:AddEnemy(UnitName("player"), GetRealmName(), (UnitRace("player")), select(2, UnitClass("player")), nil, UnitPowerType("player"), nil, nil, "player")
 			self:AddEnemy("Mayen", "Icecrown", "TAUREN", "DRUID", nil, 0, nil, nil, "player")
-			self:AddEnemyPet(L["Pet"], UnitName("player"), "Cat", "PET", 2)
-			self:AddEnemyPet(L["Minion"], "Mayen", "Felhunter", "MINION", 0)
+			self:AddEnemyPet(L["Pet"], UnitName("player"), "Cat", "PET", 2, nil, "player")
+			self:AddEnemyPet(L["Minion"], "Mayen", "Felhunter", "MINION", nil, "player")
 		end
 	else
 		self:ClearEnemies()

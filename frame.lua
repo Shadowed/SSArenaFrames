@@ -153,7 +153,7 @@ function Frame:CreateRow(id)
 	mana:SetWidth(178)
 	mana:SetHeight(self.db.profile.manaBarHeight)
 	mana:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
-	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, -self.db.profile.manaBarHeight)
 	
 	if( not self.db.profile.manaBar ) then
 		mana:Hide()
@@ -199,6 +199,12 @@ function Frame:CreateRow(id)
 	classTexture:SetHeight(16)
 	classTexture:SetWidth(16)
 	classTexture:SetPoint("CENTER", row, "LEFT", -12, 0)
+
+	-- Pet icon
+	local petTexture = row:CreateTexture(nil, "OVERLAY")
+	petTexture:SetHeight(16)
+	petTexture:SetWidth(16)
+	petTexture:SetPoint("CENTER", row, "LEFT", -12, 0)
 	
 	-- So we can actually run macro text
 	local button = CreateFrame("Button", "SSArenaButton" .. id, row, "SecureActionButtonTemplate")
@@ -256,6 +262,7 @@ function Frame:CreateRow(id)
 	row.text = text
 	row.manaBar = mana
 	row.classTexture = classTexture
+	row.petTexture = petTexture
 	row.button = button
 	row.healthText = healthText
 

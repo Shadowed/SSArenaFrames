@@ -34,13 +34,14 @@ function Config:OnInitialize()
 	SML = SSAF.SML
 
 	SML:Register(SML.MediaType.STATUSBAR, "BantoBar", "Interface\\Addons\\SSArenaFrames\\images\\banto")
-	SML:Register(SML.MediaType.STATUSBAR, "Smooth",   "Interface\\Addons\\SSArenaFrames\\images\\smooth")
-	SML:Register(SML.MediaType.STATUSBAR, "Perl",     "Interface\\Addons\\SSArenaFrames\\images\\perl")
-	SML:Register(SML.MediaType.STATUSBAR, "Glaze",    "Interface\\Addons\\SSArenaFrames\\images\\glaze")
+	SML:Register(SML.MediaType.STATUSBAR, "Smooth", "Interface\\Addons\\SSArenaFrames\\images\\smooth")
+	SML:Register(SML.MediaType.STATUSBAR, "Perl", "Interface\\Addons\\SSArenaFrames\\images\\perl")
+	SML:Register(SML.MediaType.STATUSBAR, "Glaze", "Interface\\Addons\\SSArenaFrames\\images\\glaze")
 	SML:Register(SML.MediaType.STATUSBAR, "Charcoal", "Interface\\Addons\\SSArenaFrames\\images\\Charcoal")
-	SML:Register(SML.MediaType.STATUSBAR, "Otravi",   "Interface\\Addons\\SSArenaFrames\\images\\otravi")
-	SML:Register(SML.MediaType.STATUSBAR, "Striped",  "Interface\\Addons\\SSArenaFrames\\images\\striped")
+	SML:Register(SML.MediaType.STATUSBAR, "Otravi", "Interface\\Addons\\SSArenaFrames\\images\\otravi")
+	SML:Register(SML.MediaType.STATUSBAR, "Striped", "Interface\\Addons\\SSArenaFrames\\images\\striped")
 	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
+	SML:Register(SML.MediaType.STATUSBAR, "Minimalist", "Interface\\Addons\\SSArenaFrames\\images\\Minimalist")
 end
 
 -- GUI
