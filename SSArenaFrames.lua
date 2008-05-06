@@ -121,18 +121,17 @@ end
 
 -- HEALTH UPDATES
 function SSAF:UNIT_HEALTH(event, unit)
-	if( unit == "focus" or unit == "target" ) then
+	if( unit == "focus" or unit == "target" or unit == "mouseover" ) then
 		local guid = UnitGUID(unit)
 		if( enemies[guid] ) then
 			self:UpdateHealth(enemies[guid], unit)
 		end
-
 	end
 end
 
 -- POWER TYPE
 function SSAF:UPDATE_POWER(event, unit)
-	if( unit == "focus" or unit == "target" ) then
+	if( unit == "focus" or unit == "target" or unit == "mouseover" ) then
 		local guid = UnitGUID(unit)
 		if( enemies[guid] ) then
 			self:UpdateMana(enemies[guid], unit)
@@ -174,15 +173,15 @@ function SSAF:UpdateToT()
 	-- Now update them
 	for unit, data in pairs(partyTargets) do
 		local enemy = enemies[data.guid]
-		if( enemy and enemy.displayRow and self.rows[enemy.displayRow] ) then
-			-- Set the row to having a dot active
+		if( enemy and enemy.displayRow ) then
+			local row = self.rows[enemy.displayRow]
 			usedRows[enemy.displayRow] = true
-			
+
 			-- Update how many icons are active
-			self.rows[enemy.displayRow].usedIcons = (self.rows[enemy.displayRow].usedIcons or 0) + 1
-			
+			row.usedIcons = (row.usedIcons or 0) + 1
+
 			-- Color the icon by the class of the person targeting them
-			local texture = self.rows[enemy.displayRow].targets[self.rows[enemy.displayRow].usedIcons]
+			local texture = row.targets[row.usedIcons]
 			texture:SetVertexColor(RAID_CLASS_COLORS[data.class].r, RAID_CLASS_COLORS[data.class].g, RAID_CLASS_COLORS[data.class].b)
 			texture:Show()
 		end
@@ -231,14 +230,14 @@ function SSAF:UpdateHealth(enemy, unit)
 		enemy.health = UnitHealth(unit) or enemy.health
 	end
 	
+
 	if( not enemy.displayRow ) then
 		return
 	end
 	
 	local row = self.rows[enemy.displayRow]
-
 	-- Fade out the bar if they're dead
-	if( enemy.health == 0 or enemy.isDead ) then
+	if( enemy.isDead ) then
 		row.healthText:SetText("0%")
 		row:SetValue(0)
 		row:SetAlpha(0.70)
@@ -262,7 +261,7 @@ function SSAF:UpdateMana(enemy, unit)
 	if( not enemy.displayRow ) then
 		return
 	end
-
+	
 	local row = self.rows[enemy.displayRow]
 	row.manaBar:SetMinMaxValues(0, enemy.maxMana)
 	row.manaBar:SetValue(enemy.mana)
@@ -288,6 +287,13 @@ function SSAF:UpdateEnemies()
 	-- Can't update in combat, so queue it for when we drop
 	if( InCombatLockdown() ) then
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+		-- Update display rows at least
+		for id, row in pairs(self.rows) do
+			if( row.guid ) then
+				enemies[row.guid].displayRow = id
+			end
+		end
 		return
 	end
 	
@@ -339,7 +345,6 @@ function SSAF:UpdateEnemies()
 			end
 
 			-- Set up all the macro things
-			local foundMacro
 			for _, macro in pairs(self.db.profile.attributes) do
 				if( macro.modifier and macro.button ) then
 					if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
@@ -386,7 +391,6 @@ function SSAF:UpdateEnemies()
 		
 			-- Grab enemy info
 			local enemy = enemies[row.guid]			
-			enemy.displayRow = id
 
 			-- Add # for easier identification
 			row.nameID = ""
@@ -412,6 +416,12 @@ function SSAF:UpdateEnemies()
 			else
 				row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
 			end
+		end
+	end
+	
+	for id, row in pairs(self.rows) do
+		if( row.guid ) then
+			enemies[row.guid].displayRow = id
 		end
 	end
 	
@@ -456,13 +466,13 @@ end
 
 -- Scan unit, see if they're valid as an enemy or enemy pet
 function SSAF:ScanUnit(unit)
-	local guid = UnitGUID(unit)
-	if( enemies[guid] ) then
-		return
-	end
-	
 	local name, server = UnitName(unit)
 	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) or UnitIsCharmed(unit) or UnitIsCharmed("player") or GetPlayerBuffTexture(L["Arena Preparation"]) ) then
+		return
+	end
+
+	local guid = UnitGUID(unit)
+	if( enemies[guid] ) then
 		return
 	end
 	
@@ -629,13 +639,7 @@ function SSAF:EnemyDied(guid)
 		if( enemy.type == "PLAYER" ) then
 			for guid, pet in pairs(enemies) do
 				if( pet.type ~= "PLAYER" and pet.owner == enemy.name ) then
-					pet.isDead = true
-					pet.health = 0
-					pet.mana = 0
-
-					self:UpdateMana(pet)
-					self:UpdateHealth(pet)
-					break
+					self:EnemyDied(guid)
 				end
 			end
 		end

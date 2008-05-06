@@ -43,22 +43,15 @@ local function healthValueChanged(...)
 	end
 end
 
--- Find unhooked anonymous frames
-local function findUnhookedNameplates(...)
-	for i=1, select("#", ...) do
-		local health = select(i, ...)
-		if( health and not health.SSAFHooked and not health:GetName() and health:IsVisible() and health.GetFrameType and health:GetFrameType() == "StatusBar" ) then
-			return health
-		end
-	end
-end
-
 -- Scan WorldFrame children
 local function scanFrames(...)
 	for i=1, select("#", ...) do
-		local health = findUnhookedNameplates(select(i, ...):GetChildren())
-		if( health ) then
-			health.SSAFHooked = true
+		local frame = select(i, ...)
+		local region = frame:GetRegions()
+		if( not frame.SSAFHooked and not frame:GetName() and region and region:GetObjectType() == "Texture" and region:GetTexture() == "Interface\\Tooltips\\Nameplate-Border" ) then
+			frame.SSAFHooked = true
+			
+			local health = frame:GetChildren()
 			health.SSAFValueChanged = health:GetScript("OnValueChanged")
 			health:SetScript("OnValueChanged", healthValueChanged)
 		end
