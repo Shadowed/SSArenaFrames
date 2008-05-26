@@ -71,13 +71,15 @@ function SSAF:OnInitialize()
 	-- Default party units
 	for i=1, MAX_PARTY_MEMBERS do
 		partyUnit[i] = "party" .. i
-		partyTargets["party" .. i .. "target"] = {guid = ""}
+		partyTargets["party" .. i .. "target"] = {guid = "", class = ""}
 		partyTargetUnit[i] = "party" .. i .. "target"
 	end
 	
 	self.partyTargets = partyTargets
 	self.nameGUIDMap = nameGUIDMap
 	self.enemies = enemies
+	self.partyTargetUnit = partyTargetUnit
+	self.partyUnit = partyUnit
 end
 
 function SSAF:JoinedArena()
@@ -113,7 +115,6 @@ function SSAF:LeftArena()
 	if( not InCombatLockdown() ) then
 		self:ClearEnemies()
 	else
-
 		instanceType = "none"
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	end
@@ -160,115 +161,48 @@ function SSAF:UpdateToT()
 		return
 	end
 	
-	-- Reset the current target icons
-	for id in pairs(usedRows) do
-		self.rows[id].usedIcons = 0
-		for _, texture in pairs(self.rows[id].targets) do
-			texture:Hide()
-		end
-		
-		usedRows[id] = nil
-	end
-		
-	-- Now update them
-	for unit, data in pairs(partyTargets) do
-		local enemy = enemies[data.guid]
-		if( enemy and enemy.displayRow ) then
-			local row = self.rows[enemy.displayRow]
-			usedRows[enemy.displayRow] = true
-
-			-- Update how many icons are active
-			row.usedIcons = (row.usedIcons or 0) + 1
-
-			-- Color the icon by the class of the person targeting them
-			local texture = row.targets[row.usedIcons]
-			texture:SetVertexColor(RAID_CLASS_COLORS[data.class].r, RAID_CLASS_COLORS[data.class].g, RAID_CLASS_COLORS[data.class].b)
-			texture:Show()
-		end
-	end
-	
-	-- Update icon size
-	for id in pairs(usedRows) do
-		self.modules.Frame:UpdateToTTextures(self.rows[id], self.rows[id].usedIcons)
-	end
-end
-
-local timeElapsed = 0
-function SSAF.ScanPartyTargets(self, elapsed)
-	-- Scan party targets every 1 second
-	-- Really, nameplate scanning should get the info 99% of the time
-	-- so we don't need to be so aggressive with this
-	timeElapsed = timeElapsed + elapsed
-	if( timeElapsed >= 1 ) then
-		timeElapsed = 0
-
-		for i=1, GetNumPartyMembers() do
-			local unit = partyTargetUnit[i]
-			local guid = UnitGUID(unit)
+	for id, row in pairs(self.rows) do
+		if( row.guid ) then
+			local enemy = enemies[row.guid]
 			
-			-- Target monitoring
-			if( partyTargets[unit].guid ~= guid ) then
-				partyTargets[unit].guid = guid
-				partyTargets[unit].class = select(2, UnitClass(partyUnit[i]))
-
-				SSAF:UpdateToT()
+			-- Reset
+			for i=1, 4 do
+				row.targets[i]:Hide()
 			end
+			
+			-- Set the actual textures + set how many icons are being used
+			row.usedIcons = 0
+			for unit, data in pairs(partyTargets) do
+				if( data.guid == row.guid ) then
+					row.usedIcons = row.usedIcons + 1
 
-			-- Health/mana
-			if( enemies[guid] ) then
-				SSAF:UpdateHealth(enemies[guid], unit)
-				SSAF:UpdateMana(enemies[guid], unit)
+					local texture = row.targets[row.usedIcons]
+					texture:SetVertexColor(RAID_CLASS_COLORS[data.class].r, RAID_CLASS_COLORS[data.class].g, RAID_CLASS_COLORS[data.class].b)
+					texture:Show()
+				end
 			end
+			
+			-- Update positioning
+			self.modules.Frame:UpdateToTTextures(row, row.usedIcons)
 		end
 	end
 end
 
 -- HEALTH UPDATES
 function SSAF:UpdateHealth(enemy, unit)
-	if( unit ) then
-		enemy.maxHealth = UnitHealthMax(unit) or enemy.maxHealth
-		enemy.health = UnitHealth(unit) or enemy.health
+	if( UnitExists(unit) and UnitCanAttack("player", unit) ) then
+		enemy.health = UnitHealth(unit)
 	end
-	
-
-	if( not enemy.displayRow ) then
-		return
-	end
-	
-	local row = self.rows[enemy.displayRow]
-	-- Fade out the bar if they're dead
-	if( enemy.isDead ) then
-		row.healthText:SetText("0%")
-		row:SetValue(0)
-		row:SetAlpha(0.70)
-		return
-	end
-
-	row.healthText:SetText(math.floor((enemy.health / enemy.maxHealth) * 100 + 0.5) .. "%")
-	row:SetMinMaxValues(0, enemy.maxHealth)
-	row:SetValue(enemy.health)
-	row:SetAlpha(1.0)
 end
 
 -- MANA UPDATES
 function SSAF:UpdateMana(enemy, unit)
-	if( unit ) then
-		enemy.mana = UnitMana(unit)
-		enemy.maxMana = UnitManaMax(unit)
-		enemy.powerType = UnitPowerType(unit)
-	end
-	
-	if( not enemy.displayRow ) then
-		return
-	end
-	
-	local row = self.rows[enemy.displayRow]
-	row.manaBar:SetMinMaxValues(0, enemy.maxMana)
-	row.manaBar:SetValue(enemy.mana)
-	row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
+	if( UnitExists(unit) and UnitCanAttack("player", unit) ) then
+		local maxMana = UnitManaMax(unit)
+		local mana = UnitMana(unit)
 		
-	if( enemy.health == 0 or enemy.isDead ) then
-		row.manaBar:SetValue(0)
+		enemy.mana = math.floor((mana / maxMana) * 100 + 0.5)
+		enemy.powerType = UnitPowerType(unit)
 	end
 end
 
@@ -283,17 +217,37 @@ local function sortEnemies(a, b)
 	return ( a.listID < b.listID )
 end
 
+function SSAF:UpdateAFData()
+	for id, row in pairs(self.rows) do
+		if( row:IsVisible() and row.guid and enemies[row.guid] ) then
+			local enemy = enemies[row.guid]
+			
+			-- Update health
+			row.healthText:SetFormattedText("%d%%", enemy.health)
+			row:SetValue(enemy.health)
+			row:SetAlpha(1.0)
+
+			-- Update mana
+			row.manaBar:SetValue(enemy.mana)
+			row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
+
+			-- Fade out the bar if they're dead
+			if( enemy.isDead ) then
+				row.healthText:SetText("0%")
+				row.manaBar:SetValue(0)
+				row:SetValue(0)
+				row:SetAlpha(0.70)
+			end
+		end
+	end
+	
+	self:UpdateToT()
+end
+
 function SSAF:UpdateEnemies()
 	-- Can't update in combat, so queue it for when we drop
 	if( InCombatLockdown() ) then
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
-
-		-- Update display rows at least
-		for id, row in pairs(self.rows) do
-			if( row.guid ) then
-				enemies[row.guid].displayRow = id
-			end
-		end
 		return
 	end
 	
@@ -322,7 +276,6 @@ function SSAF:UpdateEnemies()
 			if( self.db.profile.showIcon ) then
 				if( enemy.type == "PLAYER" ) then
 					local coords = CLASS_BUTTONS[enemy.classToken]
-
 					row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
 					row.classTexture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 					row.classTexture:Show()
@@ -358,7 +311,6 @@ function SSAF:UpdateEnemies()
 			end
 		end
 	end
-	
 
 	-- Nothing displayed, hide frame
 	if( id == 0 ) then
@@ -381,14 +333,6 @@ function SSAF:UpdateEnemies()
 	-- Position/update displays
 	for id, row in pairs(self.rows) do
 		if( row.guid ) then
-			usedRows[id] = nil
-			row.usedIcons = 0
-
-			-- Hide the ToT icons
-			for _, texture in pairs(row.targets) do
-				texture:Hide()
-			end
-		
 			-- Grab enemy info
 			local enemy = enemies[row.guid]			
 
@@ -404,10 +348,6 @@ function SSAF:UpdateEnemies()
 				row.text:SetFormattedText("%s%s's %s", row.nameID, enemy.owner, enemy.family or enemy.name)
 			end
 			
-			-- Now do a quick basic update of other info
-			self:UpdateHealth(enemy)
-			self:UpdateMana(enemy)
-
 			heightUsed = heightUsed + 18 + manaBar
 
 			-- Reposition
@@ -419,11 +359,6 @@ function SSAF:UpdateEnemies()
 		end
 	end
 	
-	for id, row in pairs(self.rows) do
-		if( row.guid ) then
-			enemies[row.guid].displayRow = id
-		end
-	end
 	
 	-- Resize it, I really should learn how to do SetPoint correctly to avoid this hackery
 	self.frame:SetHeight(heightUsed)
@@ -431,6 +366,7 @@ function SSAF:UpdateEnemies()
 
 	-- Update all of the ToT info whenever we update everything incase it's done AFTER the person targets
 	self:UpdateToT()
+	self:UpdateAFData()
 end
 
 -- Quick redirects!
@@ -541,15 +477,6 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 		return
 	end
 	
-	local health, mana, maxHealth, maxMana
-	if( unit ) then
-		health = UnitHealth(unit)
-		mana = UnitMana(unit)
-		
-		maxHealth = UnitHealthMax(unit)
-		maxMana = UnitManaMax(unit)
-	end
-
 	enemies[guid] = {sortID = "A" .. name .. "-" .. (server or ""),
 			name = name,
 			type = "PLAYER",
@@ -557,14 +484,19 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 			race = race,
 			classToken = classToken,
 			guild = guild,
-			health = health or 100,
-			maxHealth = maxHealth or 100,
-			mana = mana or 0,
-			maxMana = maxMana or 100,
 			guid = guid,
-			powerType = tonumber(powerType) or 0}
+			health = 100,
+			mana = 100,
+			maxMana = 100,
+			powerType = tonumber(powerType) or 0,
+			targets = {}}
 	
 	self:UpdateEnemies()
+
+	if( unit ) then
+		self:UpdateHealth(enemies[guid], unit)
+		self:UpdateMana(enemies[guid], unit)
+	end
 
 	-- Check if a pet has a matching name before we update the name -> guid map
 	for guid, enemy in pairs(enemies) do
@@ -589,29 +521,26 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, guid, unit)
 			enemies[id] = nil	
 		end
 	end
-	
-	local health, mana, maxHealth, maxMana
-	if( unit ) then
-		health = UnitHealth(unit)
-		maxHealth = UnitHealthMax(unit)
-		
-		mana = UnitMana(unit)
-		maxMana = UnitManaMax(unit)
-	end
 		
 	enemies[guid] = {sortID = "B" .. name .. "-" .. owner,
 			name = name,
 			owner = owner,
 			type = type,
 			family = family,
-			health = health or 100,
-			maxHealth = maxHealth or 100,
-			mana = mana or 0,
-			maxMana = maxMana or 100,
 			guid = guid,
-			powerType = tonumber(powerType) or 2}
+			health = 100,
+			mana = 100,
+			maxMana = 100,
+			powerType = tonumber(powerType) or 2,
+			targets = {}}
+	
 
 	self:UpdateEnemies()
+
+	if( unit ) then
+		self:UpdateHealth(enemies[guid], unit)
+		self:UpdateMana(enemies[guid], unit)
+	end
 
 	-- If theres a player with the same name of this pet, then remove the name -> guid map of the player
 	for guid, enemy in pairs(enemies) do
@@ -631,9 +560,6 @@ function SSAF:EnemyDied(guid)
 		enemy.isDead = true
 		enemy.health = 0
 		enemy.mana = 0
-
-		self:UpdateMana(enemy)
-		self:UpdateHealth(enemy)
 		
 		-- Kill off this players pet if they have any
 		if( enemy.type == "PLAYER" ) then

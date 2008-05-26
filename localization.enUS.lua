@@ -118,6 +118,8 @@ SSAFLocals = {
 	
 	["Show whos targeting an enemy"] = "Show whos targeting an enemy",
 	["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."] = "Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them.",
+	
+	["ALT + Drag to move the frame anchor."] = "ALT + Drag to move the frame anchor.",
 }
 
 BINDING_HEADER_SSAF = "SSArena Frames"

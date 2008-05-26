@@ -3,63 +3,41 @@ local L = SSAFLocals
 
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
-local SML
+local SML, enemies, nameGUIDMap, partyTargetUnit, partyTargets, partyUnit
+local previousUnits = {}
 
 function Frame:OnInitialize()
 	SML = SSAF.SML
+	enemies = SSAF.enemies
+	nameGUIDMap = SSAF.nameGUIDMap
+	partyTargetUnit = SSAF.partyTargetUnit
+	partyUnit = SSAF.partyUnit
+	partyTargets = SSAF.partyTargets
 end
 
-function Frame:UpdateToTTextures(row, totalTargets)
-	if( row.currentStyle == totalTargets ) then
-		return
+-- Update health/party yargets
+local timeElapsed = 0
+local function updateFrame(self, elapsed)
+	timeElapsed = timeElapsed + elapsed
+	if( timeElapsed >= 0.50 ) then
+		timeElapsed = 0
+
+		for i=1, GetNumPartyMembers() do
+			local unit = partyTargetUnit[i]
+			local guid = UnitGUID(unit)
+			local enemy = enemies[guid]
+			
+			if( enemy ) then
+				partyTargets[unit].guid = guid
+				partyTargets[unit].class = select(2, UnitClass(partyUnit[i]))
+			
+				SSAF:UpdateHealth(enemy, unit)
+				SSAF:UpdateMana(enemy, unit)
+			end
+		end
+		
+		SSAF:UpdateAFData()
 	end
-	
-	-- 1 dot
-	if( totalTargets == 1 ) then
-		row.targets[1]:SetHeight(16)
-		row.targets[1]:SetWidth(16)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 0)
-
-	-- 2 dots
-	elseif( totalTargets == 2 ) then
-		row.targets[1]:SetHeight(8)
-		row.targets[1]:SetWidth(16)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
-
-		row.targets[2]:SetHeight(8)
-		row.targets[2]:SetWidth(16)
-		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
-	
-	-- 3 dots
-	elseif( totalTargets == 3 ) then
-		row.targets[1]:SetWidth(8)
-		row.targets[1]:SetHeight(8)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
-
-		row.targets[2]:SetWidth(8)
-		row.targets[2]:SetHeight(8)
-		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
-
-		row.targets[3]:SetWidth(8)
-		row.targets[3]:SetHeight(16)
-		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 0)
-	
-	-- 4 dots
-	else
-		row.targets[1]:SetWidth(8)
-		row.targets[1]:SetHeight(8)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
-
-		row.targets[2]:SetWidth(8)
-		row.targets[2]:SetHeight(8)
-		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
-
-		row.targets[3]:SetWidth(8)
-		row.targets[3]:SetHeight(8)
-		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, -4)
-	end
-
-	row.currentStyle = totalTargets
 end
 
 -- Create the master frame to hold everything
@@ -114,6 +92,15 @@ function Frame:CreateFrame()
 		end
 	end)	
 	
+	self.anchor:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+		GameTooltip:SetText(L["ALT + Drag to move the frame anchor."], nil, nil, nil, nil, 1)
+	end)
+	
+	self.anchor:SetScript("OnLeave", function(self)
+		GameTooltip:Hide()	
+	end)
+	
 	self.anchor.text = self.anchor:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	self.anchor.text:SetText(L["SSArena Frames"])
 	self.anchor.text:SetPoint("CENTER", self.anchor, "CENTER")
@@ -124,7 +111,7 @@ function Frame:CreateFrame()
 	end
 	
 	-- Health monitoring
-	self.frame:SetScript("OnUpdate", SSAF.ScanPartyTargets)
+	self.frame:SetScript("OnUpdate", updateFrame)
 	
 	-- Position to last saved area
 	local x, y = self.db.profile.position.x, self.db.profile.position.y
@@ -146,6 +133,7 @@ function Frame:CreateRow(id)
 	row:SetHeight(16)
 	row:SetWidth(178)
 	row:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
+	row:SetMinMaxValues(0, 100)
 	row:Hide()
 	
 	-- Mana bar
@@ -154,6 +142,7 @@ function Frame:CreateRow(id)
 	mana:SetHeight(self.db.profile.manaBarHeight)
 	mana:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, -self.db.profile.manaBarHeight)
+	mana:SetMinMaxValues(0, 100)
 	
 	if( not self.db.profile.manaBar ) then
 		mana:Hide()
@@ -271,4 +260,57 @@ function Frame:CreateRow(id)
 	end
 	
 	return row
+end
+
+function Frame:UpdateToTTextures(row, totalTargets)
+	if( row.currentStyle == totalTargets ) then
+		return
+	end
+	
+	-- 1 dot
+	if( totalTargets == 1 ) then
+		row.targets[1]:SetHeight(16)
+		row.targets[1]:SetWidth(16)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 0)
+
+	-- 2 dots
+	elseif( totalTargets == 2 ) then
+		row.targets[1]:SetHeight(8)
+		row.targets[1]:SetWidth(16)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
+
+		row.targets[2]:SetHeight(8)
+		row.targets[2]:SetWidth(16)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
+	
+	-- 3 dots
+	elseif( totalTargets == 3 ) then
+		row.targets[1]:SetWidth(8)
+		row.targets[1]:SetHeight(8)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+
+		row.targets[2]:SetWidth(8)
+		row.targets[2]:SetHeight(8)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
+
+		row.targets[3]:SetWidth(8)
+		row.targets[3]:SetHeight(16)
+		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 0)
+	
+	-- 4 dots
+	else
+		row.targets[1]:SetWidth(8)
+		row.targets[1]:SetHeight(8)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+
+		row.targets[2]:SetWidth(8)
+		row.targets[2]:SetHeight(8)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
+
+		row.targets[3]:SetWidth(8)
+		row.targets[3]:SetHeight(8)
+		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, -4)
+	end
+
+	row.currentStyle = totalTargets
 end

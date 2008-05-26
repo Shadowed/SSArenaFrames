@@ -1,7 +1,7 @@
 local NP = SSAF:NewModule("NP", "AceEvent-3.0")
 
 local frame = CreateFrame("Frame")
-local enemy, nameGUIDMap, isEnabled
+local enemies, nameGUIDMap, isEnabled
 
 function NP:OnEnable()
 	enemies = SSAF.enemies
@@ -38,8 +38,6 @@ local function healthValueChanged(...)
 	if( enemy ) then
 		enemy.health = this:GetValue()
 		enemy.maxHealth = select(2, this:GetMinMaxValues())
-		
-		SSAF:UpdateHealth(enemy)
 	end
 end
 
