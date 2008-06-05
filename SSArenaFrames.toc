@@ -6,14 +6,15 @@
 ## SavedVariables: SSAFDB
 ## OptionalDeps: LibStub, Ace3, LibSharedMedia-3.0, OptionHouse, HousingAuthority
 
-lib\LibStub-1.0\LibStub-1.0.xml
-lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
-lib\AceAddon-3.0\AceAddon-3.0.xml
-lib\AceDB-3.0\AceDB-3.0.xml
-lib\AceEvent-3.0\AceEvent-3.0.xml
-lib\OptionHouse.lua
-lib\HousingAuthority.lua
-lib\LibSharedMedia-3.0\lib.xml
+libs\LibStub-1.0\LibStub-1.0.xml
+libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+libs\AceAddon-3.0\AceAddon-3.0.xml
+libs\AceDB-3.0\AceDB-3.0.xml
+libs\AceEvent-3.0\AceEvent-3.0.xml
+libs\OptionHouse.lua
+libs\HousingAuthority.lua
+libs\LibSharedMedia-3.0\lib.xml
+libs\TalentGuess-1.0\TalentGuess-1.0.xml
 
 localization.enUS.lua
 localization.deDE.lua

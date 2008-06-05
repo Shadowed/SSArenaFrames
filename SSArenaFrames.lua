@@ -8,7 +8,7 @@ local L = SSAFLocals
 
 local enemies = {}
 local nameGUIDMap = {}
-local partyTargets, partyUnit, partyTargetUnit, usedRows = {}, {}, {}, {}
+local partyTargets, partyUnit, partyTargetUnit, usedRows, tempNames = {}, {}, {}, {}
 local instanceType
 
 -- Map of pet type to icon
@@ -37,6 +37,7 @@ function SSAF:OnInitialize()
 			showIcon = false,
 			showMinions = true,
 			showPets = false,
+			showGuess = true,
 			manaBar = true,
 			manaBarHeight = 3,
 			position = { x = 300, y = 600 },
@@ -60,6 +61,9 @@ function SSAF:OnInitialize()
 	self:RegisterEvent("UPDATE_BINDINGS")
 	
 	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
+	
+	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
+	self.talents:RegisterCallback(self, "OnTalentData")
 	
 	self.rows = setmetatable({}, {__index = function(t, k)
 		local row = SSAF.modules.Frame:CreateRow(k)
@@ -96,6 +100,11 @@ function SSAF:JoinedArena()
 	-- Enable modules
 	self.modules.Sync:EnableModule()
 	self.modules.NP:EnableModule()
+
+	-- Enable talent guessing
+	if( self.db.profile.showGuess ) then
+		self.talents:EnableCollection()
+	end
 end
 
 function SSAF:LeftArena()
@@ -111,6 +120,8 @@ function SSAF:LeftArena()
 	self.modules.Sync:DisableModule()
 	self.modules.NP:DisableModule()
 	
+	-- Disable guessing
+	self.talents:DisableCollection()
 
 	if( not InCombatLockdown() ) then
 		self:ClearEnemies()
@@ -244,6 +255,27 @@ function SSAF:UpdateAFData()
 	self:UpdateToT()
 end
 
+-- New talent data found, do a quick update of everyones talents
+function SSAF:OnTalentData()
+	if( not self.db.profile.showGuess ) then
+		return
+	end
+	
+	for id, row in pairs(self.rows) do
+		if( row.guid and row.ownerType == "PLAYER" ) then
+			local enemy = enemies[row.guid]			
+			if( enemy ) then
+				row.talentGuess = ""
+				local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(enemy.fullName)
+				if( firstPoints and secondPoints and thirdPoints ) then
+					row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
+				end
+				row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, enemy.name)
+			end
+		end
+	end
+end
+
 function SSAF:UpdateEnemies()
 	-- Can't update in combat, so queue it for when we drop
 	if( InCombatLockdown() ) then
@@ -332,9 +364,9 @@ function SSAF:UpdateEnemies()
 
 	-- Position/update displays
 	for id, row in pairs(self.rows) do
-		if( row.guid ) then
+		if( row.guid and enemies[row.guid] ) then
 			-- Grab enemy info
-			local enemy = enemies[row.guid]			
+			local enemy = enemies[row.guid]
 
 			-- Add # for easier identification
 			row.nameID = ""
@@ -343,7 +375,15 @@ function SSAF:UpdateEnemies()
 			end
 			
 			if( row.ownerType == "PLAYER" ) then
-				row.text:SetFormattedText("%s%s", row.nameID, enemy.name)
+				row.talentGuess = ""
+				if( self.db.profile.showGuess ) then
+					local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(enemy.fullName)
+					if( firstPoints and secondPoints and thirdPoints ) then
+						row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
+					end
+				end
+			
+				row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, enemy.name)
 			else
 				row.text:SetFormattedText("%s%s's %s", row.nameID, enemy.owner, enemy.family or enemy.name)
 			end
@@ -364,8 +404,7 @@ function SSAF:UpdateEnemies()
 	self.frame:SetHeight(heightUsed)
 	self.frame:Show()
 
-	-- Update all of the ToT info whenever we update everything incase it's done AFTER the person targets
-	self:UpdateToT()
+	-- Update health info
 	self:UpdateAFData()
 end
 
@@ -419,11 +458,12 @@ function SSAF:ScanUnit(unit)
 		local race = UnitRace(unit)
 		local class, classToken = UnitClass(unit)
 		local guild = GetGuildInfo(unit)
+		local dontReport = enemies[name]
 		
 		self:AddEnemy(name, server, race, classToken, guild, UnitPowerType(unit), nil, guid, unit)
 		self:SendMessage(string.format("ENEMY:%s,%s,%s,%s,%s,%s,%s,%s", name, server, race, classToken, guild or "", UnitPowerType(unit), "", guid))
 
-		if( self.db.profile.reportEnemies ) then
+		if( self.db.profile.reportEnemies and not dontReport ) then
 			if( guild ) then
 				self:ChannelMessage(string.format("%s / %s / %s / %s / %s", name, server, race, class, guild))
 			else
@@ -455,7 +495,7 @@ function SSAF:ScanUnit(unit)
 		end
 				
 		-- Found the pet owner
-		if( owner ~= UNKNOWNOBJECT ) then
+		if( owner and owner ~= UNKNOWNOBJECT ) then
 			local family = UnitCreatureFamily(unit)
 			self:AddEnemyPet(name, owner, family, type, UnitPowerType(unit), guid, unit)
 			self:SendMessage(string.format("ENEMYPET:%s,%s,%s,%s,%s,%s", name, owner, family or "", type, UnitPowerType(unit), guid))
@@ -476,9 +516,15 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 	if( not guid or enemies[guid] ) then
 		return
 	end
-	
+		
+	local fullName = name
+	if( server and server ~= "" ) then
+		fullName = string.format("%s-%s", name, server)
+	end
+		
 	enemies[guid] = {sortID = "A" .. name .. "-" .. (server or ""),
 			name = name,
+			fullName = fullName,
 			type = "PLAYER",
 			server = server,
 			race = race,
@@ -486,11 +532,22 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 			guild = guild,
 			guid = guid,
 			health = 100,
-			mana = 100,
+			mana = 0,
 			maxMana = 100,
 			powerType = tonumber(powerType) or 0,
 			targets = {}}
 	
+	-- If we have an enemy record for this name/server combo, then it means we have a temp sync from another mod
+	-- nil out our old data table, and convert it's AF row to the new one with an actual GUID
+	if( enemies[name] and name ~= guid ) then
+		enemies[name] = nil
+		for id, row in pairs(self.rows) do
+			if( row.guid == name ) then
+				row.guid = guid
+			end
+		end
+	end
+
 	self:UpdateEnemies()
 
 	if( unit ) then

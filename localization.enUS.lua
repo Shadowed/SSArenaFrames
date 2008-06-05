@@ -81,6 +81,9 @@ SSAFLocals = {
 	["Report enemies to battleground chat"] = "Report enemies to battleground chat",
 	["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."] = "Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy.",
 	
+	["Show talent guess"] = "Show talent guess",
+	["Shows a guess as to what the enemies talents are in the arena frames, this is not 100% accurate but it gives a general idea."] = "Shows a guess as to what the enemies talents are in the arena frames, this is not 100% accurate but it gives a general idea.",
+	
 	["Show enemy mage/warlock minions"] = "Show enemy mage/warlock minions",
 	["Will display Warlock and Mage minions in the arena frames below all the players."] = "Will display Warlock and Mage minions in the arena frames below all the players.",
 	

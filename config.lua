@@ -65,6 +65,7 @@ function Config:CreateUI()
 
 	local config = {
 		{ group = L["General"], type = "groupOrder", order = 1 },
+		{ group = L["General"], order = 0, text = L["Show talent guess"], help = L["Shows a guess as to what the enemies talents are in the arena frames, this is not 100% accurate but it gives a general idea."], type = "check", var = "showGuess"},
 		{ group = L["General"], order = 1, text = L["Report enemies to battleground chat"], help = L["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."], type = "check", var = "reportEnemies"},
 		{ group = L["General"], order = 2, text = L["Show row number"], help = L["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."], type = "check", var = "showID"},
 		{ group = L["General"], order = 3, text = L["Show class icon"], help = L["Displays the players class icon to the left of the arena frame on their row."], type = "check", var = "showIcon"},
