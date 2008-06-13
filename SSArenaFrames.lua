@@ -516,12 +516,23 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 	if( not guid or enemies[guid] ) then
 		return
 	end
-		
+	
+	-- If it's an old version sync, check if we already have a new sync with an actual GUID
+	if( name == guid ) then
+		for _, enemy in pairs(enemies) do
+			if( enemy.name == name ) then
+				return
+			end
+		end
+	end
+
+	-- So we can pull out talent data
 	local fullName = name
 	if( server and server ~= "" ) then
 		fullName = string.format("%s-%s", name, server)
 	end
-		
+	
+	-- Store it!
 	enemies[guid] = {sortID = "A" .. name .. "-" .. (server or ""),
 			name = name,
 			fullName = fullName,
@@ -569,7 +580,6 @@ end
 function SSAF:AddEnemyPet(name, owner, family, type, powerType, guid, unit)
 	if( not guid or enemies[guid] ) then
 		return
-
 	end
 	
 	-- If the owner already had a pet, but the GUID is different then remove the old one
