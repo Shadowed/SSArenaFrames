@@ -25,7 +25,7 @@ local function healthValueChanged(...)
 		this.SSAFValueChanged(...)
 	end
 
-	if( not isEnabled ) then
+	if( not isEnabled or not this:IsVisible() ) then
 		return
 	end	
 	

@@ -63,7 +63,7 @@ function SSAF:OnInitialize()
 	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 	
 	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
-	self.talents:RegisterCallback(self, "OnTalentData")
+	self.talents:RegisterCallback(SSAF, "OnTalentData")
 	
 	self.rows = setmetatable({}, {__index = function(t, k)
 		local row = SSAF.modules.Frame:CreateRow(k)
@@ -260,6 +260,7 @@ function SSAF:OnTalentData()
 	if( not self.db.profile.showGuess ) then
 		return
 	end
+	
 	
 	for id, row in pairs(self.rows) do
 		if( row.guid and row.ownerType == "PLAYER" ) then
@@ -528,12 +529,12 @@ function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents
 
 	-- So we can pull out talent data
 	local fullName = name
-	if( server and server ~= "" ) then
+	if( server and server ~= "" and server ~= GetRealmName() ) then
 		fullName = string.format("%s-%s", name, server)
 	end
 	
 	-- Store it!
-	enemies[guid] = {sortID = "A" .. name .. "-" .. (server or ""),
+	enemies[guid] = {sortID = string.format("A%s%s", name, server or ""),
 			name = name,
 			fullName = fullName,
 			type = "PLAYER",
@@ -589,7 +590,7 @@ function SSAF:AddEnemyPet(name, owner, family, type, powerType, guid, unit)
 		end
 	end
 		
-	enemies[guid] = {sortID = "B" .. name .. "-" .. owner,
+	enemies[guid] = {sortID = string.format("B%s%s", name, owner),
 			name = name,
 			owner = owner,
 			type = type,
