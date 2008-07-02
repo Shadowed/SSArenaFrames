@@ -19,7 +19,7 @@ end
 local timeElapsed = 0
 local function updateFrame(self, elapsed)
 	timeElapsed = timeElapsed + elapsed
-	if( timeElapsed >= 0.50 ) then
+	if( timeElapsed >= 0.20 ) then
 		timeElapsed = 0
 
 		for i=1, GetNumPartyMembers() do
