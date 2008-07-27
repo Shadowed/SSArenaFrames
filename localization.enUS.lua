@@ -10,8 +10,8 @@ SSAFLocals = {
 	["%s's pet, %s"] = "%s's pet, %s",
 
 	["%s's %s"] = "%s's %s",
-	["([a-zA-Z]+)%'s Minion"] = "([a-zA-Z]+)%'s Minion",
-	["([a-zA-Z]+)%'s Pet"] = "([a-zA-Z]+)%'s Pet",
+	["(.+)%'s Minion"] = "(.+)%'s Minion",
+	["(.+)%'s Pet"] = "(.+)%'s Pet",
 	
 	["Pet"] = "Pet",
 	["Minion"] = "Minion",

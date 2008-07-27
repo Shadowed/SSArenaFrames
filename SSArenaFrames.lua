@@ -486,12 +486,12 @@ function SSAF:ScanUnit(unit)
 		end
 		
 		-- Warlock/Mage
-		local owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Minion"])
+		local owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["(.+)%'s Minion"])
 		local type = "MINION"
 		
 		-- Hunters
 		if( not owner ) then
-			owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["([a-zA-Z]+)%'s Pet"])
+			owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["(.+)%'s Pet"])
 			type = "PET"
 		end
 				
