@@ -34,17 +34,17 @@ function Sync:CHAT_MSG_ADDON(event, prefix, msg, type, author)
 		local dataType, data = string.match(msg, "([^:]+)%:(.+)")
 		if( dataType == "ReceiveSync" ) then
 			local name, server, classToken, race = string.split(",", data)
-			SSAF:AddEnemy(name, server, race, classToken)
+			SSAF:AddEnemy(name, server, race, classToken, nil, nil, nil, name)
 		end
 
 	-- Arena Master
 	elseif( prefix == "ArenaMaster" ) then
 		local name, class = string.split(" ", msg)
-		SSAF:AddEnemy(name, nil, nil, string.upper(class))
+		SSAF:AddEnemy(name, nil, nil, string.upper(class), nil, nil, name)
 	
 	-- Arena Unit Frames
 	elseif( prefix == "ArenaUnitFrames" ) then
 		local _, name, class = string.split(",", msg)
-		SSAF:AddEnemy(name, nil, nil, class)
+		SSAF:AddEnemy(name, nil, nil, class, nil, nil, name)
 	end
 end

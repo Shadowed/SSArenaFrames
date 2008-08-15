@@ -1,8 +1,5 @@
 SSAFLocals = {
-	["SSArena Frames Slash Commands"] = "SSArena Frames Slash Commands",
-	["Water Elemental"] = "Water Elemental",
-	
-	["ui - Pulls up the configuration page"] = "ui - Pulls up the configuration page",
+	["SSArena Frames"] = "SSArena Frames",
 	
 	["The Arena battle has begun!"] = "The Arena battle has begun!",
 	
@@ -15,17 +12,13 @@ SSAFLocals = {
 	
 	["Pet"] = "Pet",
 	["Minion"] = "Minion",
-	["Enable for class"] = "Enable for class",
+
+	["Water Elemental"] = "Water Elemental",
 	
-	["Enabled"] = "Enabled",
-	["Disabled"] = "Disabled",
-	
-	["Classes: %s"] = "Classes: %s",
-	["Modifier: %s"] = "Modifier: %s",
-	["Mouse: %s"] = "Mouse: %s",
-	
-	["SSArena Frames"] = "SSArena Frames",
-	
+	["Arena Preparation"] = "Arena Preparation",
+	["ALT + Drag to move the frame anchor."] = "ALT + Drag to move the frame anchor.",
+
+	-- For syncing and display and such
 	["CLASSES"] = {
 		["MAGE"] = "Mage",
 		["WARRIOR"] = "Warrior",
@@ -37,23 +30,8 @@ SSAFLocals = {
 		["HUNTER"] = "Hunter",
 		["WARLOCK"] = "Warlock",
 	},
-	
-	["Arena Preparation"] = "Arena Preparation",
-	
-	["General"] = "General",
-	["Frame"] = "Frame",
-	["Color"] = "Color",
-	["Display"] = "Display",
-	["None"] = "None",
-	
-	["Enable"] = "Enable",
-	["Modifiers"] = "Modifiers",
-	["Macro Text"] = "Macro Text",
-	
-	["Command to execute when clicking the frame using the above modifier/mouse button"] = "Command to execute when clicking the frame using the above modifier/mouse button",
-	
-	["Enables the macro for a specific class, or for pets only."] = "Enables the macro for a specific class, or for pets only.",
-	
+		
+	-- GUI
 	["All"] = "All",
 	["CTRL"] = "CTRL",
 	["SHIFT"] = "SHIFT",
@@ -66,64 +44,61 @@ SSAFLocals = {
 	["Button 4"] = "Button 4",
 	["Button 5"] = "Button 5",
 	
-	["Modifier key"] = "Modifier key",
-	["Mouse button"] = "Mouse button",
+	["General"] = "General",
 	
-	["Click Actions"] = "Click Actions",
-	["Action #%d"] = "Action #%d",
+	-- Color
+	["Color"] = "Color",
 	
-	["Edit"] = "Edit",
+	["Minion bar color"] = "Minion bar color",
+	["Pet bar color"] = "Pet bar color",
+	["Text color"] = "Text color",
+	
+	-- Mana
 	["Mana"] = "Mana",
+
+	["Power bar height"] = "Power bar heght",
+	["Show power bars"] = "Show power bars",
 	
-	["Enable macro case"] = "Enable macro case",
-	["Enables the macro text entered to be ran on the specified modifier key and mouse button combo."] = "Enables the macro text entered to be ran on the specified modifier key and mouse button combo.",
-	
-	["Report enemies to battleground chat"] = "Report enemies to battleground chat",
-	["Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy."] = "Sends name, server, class, race and guild to battleground chat when you mouse over or target an enemy.",
-	
-	["Show talent guess"] = "Show talent guess",
-	["Shows a guess as to what the enemies talents are in the arena frames, this is not 100% accurate but it gives a general idea."] = "Shows a guess as to what the enemies talents are in the arena frames, this is not 100% accurate but it gives a general idea.",
-	
-	["Show enemy mage/warlock minions"] = "Show enemy mage/warlock minions",
-	["Will display Warlock and Mage minions in the arena frames below all the players."] = "Will display Warlock and Mage minions in the arena frames below all the players.",
-	
-	["Show enemy hunter pets"] = "Show enemy hunter pets",
-	["Will display Hunter pets in the arena frames below all the players."] = "Will display Warlock minions and Mage pets in the arena frames below all the players.",
-	
+	-- Display
+	["Display"] = "Display",
+
+	["Show target icons"] = "Show target icons",
+	["Adds mini icons to the right of the arena frames with the class of the person targeting an enemy."] = "Adds mini icons to the right of the arena frames with the class of the person targeting an enemy.",
+
 	["Show class icon"] = "Show class icon",
-	["Displays the players class icon to the left of the arena frame on their row."] = "Displays the players class icon to the left of the arena frame on their row.",
-	
+	["Adds the class icon, or the pet icon to the left of the frame row."] = "Adds the class icon, or the pet icon to the left of the frame row.",
+
 	["Show row number"] = "Show row number",
-	["Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies."] = "Shows the row number next to the name, can be used in place of names for other SSAF/SSPVP users to identify enemies.",
+	["Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name."] = "Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name.",	
+	
+	-- Frame
+	["Frame"] = "Frame",
 	
 	["Bar texture"] = "Bar texture",
-	["Texture to use for health, mana and party target bars."] = "Texture to use for health, mana and party target bars.",
+	
+	["Scale"] = "Scale",
+	
+	["Lock frames"] = "Lock frames",
+	["Prevents the arena frame from being moved."] = "Prevents the arena frame from being moved.",
+	
+	-- General
+	["Show talent guess"] = "Show talent guess",
+	["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."] = "Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close.",
 
-	["Pet health bar color"] = "Pet health bar color",
-	["Hunter pet health bar color."] = "Hunter pet health bar color.",
-	
-	["Minion health bar color"] = "Minion health bar color",
-	["Warlock and Mage pet health bar color."] = "Warlock and Mage pet health bar color.",
-	
-	["Name and health text font color"] = "Name and health text font color",
-	
-	["Lock arena frame"] = "Lock arena frame",
-	["Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked."] = "Allows you to move the arena frames around, will also show a few examples. You will be unable to target anything while the arena frames are unlocked.",
-	
-	["Frame Scale: %d%%"] = "Frame Scale: %d%%",
-	["Allows you to increase, or decrease the total size of the arena frames."] = "Allows you to increase, or decrease the total size of the arena frames.",
-	
-	["Show mana bars"] = "Show mana bars",
-	["Shows a mana bar at the bottom of the health bar, requires you or a party member to target the enemy for them to update."] = "Shows a mana bar at the bottom of the health bar, requires you or a party member to target the enemy for them to update.",
-	
-	["Mana bar height"] = "Mana bar height",
-	["Height of the mana bars, the health bar will not resize for this however."] = "Height of the mana bars, the health bar will not resize for this however.",
-	
-	["Show whos targeting an enemy"] = "Show whos targeting an enemy",
-	["Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them."] = "Shows a little button to the right side of the enemies row for whos targeting them, it's colored by class of the person targeting them.",
-	
-	["ALT + Drag to move the frame anchor."] = "ALT + Drag to move the frame anchor.",
+	["Report enemies to battleground chat"] = "Report enemies to battleground chat",
+	["Sends information on the enemy when you notice them for the first time in the match."] = "Sends information on the enemy when you notice them for the first time in the match.",
+
+	["Show minions"] = "Show minions",
+	["Shows summoned minions in the arena frame."] = "Shows summoned minions in the arena frame.",
+
+	["Show pets"] = "Show pets",
+	["Shows tamed pets in the arena frames."] = "Shows tamed pets in the arena frames.",
 }
+
+-- Add DKs if it's WoTLK
+if( select(4, GetBuildInfo()) >= 30000 ) then
+	SSAFLocals["CLASSES"]["DEATHKNIGHT"] = "Death Knight"
+end
 
 BINDING_HEADER_SSAF = "SSArena Frames"
 BINDING_NAME_ARENATAR1 = "Target enemy #1"

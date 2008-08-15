@@ -8,6 +8,7 @@ local L = SSAFLocals
 
 local enemies = {}
 local nameGUIDMap = {}
+local PowerColor = {}
 local partyTargets, partyUnit, partyTargetUnit, usedRows, tempNames = {}, {}, {}, {}
 local instanceType
 
@@ -30,7 +31,7 @@ function SSAF:OnInitialize()
 		profile = {
 			scale = 1.0,
 			locked = true,
-			targetDots = true,
+			showTargets = true,
 			reportEnemies = true,
 			barTexture = "Minimalist",
 			showID = false,
@@ -38,7 +39,7 @@ function SSAF:OnInitialize()
 			showMinions = true,
 			showPets = false,
 			showGuess = true,
-			manaBar = true,
+			showMana = true,
 			manaBarHeight = 3,
 			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
@@ -65,6 +66,12 @@ function SSAF:OnInitialize()
 	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
 	self.talents:RegisterCallback(SSAF, "OnTalentData")
 	
+	-- Setup attribute defaults for 3-10
+	for i=3, 10 do
+		table.insert(self.defaults.profile.attributes, {enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/targetexact *name"})
+	end
+	
+	-- Auto create rows as needed
 	self.rows = setmetatable({}, {__index = function(t, k)
 		local row = SSAF.modules.Frame:CreateRow(k)
 		rawset(t, k, row)
@@ -79,11 +86,15 @@ function SSAF:OnInitialize()
 		partyTargetUnit[i] = "party" .. i .. "target"
 	end
 	
+	-- So the modules can access this
 	self.partyTargets = partyTargets
 	self.nameGUIDMap = nameGUIDMap
 	self.enemies = enemies
 	self.partyTargetUnit = partyTargetUnit
 	self.partyUnit = partyUnit
+
+	-- WoTLK ManaBarColor is now PowerBarColor so we just swap between whichever exists, remove this once 3.0 is live obviously
+	PowerColor = PowerBarColor or ManaBarColor
 end
 
 function SSAF:JoinedArena()
@@ -92,6 +103,8 @@ function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_RAGE", "UPDATE_POWER")
 	self:RegisterEvent("UNIT_ENERGY", "UPDATE_POWER")
 	self:RegisterEvent("UNIT_FOCUS", "UPDATE_POWER")
+	self:RegisterEvent("UNIT_RUNIC_POWER", "UPDATE_POWER")
+	self:RegisterEvent("UNIT_DISPLAYPOWER", "UPDATE_POWER")
 	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
 	self:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -126,7 +139,6 @@ function SSAF:LeftArena()
 	if( not InCombatLockdown() ) then
 		self:ClearEnemies()
 	else
-		instanceType = "none"
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	end
 end
@@ -168,7 +180,7 @@ end
 
 -- TARGET OF TARGET
 function SSAF:UpdateToT()
-	if( not self.db.profile.targetDots ) then
+	if( not self.db.profile.showTargets ) then
 		return
 	end
 	
@@ -240,7 +252,7 @@ function SSAF:UpdateAFData()
 
 			-- Update mana
 			row.manaBar:SetValue(enemy.mana)
-			row.manaBar:SetStatusBarColor(ManaBarColor[enemy.powerType].r, ManaBarColor[enemy.powerType].g, ManaBarColor[enemy.powerType].b)
+			row.manaBar:SetStatusBarColor(PowerColor[enemy.powerType].r, PowerColor[enemy.powerType].g, PowerColor[enemy.powerType].b)
 
 			-- Fade out the bar if they're dead
 			if( enemy.isDead ) then
@@ -730,7 +742,7 @@ function SSAF:Reload()
 		for _, texture in pairs(row.targets) do
 			texture:SetTexture(self.db.profile.barTexture)
 			
-			if( not self.db.profile.targetDots ) then
+			if( not self.db.profile.showTargets ) then
 				texture:Hide()
 			end
 		end

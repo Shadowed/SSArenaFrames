@@ -51,7 +51,7 @@ function Frame:CreateFrame()
 		return
 	end
 	
-	self.frame = CreateFrame("Frame")
+	self.frame = CreateFrame("Frame", nil, UIParent)
 	self.frame:SetBackdrop(backdrop)
 	self.frame:SetBackdropColor(0, 0, 0, 1.0)
 	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
@@ -64,7 +64,7 @@ function Frame:CreateFrame()
 	self.frame:Hide()
 
 	-- Create our anchor for moving the frame
-	self.anchor = CreateFrame("Frame")
+	self.anchor = CreateFrame("Frame", nil, UIParent)
 	self.anchor:SetWidth(180)
 	self.anchor:SetHeight(12)
 	self.anchor:SetBackdrop(backdrop)
@@ -144,7 +144,7 @@ function Frame:CreateRow(id)
 	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, -self.db.profile.manaBarHeight)
 	mana:SetMinMaxValues(0, 100)
 	
-	if( not self.db.profile.manaBar ) then
+	if( not self.db.profile.showMana ) then
 		mana:Hide()
 	end
 
