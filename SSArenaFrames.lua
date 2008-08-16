@@ -49,8 +49,8 @@ function SSAF:OnInitialize()
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/targetexact *name" },
-				{ enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/targetexact *name\n/focus\n/targetlasttarget\n/script SSAF:Print(string.format(\"Set focus %s\", UnitName(\"focus\") or \"<no focus>\"));" },
+				{ name = "Target enemy", enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/targetexact *name" },
+				{ name = "Focus enemy", enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/targetexact *name\n/focus\n/targetlasttarget\n/script SSAF:Print(string.format(\"Set focus %s\", UnitName(\"focus\") or \"<no focus>\"));" },
 			}
 		}
 	}
@@ -68,7 +68,7 @@ function SSAF:OnInitialize()
 	
 	-- Setup attribute defaults for 3-10
 	for i=3, 10 do
-		table.insert(self.defaults.profile.attributes, {enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/targetexact *name"})
+		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/targetexact *name"})
 	end
 	
 	-- Auto create rows as needed
@@ -371,7 +371,7 @@ function SSAF:UpdateEnemies()
 	-- Sort out how much space is between each row + mana bar if included
 	local heightUsed = 0
 	local manaBar = 0
-	if( self.db.profile.manaBar ) then
+	if( self.db.profile.showMana ) then
 		manaBar = self.db.profile.manaBarHeight
 	end
 
@@ -715,7 +715,9 @@ function SSAF:Reload()
 			self:AddEnemyPet(L["Pet"], UnitName("player"), "Cat", "PET", 2, "c", "player")
 			self:AddEnemyPet(L["Minion"], "Mayen", "Felhunter", "MINION", 0, "d", "player")
 		end
-	else
+	
+	-- Don't reset if we're in an arena
+	elseif( select(2, IsInInstance()) ~= "arena" ) then
 		self:ClearEnemies()
 	end
 	

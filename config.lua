@@ -5,6 +5,8 @@ local L = SSAFLocals
 
 local registered, options, config, dialog, SML
 
+local classes = {}
+
 function Config:OnInitialize()
 	SML = SSAF.SML
 
@@ -17,6 +19,15 @@ function Config:OnInitialize()
 	SML:Register(SML.MediaType.STATUSBAR, "Striped", "Interface\\Addons\\SSArenaFrames\\images\\striped")
 	SML:Register(SML.MediaType.STATUSBAR, "LiteStep", "Interface\\Addons\\SSArenaFrames\\images\\LiteStep")
 	SML:Register(SML.MediaType.STATUSBAR, "Minimalist", "Interface\\Addons\\SSArenaFrames\\images\\Minimalist")
+	
+	-- Compile class list
+	classes["ALL"] = L["All"]
+	classes["PET"] = L["Pet"]
+	classes["MINION"] = L["Minion"]
+	
+	for k, v in pairs(L["CLASSES"]) do
+		classes[k] = v
+	end
 end
 
 -- GUI
@@ -33,13 +44,22 @@ end
 
 -- Set/Get the click action attributes
 local function setAttribute(info, value)
-	SSAF.db.profile.attributes[info[#(info) - 1]][info[(#info)]] = value
-	
+	SSAF.db.profile.attributes[tonumber(info[#(info) - 1])][info[(#info)]] = value
 	SSAF:Reload()
 end
 
 local function getAttribute(info)
-	return SSAF.db.profile[info[#(info) - 1]][info[(#info)]]
+	return SSAF.db.profile.attributes[tonumber(info[#(info) - 1])][info[(#info)]]
+end
+
+local function setMulti(info, state)
+	SSAF.db.profile.attributes[tonumber(info[#(info) - 2])][info[#(info) - 1]][info[(#info)]] = state
+	
+	SSAF:Reload()
+end
+
+local function getMulti(info, state)
+	return SSAF.db.profile.attributes[tonumber(info[#(info) - 2])][info[#(info) - 1]][info[(#info)]]
 end
 
 -- Set/Get colors
@@ -68,46 +88,106 @@ function Config:GetTextures()
 	return textures
 end
 
---[[
+local modifiers = {[""] = L["All"], ["ctrl-"] = L["CTRL"], ["shift-"] = L["SHIFT"], ["alt-"] = L["ALT"]}
+local buttons = {[""] = L["Any button"], ["1"] = L["Left button"], ["2"] = L["Right button"], ["3"] = L["Middle button"], ["4"] = L["Button 4"], ["5"] = L["Button 5"]}
+
 local function createAttributeOptions(number)
-	local text = string.format(L["Action #%s"], number)
-	
-	return {
-		order = 1,
+	local attribute = {
+		order = number,
 		type = "group",
-		name = text,
-		get = get,
-		set = set,
+		name = SSAF.db.profile.attributes[number].name,
+		desc = SSAF.db.profile.attributes[number].text,
+		get = getAttribute,
+		set = setAttribute,
 		args = {
 			enabled = {
 				order = 1,
 				type = "toggle",
-				name = L["Show flag carrier"],
+				name = L["Enable this action"],
+				desc = L["Sets this specific modifier/key combo to be ran."],
 				width = "full",
 			},
-			color = {
-				order = 1,
-				type = "toggle",
-				name = L["Color carrier name by class"],
+			name = {
+				order = 2,
+				type = "input",
+				name = L["Action name"],
+				desc = L["Lets you give a specific name to this click action so it's easier to identify it in the configuration."],
 				width = "full",
 			},
-			health = {
-				order = 1,
-				type = "toggle",
-				name = L["Show carrier health when available"],
+			classes = {
+				order = 3,
+				type = "multiselect",
+				name = L["Enable for class"],
+				desc = L["Allows you to set which classes this click action should be enabled for."],
+				set = setMulti,
+				get = getMulti,
+				values = classes,
 				width = "full",
 			},
-			macro = {
-				order = 1,
+			classes = {
+				order = 3,
+				type = "group",
+				inline = true,
+				name = L["Enable for class"],
+				args = {
+					desc = {
+						order = 0,
+						type = "description",
+						name = L["Allows you to set which classes this click action should be enabled for."],
+					},
+					sep = {
+						order = 1,
+						type = "description",
+						name = "",
+						width = "full",
+					},
+				},
+			},
+			modifier = {
+				order = 4,
+				type = "select",
+				name = L["Modifier key"],
+				values = modifiers,
+			},
+			button = {
+				order = 5,
+				type = "select",
+				name = L["Mouse button"],
+				values = buttons,
+			},
+			text = {
+				order = 6,
 				type = "input",
 				multiline = true,
-				name = L["Text to execute when clicking the carrier button"],
+				name = L["Macro text"],
+				desc = L["Macro script to run when the specific modifier key and mouse button combination are used."],
 				width = "full",
 			},
 		},
 	}
+	
+	-- Add the classes
+	local order = 5
+	for key, text in pairs(classes) do
+		attribute.args.classes.args[key] = {
+			order = order,
+			type = "toggle",
+			name = text,
+			set = setMulti,
+			get = getMulti,
+		}
+
+		order = order + 1
+	end
+	
+	-- Force ordering quickly
+	attribute.args.classes.args.ALL.order = 2
+	attribute.args.classes.args.PET.order = 3
+	attribute.args.classes.args.MINION.order = 4
+	
+	
+	return attribute
 end
-]]
 
 local function loadOptions()
 	options = {}
@@ -255,9 +335,23 @@ local function loadOptions()
 		},
 	}
 
+	-- Load attributes configuration
+	options.args.click = {
+		type = "group",
+		order = 2,
+		name = L["Click Actions"],
+		args = {
+		
+		},
+	}
+	
+	for i=1, 10 do
+		options.args.click.args[tostring(i)] = createAttributeOptions(i)
+	end
+	
 	-- DB management
 	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable(SSAF.db)
-	options.args.profile.order = 2
+	options.args.profile.order = 3
 end
 
 SLASH_SSAF1 = "/ssaf"

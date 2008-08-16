@@ -45,6 +45,7 @@ SSAFLocals = {
 	["Button 5"] = "Button 5",
 	
 	["General"] = "General",
+	["Action #%d"] = "Action #%d",
 	
 	-- Color
 	["Color"] = "Color",
@@ -93,6 +94,24 @@ SSAFLocals = {
 
 	["Show pets"] = "Show pets",
 	["Shows tamed pets in the arena frames."] = "Shows tamed pets in the arena frames.",
+	
+	-- Click Actions
+	["Click Actions"] = "Click Actions",
+	
+	["Enable this action"] = "Enable this action",
+	["Sets this specific modifier/key combo to be ran."] = "Sets this specific modifier/key combo to be ran.",
+	
+	["Action name"] = "Action name",
+	["Lets you give a specific name to this click action so it's easier to identify it in the configuration."] = "Lets you give a specific name to this click action so it's easier to identify it in the configuration.",
+	
+	["Modifier key"] = "Modifier key",
+	["Mouse button"] = "Mouse button",
+	
+	["Enable for class"] = "Enable for class",
+	["Allows you to set which classes this click action should be enabled for."] = "Allows you to set which classes this click action should be enabled for.",
+	
+	["Macro text"] = "Macro text",
+	["Macro script to run when the specific modifier key and mouse button combination are used."] = "Macro script to run when the specific modifier key and mouse button combination are used.",
 }
 
 -- Add DKs if it's WoTLK
