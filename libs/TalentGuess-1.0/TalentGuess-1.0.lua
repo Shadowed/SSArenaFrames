@@ -3,6 +3,8 @@ local minor = tonumber(string.match("$Revision: 703$", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
+if( IS_WRATH_BUILD == nil ) then IS_WRATH_BUILD = (select(4, GetBuildInfo()) >= 30000) end
+
 local Talents = LibStub:NewLibrary(major, minor)
 if( not Talents ) then return end
 
@@ -212,6 +214,31 @@ local function PLAYER_TARGET_CHANGED()
 	end
 end
 
+-- WOTLK BUFF SCANNING
+local function PLAYER_TARGET_CHANGED_WOTLK()
+	-- Make sure it's a valid unit
+	if( not UnitExists("target") or not UnitIsPlayer("target") or not UnitIsEnemy("player", "target") or UnitIsCharmed("target") or UnitIsCharmed("player") ) then
+		return
+	end
+
+	local fullName, server = UnitName("target")
+	if( server and server ~= "" ) then
+		fullName = string.format("%s-%s", fullName, server)
+	end
+	
+	local buffID = 1
+	while( true ) do
+		local name, rank = UnitAura("target", buffID, "HARMFUL")
+		if( not name ) then break end
+		buffID = buffID + 1
+		
+		local spellID = checkBuffs[name .. (rank or "")]
+		if( spellID ) then
+			addSpell(spellID, UnitGUID("target"), fullName)
+		end
+	end
+end
+
 -- Data recording!
 local COMBATLOG_OBJECT_TYPE_PLAYER = COMBATLOG_OBJECT_TYPE_PLAYER
 local COMBATLOG_OBJECT_REACTION_HOSTILE	= COMBATLOG_OBJECT_REACTION_HOSTILE
@@ -247,7 +274,11 @@ local function OnEvent(self, event, ...)
 	if( event == "COMBAT_LOG_EVENT_UNFILTERED" ) then
 		COMBAT_LOG_EVENT_UNFILTERED(...)
 	elseif( event == "PLAYER_TARGET_CHANGED" ) then
-		PLAYER_TARGET_CHANGED(...)
+		if( not IS_WRATH_BUILD ) then
+			PLAYER_TARGET_CHANGED(...)
+		else
+			PLAYER_TARGET_CHANGED_WOTLK(...)
+		end
 	end
 end
 

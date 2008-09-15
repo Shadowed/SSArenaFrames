@@ -384,7 +384,7 @@ function SSAF:UpdateEnemies()
 			-- Add # for easier identification
 			row.nameID = ""
 			if( self.db.profile.showID ) then
-				row.nameID = "#" .. id
+				row.nameID = id .. ") "
 			end
 			
 			if( row.ownerType == "PLAYER" ) then

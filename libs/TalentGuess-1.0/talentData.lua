@@ -1,3 +1,5 @@
+if( IS_WRATH_BUILD ) then return end
+
 local major = "TalentGuessData-1.0"
 local minor = tonumber(string.match("$Revision: 703$", "(%d+)") or 1)
 
@@ -68,12 +70,12 @@ Data.Spells = {
 	
 	--[[ Feral ]]--
 	[16979] = "2:11",
+	[16959] = "2:17",	
 	[16857] = "2:21",
 	[17390] = "2:21",
 	[17391] = "2:21",
 	[17392] = "2:21",
 	[27011] = "2:21",
-	[16959] = "2:17",	
 	[33917] = "2:41",
 	[33878] = "2:41",
 	[33986] = "2:41",
