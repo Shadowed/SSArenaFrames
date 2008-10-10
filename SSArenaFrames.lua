@@ -7,24 +7,8 @@ SSAF = LibStub("AceAddon-3.0"):NewAddon("SSAF", "AceEvent-3.0")
 local L = SSAFLocals
 
 local enemies = {}
-local nameGUIDMap = {}
-local PowerColor = {}
-local partyTargets, partyUnit, partyTargetUnit, usedRows, tempNames = {}, {}, {}, {}
-local instanceType
-
--- Map of pet type to icon
-local petClassIcons = {
-	["Voidwalker"] = "Interface\\Icons\\Spell_Shadow_SummonVoidWalker", ["Felhunter"] = "Interface\\Icons\\Spell_Shadow_SummonFelHunter", ["Felguard"] = "Interface\\Icons\\Spell_Shadow_SummonFelGuard",
-	["Succubus"] = "Interface\\Icons\\Spell_Shadow_SummonSuccubus", ["Imp"] = "Interface\\Icons\\Spell_Shadow_SummonImp", ["Cat"] = "Interface\\Icons\\Ability_Hunter_Pet_Cat",
-	["Bat"] = "Interface\\Icons\\Ability_Hunter_Pet_Bat", ["Bear"] = "Interface\\Icons\\Ability_Hunter_Pet_Bear", ["Boar"] = "Interface\\Icons\\Ability_Hunter_Pet_Boar",
-	["Crab"] = "Interface\\Icons\\Ability_Hunter_Pet_Crab", ["Crocolisk"] = "Interface\\Icons\\Ability_Hunter_Pet_Crocolisk", ["Dragonhawk"] = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
-	["Gorilla"] = "Interface\\Icons\\Ability_Hunter_Pet_Gorilla", ["Hyena"] = "Interface\\Icons\\Ability_Hunter_Pet_Hyena", ["Netherray"] = "Interface\\Icons\\Ability_Hunter_Pet_NetherRay",
-	["Owl"] = "Interface\\Icons\\Ability_Hunter_Pet_Owl", ["Raptor"] = "Interface\\Icons\\Ability_Hunter_Pet_Raptor", ["Ravager"] = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
-	["Scorpid"] = "Interface\\Icons\\Ability_Hunter_Pet_Scorpid", ["Spider"] = "Interface\\Icons\\Ability_Hunter_Pet_Spider", ["Sporebat"] = "Interface\\Icons\\Ability_Hunter_Pet_Sporebat",
-	["Tallstrider"] = "Interface\\Icons\\Ability_Hunter_Pet_TallStrider", ["Turtle"] = "Interface\\Icons\\Ability_Hunter_Pet_Turtle", ["Vulture"] = "Interface\\Icons\\Ability_Hunter_Pet_Vulture",
-	["Warp Stalker"] = "Interface\\Icons\\Ability_Hunter_Pet_WarpStalker", ["Windserpent"] = "Interface\\Icons\\Ability_Hunter_Pet_WindSerpent", ["Wolf"] = "Interface\\Icons\\Ability_Hunter_Pet_Wolf",
-	[L["Water Elemental"]] = "Interface\\Icons\\Spell_Frost_SummonWaterElemental_2",
-}
+local partyUnits, partyTargetUnits, partyTargets, arenaUnits, arenaPetUnits, identifyUnits = {}, {}, {}, {}, {}, {}
+local instanceType, currentBracket
 
 function SSAF:OnInitialize()
 	self.defaults = {
@@ -32,7 +16,6 @@ function SSAF:OnInitialize()
 			scale = 1.0,
 			locked = true,
 			showTargets = true,
-			reportEnemies = true,
 			barTexture = "Minimalist",
 			showID = false,
 			showIcon = false,
@@ -49,132 +32,222 @@ function SSAF:OnInitialize()
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
 				-- All numbered from left -> right as 1 -> 5
-				{ name = "Target enemy", enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/targetexact *name" },
-				{ name = "Focus enemy", enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/targetexact *name\n/focus\n/targetlasttarget\n/script SSAF:Print(string.format(\"Set focus %s\", UnitName(\"focus\") or \"<no focus>\"));" },
+				{ name = "Target enemy", enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "", text = "/target *name" },
+				{ name = "Focus enemy", enabled = true, classes = { ["ALL"] = true }, modifier = "", button = "2", text = "/focus *name\n/script SSAF:Print(string.format(\"Set focus %s\", UnitName(\"focus\") or \"<no focus>\"));" },
 			}
 		}
 	}
-	
+
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("SSAFDB", self.defaults)
+	self.revision = tonumber(string.match("$Revision$", "(%d+)") or 1)
 	
+	-- Check if we entered an arena
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("UPDATE_BINDINGS")
 	
+	-- SML
 	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 	
-	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
+	-- TalentGuess
+	self.talents = LibStub:GetLibrary("TalentGuess-1.1"):Register()
 	self.talents:RegisterCallback(SSAF, "OnTalentData")
+	
+	self.rows = {}
 	
 	-- Setup attribute defaults for 3-10
 	for i=3, 10 do
-		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/targetexact *name"})
+		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/target *name"})
 	end
-	
-	-- Auto create rows as needed
-	self.rows = setmetatable({}, {__index = function(t, k)
-		local row = SSAF.modules.Frame:CreateRow(k)
-		rawset(t, k, row)
-		
-		return row
-	end})
 	
 	-- Default party units
 	for i=1, MAX_PARTY_MEMBERS do
-		partyUnit[i] = "party" .. i
-		partyTargets["party" .. i .. "target"] = {guid = "", class = ""}
-		partyTargetUnit[i] = "party" .. i .. "target"
+		partyUnits[i] = "party" .. i
+		partyTargetUnits[i] = "party" .. i .. "target"
+		partyTargets["party" .. i] = ""
 	end
-	
-	-- So the modules can access this
-	self.partyTargets = partyTargets
-	self.nameGUIDMap = nameGUIDMap
-	self.enemies = enemies
-	self.partyTargetUnit = partyTargetUnit
-	self.partyUnit = partyUnit
 
-	-- WoTLK ManaBarColor is now PowerBarColor so we just swap between whichever exists, remove this once 3.0 is live obviously
-	PowerColor = PowerBarColor or ManaBarColor
+	-- Default arena units
+	for i=1, 5 do
+		arenaUnits[i] = "arena" .. i
+		arenaUnits[arenaUnits[i]] = true
+	end
 end
 
 function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_HEALTH")
-	self:RegisterEvent("UNIT_MANA", "UPDATE_POWER")
-	self:RegisterEvent("UNIT_RAGE", "UPDATE_POWER")
-	self:RegisterEvent("UNIT_ENERGY", "UPDATE_POWER")
-	self:RegisterEvent("UNIT_FOCUS", "UPDATE_POWER")
-	self:RegisterEvent("UNIT_RUNIC_POWER", "UPDATE_POWER")
-	self:RegisterEvent("UNIT_DISPLAYPOWER", "UPDATE_POWER")
-	self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-	self:RegisterEvent("PLAYER_FOCUS_CHANGED")
-	self:RegisterEvent("PLAYER_TARGET_CHANGED")
+	self:RegisterEvent("UNIT_MAXHEALTH", "UNIT_HEALTH")
+
+	self:RegisterEvent("UNIT_MANA", "UNIT_POWER")
+	self:RegisterEvent("UNIT_RAGE", "UNIT_POWER")
+	self:RegisterEvent("UNIT_ENERGY", "UNIT_POWER")
+	self:RegisterEvent("UNIT_FOCUS", "UNIT_POWER")
+	self:RegisterEvent("UNIT_RUNIC_POWER", "UNIT_POWER")
+
+	self:RegisterEvent("UNIT_MAXMANA", "UNIT_POWER")
+	self:RegisterEvent("UNIT_MAXRAGE", "UNIT_POWER")
+	self:RegisterEvent("UNIT_MAXENERGY", "UNIT_POWER")
+	self:RegisterEvent("UNIT_MAXFOCUS", "UNIT_POWER")
+	self:RegisterEvent("UNIT_MAXRUNIC_POWER", "UNIT_POWER")
+
+	self:RegisterEvent("UNIT_DISPLAYPOWER", "UNIT_POWERTYPE")
+
 	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	
-	-- Enable modules
-	self.modules.Sync:EnableModule()
-	self.modules.NP:EnableModule()
 
 	-- Enable talent guessing
 	if( self.db.profile.showGuess ) then
 		self.talents:EnableCollection()
 	end
+	
+	-- Figure out arena bracket
+	for i=1, MAX_BATTLEFIELD_QUEUES do
+		local status, _, _, _, _, teamSize = GetBattlefieldStatus(i)
+		if( status == "active" and teamSize > 0 ) then
+			currentBracket = teamSize
+			break
+		end
+	end
+	
+	-- Update/show rows
+	for i=1, currentBracket do
+		-- Create it if needed
+		local unit = arenaUnits[i]
+		local row = self.rows[unit]
+		if( not row ) then
+			row = self.modules.Frame:CreateRow(i)
+			self.rows[unit] = row
+		end
+		
+		-- Set the default attribute
+		for _, macro in pairs(self.defaults.profile.attributes) do
+			if( macro.enabled ) then
+				row.button:SetAttribute("type" .. macro.button, "macro")
+				row.button:SetAttribute("macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
+			end
+		end
+		
+		row.isDead = nil
+		row:SetAlpha(1.0)
+		row:Show()
+		
+		-- Add this unit to the list to search for
+		table.insert(identifyUnits, unit)
+	end
+	
+	-- Update bindings
+	self:UPDATE_BINDINGS()
+	
+	-- Show base frame + scanning
+	self.frame:Show()
+	self.scanFrame:Show()
+	
+	-- Update positioning + who we know
+	self:UpdatePositioning()
+	self:UpdateRows()
 end
 
 function SSAF:LeftArena()
 	self:UnregisterAllEvents()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("UPDATE_BINDINGS")
 
-	-- Reset map
-	for k in pairs(nameGUIDMap) do nameGUIDMap[k] = nil end
-	
-	-- Disable modules
-	self.modules.Sync:DisableModule()
-	self.modules.NP:DisableModule()
-	
 	-- Disable guessing
 	self.talents:DisableCollection()
+	
+	-- Stop scanning
+	self.scanFrame:Hide()
 
-	if( not InCombatLockdown() ) then
-		self:ClearEnemies()
-	else
+	-- Reset
+	for k in pairs(partyTargets) do partyTargets[k] = "" end
+	for i=#(identifyUnits), 1, -1 do table.remove(identifyUnits, i) end
+	
+	if( InCombatLockdown() ) then
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
+	else
+		self.frame:Hide()
+		
+		for _, row in pairs(self.rows) do
+			row:Hide()
+		end
+	end
+end
+
+-- Hide the frame
+function SSAF:PLAYER_REGEN_ENABLED()
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+
+	self.frame:Hide()
+	for _, row in pairs(self.rows) do
+		row:Hide()
 	end
 end
 
 -- HEALTH UPDATES
 function SSAF:UNIT_HEALTH(event, unit)
-	if( unit == "focus" or unit == "target" or unit == "mouseover" ) then
-		local guid = UnitGUID(unit)
-		if( enemies[guid] ) then
-			self:UpdateHealth(enemies[guid], unit)
-		end
+	if( not arenaUnits[unit] or self.rows[unit].isDead ) then
+		return
 	end
+	
+	local row = self.rows[unit]
+	local health = UnitHealth(unit)
+	local maxHealth = UnitHealthMax(unit)
+	
+	row.healthText:SetFormattedText("%d%%", math.floor((health / maxHealth) * 100 + 0.5))
+	row:SetMinMaxValues(0, maxHealth)
+	row:SetValue(health)
 end
 
--- POWER TYPE
-function SSAF:UPDATE_POWER(event, unit)
-	if( unit == "focus" or unit == "target" or unit == "mouseover" ) then
-		local guid = UnitGUID(unit)
-		if( enemies[guid] ) then
-			self:UpdateMana(enemies[guid], unit)
+-- POWER UPDATE
+function SSAF:UNIT_POWER(event, unit)
+	if( not arenaUnits[unit] or self.rows[unit].isDead ) then
+		return
+	end
+	
+	local row = self.rows[unit]
+	row.manaBar:SetMinMaxValues(0, UnitPowerMax(unit, row.powerType))
+	row.manaBar:SetValue(UnitPower(unit, row.powerType))
+end
+
+-- POWER TYPE CHANGED
+function SSAF:UNIT_POWERTYPE(event, unit)
+	if( not arenaUnits[unit] or self.rows[unit].isDead ) then
+		return
+	end
+
+	local row = self.rows[unit]
+	row.powerType = UnitPowerType(unit)
+	row.manaBar:SetStatusBarColor(PowerBarColor[row.powerType].r, PowerBarColor[row.powerType].g, PowerBarColor[row.powerType].b)
+	self:UNIT_POWER(nil, unit)
+end
+
+-- ENEMY DIED
+function SSAF:EnemyDied(guid)
+	for i=1, 5 do
+		local unit = arenaUnits[i]
+		if( UnitGUID(unit) == guid ) then
+			local row = self.rows[unit]
+			
+			row.healthText:SetText("0%")
+			row.manaBar:SetValue(0)
+			
+			row:SetValue(0)
+			row:SetAlpha(0.70)
+			row.isDead = true
+			break
 		end
 	end
 end
 
 -- ENEMY DEATH
+-- We use this still for accuracy reasons
 local COMBATLOG_OBJECT_REACTION_HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE
 function SSAF:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags)
 	-- Slain will always be accurate, and we sync it just to be safe
 	if( eventType == "PARTY_KILL" and bit.band(destFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == COMBATLOG_OBJECT_REACTION_HOSTILE ) then
 		self:EnemyDied(destGUID)
-		self:SendMessage("ENEMYDIED:" .. destGUID)
 	
 	-- Don't accept UNIT_DIED except for elementals, because Hunters can throw things off
-	elseif( eventType == "UNIT_DIED" and bit.band(destFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == COMBATLOG_OBJECT_REACTION_HOSTILE and destName == L["Water Elemental"] ) then
-		self:EnemyDied(destGUID)
-		self:SendMessage("ENEMYDIED:" .. destGUID)
+	--elseif( eventType == "UNIT_DIED" and bit.band(destFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == COMBATLOG_OBJECT_REACTION_HOSTILE and destName == L["Water Elemental"] ) then
+	--	self:EnemyDied(destGUID)
 	end
 end
 
@@ -184,10 +257,8 @@ function SSAF:UpdateToT()
 		return
 	end
 	
-	for id, row in pairs(self.rows) do
-		if( row.guid ) then
-			local enemy = enemies[row.guid]
-			
+	for unit, row in pairs(self.rows) do
+		if( UnitExists(unit) ) then
 			-- Reset
 			for i=1, 4 do
 				row.targets[i]:Hide()
@@ -195,12 +266,14 @@ function SSAF:UpdateToT()
 			
 			-- Set the actual textures + set how many icons are being used
 			row.usedIcons = 0
-			for unit, data in pairs(partyTargets) do
-				if( data.guid == row.guid ) then
+			for partyUnit, guid in pairs(partyTargets) do
+				if( guid ~= "" and UnitGUID(unit) == guid ) then
 					row.usedIcons = row.usedIcons + 1
 
 					local texture = row.targets[row.usedIcons]
-					texture:SetVertexColor(RAID_CLASS_COLORS[data.class].r, RAID_CLASS_COLORS[data.class].g, RAID_CLASS_COLORS[data.class].b)
+					local class = select(2, UnitClass(partyUnit))
+					
+					texture:SetVertexColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b)
 					texture:Show()
 				end
 			end
@@ -211,454 +284,128 @@ function SSAF:UpdateToT()
 	end
 end
 
--- HEALTH UPDATES
-function SSAF:UpdateHealth(enemy, unit)
-	if( UnitExists(unit) and UnitCanAttack("player", unit) ) then
-		enemy.health = UnitHealth(unit)
-	end
-end
-
--- MANA UPDATES
-function SSAF:UpdateMana(enemy, unit)
-	if( UnitExists(unit) and UnitCanAttack("player", unit) ) then
-		local maxMana = UnitManaMax(unit)
-		local mana = UnitMana(unit)
-		
-		enemy.mana = math.floor((mana / maxMana) * 100 + 0.5)
-		enemy.powerType = UnitPowerType(unit)
-	end
-end
-
--- UPDATE ENEMY DISPLAY
-local function sortEnemies(a, b)
-	if( not a ) then
-		return true
-	elseif( not b ) then
-		return false
-	end
-	
-	return ( a.listID < b.listID )
-end
-
-function SSAF:UpdateAFData()
-	for id, row in pairs(self.rows) do
-		if( row:IsVisible() and row.guid and enemies[row.guid] ) then
-			local enemy = enemies[row.guid]
-			
-			-- Update health
-			row.healthText:SetFormattedText("%d%%", enemy.health)
-			row:SetValue(enemy.health)
-			row:SetAlpha(1.0)
-
-			-- Update mana
-			row.manaBar:SetValue(enemy.mana)
-			row.manaBar:SetStatusBarColor(PowerColor[enemy.powerType].r, PowerColor[enemy.powerType].g, PowerColor[enemy.powerType].b)
-
-			-- Fade out the bar if they're dead
-			if( enemy.isDead ) then
-				row.healthText:SetText("0%")
-				row.manaBar:SetValue(0)
-				row:SetValue(0)
-				row:SetAlpha(0.70)
-			end
-		end
-	end
-	
-	self:UpdateToT()
-end
-
 -- New talent data found, do a quick update of everyones talents
-function SSAF:OnTalentData()
+function SSAF:OnTalentData(guid)
 	if( not self.db.profile.showGuess ) then
 		return
 	end
 	
-	
-	for id, row in pairs(self.rows) do
-		if( row.guid and row.ownerType == "PLAYER" ) then
-			local enemy = enemies[row.guid]			
-			if( enemy ) then
-				row.talentGuess = ""
-				local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(enemy.fullName)
-				if( firstPoints and secondPoints and thirdPoints ) then
-					row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
-				end
-				row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, enemy.name)
+	for unit, row in pairs(self.rows) do
+		if( UnitGUID(unit) == guid ) then
+			row.talentGuess = ""
+			local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(guid)
+			if( firstPoints and secondPoints and thirdPoints ) then
+				row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
 			end
+			row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, UnitName(unit))
 		end
 	end
 end
 
-function SSAF:UpdateEnemies()
-	-- Can't update in combat, so queue it for when we drop
-	if( InCombatLockdown() ) then
-		self:RegisterEvent("PLAYER_REGEN_ENABLED")
-		return
-	end
-	
-	for _, row in pairs(self.rows) do
-		row.listID = "C"
-		row.guid = nil
-		row:Hide()
-	end
-	
-	local id = 0
-	for _, enemy in pairs(enemies) do
-		if( enemy.type == "PLAYER" or ( enemy.type == "MINION" and self.db.profile.showMinions ) or ( enemy.type == "PET" and self.db.profile.showPets ) ) then
-			id = id + 1
-			
-			local row = self.rows[id]
-			row.ownerName = enemy.name
-			row.ownerType = enemy.type
-			row.listID = enemy.sortID
-			row.guid = enemy.guid
-			row:Show()
-
-			-- Show class icon to the left of the players name
-			row.classTexture:Hide()
-			row.petTexture:Hide()
-			
-			if( self.db.profile.showIcon ) then
-				if( enemy.type == "PLAYER" ) then
-					local coords = CLASS_BUTTONS[enemy.classToken]
-					row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
-					row.classTexture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-					row.classTexture:Show()
-				else
-					local path = petClassIcons[enemy.family or enemy.name]
-					if( path ) then
-						row.petTexture:SetTexture(path)
-						row.petTexture:Show()
-					end
-				end
-			end
-
-			-- Color the health bar by class
-			if( enemy.type == "PLAYER" ) then
-				row:SetStatusBarColor(RAID_CLASS_COLORS[enemy.classToken].r, RAID_CLASS_COLORS[enemy.classToken].g, RAID_CLASS_COLORS[enemy.classToken].b, 1.0)
-			elseif( enemy.type == "PET" ) then
-				row:SetStatusBarColor(self.db.profile.petBarColor.r, self.db.profile.petBarColor.g, self.db.profile.petBarColor.b, 1.0)
-			elseif( enemy.type == "MINION" ) then
-				row:SetStatusBarColor(self.db.profile.minionBarColor.r, self.db.profile.minionBarColor.g, self.db.profile.minionBarColor.b, 1.0)
-			end
-
-			-- Set up all the macro things
-			for _, macro in pairs(self.db.profile.attributes) do
-				if( macro.modifier and macro.button ) then
-					if( macro.enabled and ( macro.classes.ALL or macro.classes[enemy.type] ) ) then
-						row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-						row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", enemy.name))
-					else
-						row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
-						row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
-					end
-				end
-			end
-		end
-	end
-
-	-- Nothing displayed, hide frame
-	if( id == 0 ) then
-		if( self.frame ) then
-			self.frame:Hide()
-		end
-		return
-	end
-	
-	-- Sort and position
-	table.sort(self.rows, sortEnemies)
-	
+function SSAF:UpdatePositioning()
 	-- Sort out how much space is between each row + mana bar if included
 	local heightUsed = 0
 	local manaBar = 0
 	if( self.db.profile.showMana ) then
 		manaBar = self.db.profile.manaBarHeight
 	end
-
-	-- Position/update displays
-	for id, row in pairs(self.rows) do
-		if( row.guid and enemies[row.guid] ) then
-			-- Grab enemy info
-			local enemy = enemies[row.guid]
-
-			-- Add # for easier identification
-			row.nameID = ""
-			if( self.db.profile.showID ) then
-				row.nameID = id .. ") "
-			end
-			
-			if( row.ownerType == "PLAYER" ) then
-				row.talentGuess = ""
-				if( self.db.profile.showGuess ) then
-					local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(enemy.fullName)
-					if( firstPoints and secondPoints and thirdPoints ) then
-						row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
-					end
-				end
-			
-				row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, enemy.name)
-			else
-				row.text:SetFormattedText("%s%s's %s", row.nameID, enemy.owner, enemy.family or enemy.name)
-			end
-			
-			heightUsed = heightUsed + 18 + manaBar
-
-			-- Reposition
-			if( id > 1 ) then
-				row:SetPoint("TOPLEFT", self.rows[id - 1], "BOTTOMLEFT", 0, -2 - manaBar)
-			else
-				row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
-			end
+	
+	for i=1, currentBracket do
+		local row = self.rows[arenaUnits[i]]
+		
+		heightUsed = heightUsed + 18 + manaBar
+		
+		if( i > 1 ) then
+			row:SetPoint("TOPLEFT", self.rows[arenaUnits[i - 1]], "BOTTOMLEFT", 0, -2 - manaBar)
+		else
+			row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
 		end
 	end
 	
-	
-	-- Resize it, I really should learn how to do SetPoint correctly to avoid this hackery
+	-- Update size
 	self.frame:SetHeight(heightUsed)
-	self.frame:Show()
-
-	-- Update health info
-	self:UpdateAFData()
 end
 
--- Quick redirects!
-function SSAF:PLAYER_TARGET_CHANGED()
-	self:ScanUnit("target")
-
-	local guid = UnitGUID("target")
-	if( enemies[guid] ) then
-		self:UpdateMana(enemies[guid], "target")
-		self:UpdateHealth(enemies[guid], "target")	
+-- Update frame
+function SSAF:UpdateRow(unit, row)
+	-- Set ID to make it easier to identify people if needed
+	row.nameID = ""
+	if( self.db.profile.showID ) then
+		row.nameID = string.format("%d)", row.id)
 	end
-end
-
-function SSAF:UPDATE_MOUSEOVER_UNIT()
-	self:ScanUnit("mouseover")
-
-	local guid = UnitGUID("mouseover")
-	if( enemies[guid] ) then
-		self:UpdateMana(enemies[guid], "mouseover")
-		self:UpdateHealth(enemies[guid], "mouseover")	
-	end
-end
-
-function SSAF:PLAYER_FOCUS_CHANGED()
-	self:ScanUnit("focus")
-
-	local guid = UnitGUID("focus")
-	if( enemies[guid] ) then
-		self:UpdateMana(enemies[guid], "focus")
-		self:UpdateHealth(enemies[guid], "focus")	
-	end
-end
-
--- Scan unit, see if they're valid as an enemy or enemy pet
-function SSAF:ScanUnit(unit)
-	local name, server = UnitName(unit)
-	if( name == UNKNOWNOBJECT or not UnitIsEnemy("player", unit) or UnitIsCharmed(unit) or UnitIsCharmed("player") or GetPlayerBuffTexture(L["Arena Preparation"]) ) then
-		return
-	end
-
-	local guid = UnitGUID(unit)
-	if( enemies[guid] ) then
+	
+	row.classTexture:Hide()
+	row.petTexture:Hide()
+	
+	-- Unit doesn't exist yet, just show unknown
+	if( not UnitExists(unit) ) then
+		row.text:SetText(UNKNOWNOBJECT)
+		row.healthText:SetText("")
+		row.manaBar:SetValue(0)
+		
+		if( self.db.profile.showIcon ) then
+			row.petTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+			row.petTexture:Show()
+		end
+		
+		row:SetMinMaxValues(0, 100)
+		row:SetValue(100)
+		row:SetStatusBarColor(0.50, 0.50, 0.50, 0.50)
 		return
 	end
 	
-	-- Check for a new player
-	if( UnitIsPlayer(unit) ) then
-		server = server or GetRealmName()
-		
-		local race = UnitRace(unit)
-		local class, classToken = UnitClass(unit)
-		local guild = GetGuildInfo(unit)
-		local dontReport = enemies[name]
-		
-		self:AddEnemy(name, server, race, classToken, guild, UnitPowerType(unit), nil, guid, unit)
-		self:SendMessage(string.format("ENEMY:%s,%s,%s,%s,%s,%s,%s,%s", name, server, race, classToken, guild or "", UnitPowerType(unit), "", guid))
-
-		if( self.db.profile.reportEnemies and not dontReport ) then
-			if( guild ) then
-				self:ChannelMessage(string.format("%s / %s / %s / %s / %s", name, server, race, class, guild))
-			else
-				self:ChannelMessage(string.format("%s / %s / %s / %s", name, server, race, class))
-			end
+	-- Pull from talent guess if available
+	row.talentGuess = ""
+	if( self.db.profile.showGuess ) then
+		local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(UnitGUID(unit))
+		if( firstPoints and secondPoints and thirdPoints ) then
+			row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
 		end
-
-	-- Hunter pet, or Warlock/Mage minion
-	elseif( UnitCreatureFamily(unit) or name == L["Water Elemental"] ) then
-		-- Need to find the pets owner
-		if( not self.tooltip ) then
-			self.tooltip = CreateFrame("GameTooltip", "SSArenaTooltip", UIParent, "GameTooltipTemplate")
-			self.tooltip:SetOwner(UIParent, "ANCHOR_NONE")
-		end
-		
-		self.tooltip:SetUnit(unit)
-		if( self.tooltip:NumLines() == 0 ) then
-			return
-		end
-		
-		-- Warlock/Mage
-		local owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["(.+)%'s Minion"])
-		local type = "MINION"
-		
-		-- Hunters
-		if( not owner ) then
-			owner = string.match(SSArenaTooltipTextLeft2:GetText(), L["(.+)%'s Pet"])
-			type = "PET"
-		end
-				
-		-- Found the pet owner
-		if( owner and owner ~= UNKNOWNOBJECT ) then
-			local family = UnitCreatureFamily(unit)
-			self:AddEnemyPet(name, owner, family, type, UnitPowerType(unit), guid, unit)
-			self:SendMessage(string.format("ENEMYPET:%s,%s,%s,%s,%s,%s", name, owner, family or "", type, UnitPowerType(unit), guid))
-
-			if( self.db.profile.reportEnemies ) then
-				if( family ) then
-					self:ChannelMessage(string.format(L["%s's pet, %s %s"], owner, name, family))
+	end
+	
+	local class = select(2, UnitClass(unit))
+	
+	-- Finally update
+	row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, UnitName(unit))
+	row:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
+	
+	-- Class icon
+	if( self.db.profile.showIcon ) then
+		local coords = CLASS_BUTTONS[class]
+		row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
+		row.classTexture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+		row.classTexture:Show()
+	end
+	
+	-- Set up all the macro things to class specific if we can
+	--[[
+	if( not InCombatLockdown() ) then
+		for _, macro in pairs(self.db.profile.attributes) do
+			if( macro.modifier and macro.button ) then
+				if( macro.enabled and ( macro.classes.ALL or macro.classes[class] ) ) then
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
 				else
-					self:ChannelMessage(string.format(L["%s's pet, %s"], owner, name))
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
+					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
 				end
 			end
 		end
 	end
+	]]
+	
+	-- Update health/mana/power
+	self:UNIT_HEALTH(nil, unit)
+	self:UNIT_POWER(nil, unit)
+	self:UNIT_POWERTYPE(nil, unit)
 end
 
--- Syncing
-function SSAF:AddEnemy(name, server, race, classToken, guild, powerType, talents, guid, unit)
-	if( not guid or enemies[guid] ) then
-		return
-	end
-	
-	-- If it's an old version sync, check if we already have a new sync with an actual GUID
-	if( name == guid ) then
-		for _, enemy in pairs(enemies) do
-			if( enemy.name == name ) then
-				return
-			end
-		end
+function SSAF:UpdateRows()
+	for unit, row in pairs(self.rows) do
+		self:UpdateRow(unit, row)
 	end
 
-	-- So we can pull out talent data
-	local fullName = name
-	if( server and server ~= "" and server ~= GetRealmName() ) then
-		fullName = string.format("%s-%s", name, server)
-	end
-	
-	-- Store it!
-	enemies[guid] = {sortID = string.format("A%s%s", name, server or ""),
-			name = name,
-			fullName = fullName,
-			type = "PLAYER",
-			server = server,
-			race = race,
-			classToken = classToken,
-			guild = guild,
-			guid = guid,
-			health = 100,
-			mana = 0,
-			maxMana = 100,
-			powerType = tonumber(powerType) or 0,
-			targets = {}}
-	
-	-- If we have an enemy record for this name/server combo, then it means we have a temp sync from another mod
-	-- nil out our old data table, and convert it's AF row to the new one with an actual GUID
-	if( enemies[name] and name ~= guid ) then
-		enemies[name] = nil
-		for id, row in pairs(self.rows) do
-			if( row.guid == name ) then
-				row.guid = guid
-			end
-		end
-	end
-
-	self:UpdateEnemies()
-
-	if( unit ) then
-		self:UpdateHealth(enemies[guid], unit)
-		self:UpdateMana(enemies[guid], unit)
-	end
-
-	-- Check if a pet has a matching name before we update the name -> guid map
-	for guid, enemy in pairs(enemies) do
-		if( enemy.type ~= "PLAYER" and enemy.name == name ) then
-			return
-		end
-	end
-	
-	nameGUIDMap[name] = guid
-end
-
--- New pet found
-function SSAF:AddEnemyPet(name, owner, family, type, powerType, guid, unit)
-	if( not guid or enemies[guid] ) then
-		return
-	end
-	
-	-- If the owner already had a pet, but the GUID is different then remove the old one
-	for id, enemy in pairs(enemies) do
-		if( enemy.owner == owner and enemy.guid ~= guid ) then
-			enemies[id] = nil	
-		end
-	end
-		
-	enemies[guid] = {sortID = string.format("B%s%s", name, owner),
-			name = name,
-			owner = owner,
-			type = type,
-			family = family,
-			guid = guid,
-			health = 100,
-			mana = 100,
-			maxMana = 100,
-			powerType = tonumber(powerType) or 2,
-			targets = {}}
-	
-
-	self:UpdateEnemies()
-
-	if( unit ) then
-		self:UpdateHealth(enemies[guid], unit)
-		self:UpdateMana(enemies[guid], unit)
-	end
-
-	-- If theres a player with the same name of this pet, then remove the name -> guid map of the player
-	for guid, enemy in pairs(enemies) do
-		if( enemy.type == "PLAYER" and enemy.name == name ) then
-			nameGUIDMap[name] = nil
-			return
-		end
-	end
-	
-	nameGUIDMap[name] = guid
-end
-
--- Kill an enemy by the GUID
-function SSAF:EnemyDied(guid)
-	local enemy = enemies[guid]
-	if( enemy ) then
-		enemy.isDead = true
-		enemy.health = 0
-		enemy.mana = 0
-		
-		-- Kill off this players pet if they have any
-		if( enemy.type == "PLAYER" ) then
-			for guid, pet in pairs(enemies) do
-				if( pet.type ~= "PLAYER" and pet.owner == enemy.name ) then
-					self:EnemyDied(guid)
-				end
-			end
-		end
-	end
-end
-
--- Output
-function SSAF:ChannelMessage(msg)
-	SendChatMessage(msg, "BATTLEGROUND")
-end
-
-function SSAF:SendMessage(msg, type)
-	SendAddonMessage("SSAF", msg, "BATTLEGROUND")
+	self:UpdateToT()
 end
 
 -- Enabling/Disabling SSAF
@@ -676,22 +423,11 @@ function SSAF:ZONE_CHANGED_NEW_AREA()
 	instanceType = type
 end
 
--- OOC updating
-function SSAF:PLAYER_REGEN_ENABLED()
-	if( instanceType == "arena" ) then
-		SSAF:UpdateEnemies()
-	else
-		SSAF:ClearEnemies()
-	end
-	
-	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-end
-
 -- Key bindings
 function SSAF:UPDATE_BINDINGS()
 	if( self.frame ) then
-		for id, row in pairs(self.rows) do
-			local bindKey = GetBindingKey("ARENATAR" .. id)
+		for unit, row in pairs(self.rows) do
+			local bindKey = GetBindingKey("ARENATAR" .. row.id)
 			if( bindKey ) then
 				SetOverrideBindingClick(row.button, false, bindKey, row.button:GetName())	
 			else
@@ -703,24 +439,6 @@ end
 
 -- Something in configuration changed
 function SSAF:Reload()
-	if( not self.db.profile.locked ) then
-		local noEnemies = true
-		for _ in pairs(enemies) do
-			noEnemies = nil
-		end
-
-		if( noEnemies ) then
-			self:AddEnemy(UnitName("player"), GetRealmName(), (UnitRace("player")), select(2, UnitClass("player")), nil, UnitPowerType("player"), nil, "a", "player")
-			self:AddEnemy("Mayen", "Icecrown", "TAUREN", "DRUID", nil, 0, nil, "b", "player")
-			self:AddEnemyPet(L["Pet"], UnitName("player"), "Cat", "PET", 2, "c", "player")
-			self:AddEnemyPet(L["Minion"], "Mayen", "Felhunter", "MINION", 0, "d", "player")
-		end
-	
-	-- Don't reset if we're in an arena
-	elseif( select(2, IsInInstance()) ~= "arena" ) then
-		self:ClearEnemies()
-	end
-	
 	if( self.frame ) then
 		self.frame:SetScale(self.db.profile.scale)
 		self.anchor:SetScale(self.db.profile.scale)
@@ -734,7 +452,7 @@ function SSAF:Reload()
 	end
 		
 	-- Update all the rows to the current settings
-	for id, row in pairs(self.rows) do
+	for unit, row in pairs(self.rows) do
 		-- Texture/mana bar height
 		row:SetStatusBarTexture(self.db.profile.barTexture)
 		row.manaBar:SetStatusBarTexture(self.db.profile.barTexture)
@@ -753,31 +471,49 @@ function SSAF:Reload()
 		row.text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 		row.healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	end
-		
-	-- Update it if we're already showing something
-	if( self.rows[1] and self.rows[1]:IsVisible() ) then
-		self:UpdateEnemies()
-	end
-end
-
--- Recycle tables/left arena
-function SSAF:ClearEnemies()
-	for k in pairs(enemies) do enemies[k] = nil end
-	for _, data in pairs(partyTargets) do data.guid = "" end
 	
-	if( self.rows ) then
-		for id, row in pairs(self.rows) do
-			row.ownerName = nil
-			row.ownerType = nil
-			row:Hide()
-		end
-	end
-	
-	if( self.frame ) then
-		self.frame:Hide()
+	-- Update frame
+	if( self.frame and self.frame:IsVisible() ) then
+		self:UpdateRows()
 	end
 end
 
 function SSAF:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99SSAF|r: " .. msg)
 end
+
+local timeElapsed = 0
+local frame = CreateFrame("Frame")
+frame:Hide()
+
+frame:SetScript("OnUpdate", function(self, elapsed)
+	timeElapsed = timeElapsed + elapsed
+	if( timeElapsed >= 0.50 ) then
+		timeElapsed = 0
+		
+		-- Setup a new unit?
+		for i=#(identifyUnits), 1, -1 do
+			local unit = identifyUnits[i]
+			if( UnitExists(unit) and UnitName(unit) ~= UNKNOWNOBJECT ) then
+				SSAF:UpdateRow(unit, SSAF.rows[unit])
+				table.remove(identifyUnits, i)
+			end
+		end
+	
+		-- Update ToT
+		local updateToT
+		for i=1, GetNumPartyMembers() do
+			local guid = UnitGUID(partyTargetUnits[i])
+			if( guid ~= partyTargets[partyUnits[i]] ) then
+				partyTargets[partyUnits[i]] = guid
+				updateToT = true
+			end
+		end
+	
+		if( updateToT ) then
+			SSAF:UpdateToT()
+		end
+	end
+end)
+
+SSAF.scanFrame = frame

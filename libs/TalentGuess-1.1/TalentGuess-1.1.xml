@@ -2,5 +2,5 @@
 ..\FrameXML\UI.xsd">
 	<Script file="talentData.lua"/>
 	<Script file="wotlkData.lua"/>
-	<Script file="TalentGuess-1.0.lua"/>
+	<Script file="TalentGuess-1.1.lua"/>
 </Ui>

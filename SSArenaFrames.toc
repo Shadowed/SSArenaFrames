@@ -1,4 +1,4 @@
-## Interface: 20400
+## Interface: 30000
 ## Title: SSArena Frames
 ## Version: $Revision$
 ## Author: Mayen
@@ -15,7 +15,7 @@ libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
 libs\AceGUI-3.0\AceGUI-3.0.xml
 libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
 libs\AceConfig-3.0\AceConfig-3.0.xml
-libs\TalentGuess-1.0\TalentGuess-1.0.xml
+libs\TalentGuess-1.1\TalentGuess-1.1.xml
 
 localization.enUS.lua
 localization.deDE.lua
@@ -24,7 +24,5 @@ localization.zhTW.lua
 localization.zhCN.lua
 
 SSArenaFrames.lua
-sync.lua
 frame.lua
-nameplates.lua
 config.lua

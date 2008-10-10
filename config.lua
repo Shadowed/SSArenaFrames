@@ -22,8 +22,8 @@ function Config:OnInitialize()
 	
 	-- Compile class list
 	classes["ALL"] = L["All"]
-	classes["PET"] = L["Pet"]
-	classes["MINION"] = L["Minion"]
+	--classes["PET"] = L["Pet"]
+	--classes["MINION"] = L["Minion"]
 	
 	for k, v in pairs(L["CLASSES"]) do
 		classes[k] = v
@@ -182,8 +182,8 @@ local function createAttributeOptions(number)
 	
 	-- Force ordering quickly
 	attribute.args.classes.args.ALL.order = 2
-	attribute.args.classes.args.PET.order = 3
-	attribute.args.classes.args.MINION.order = 4
+	--attribute.args.classes.args.PET.order = 3
+	--attribute.args.classes.args.MINION.order = 4
 	
 	
 	return attribute
@@ -211,13 +211,7 @@ local function loadOptions()
 				desc = L["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."],
 				width = "full",
 			},
-			reportEnemies = {
-				order = 2,
-				type = "toggle",
-				name = L["Report enemies to battleground chat"],
-				desc = L["Sends information on the enemy when you notice them for the first time in the match."],
-				width = "full",
-			},
+			--[[
 			showMinions = {
 				order = 3,
 				type = "toggle",
@@ -230,6 +224,7 @@ local function loadOptions()
 				name = L["Show pets"],
 				desc = L["Shows tamed pets in the arena frames."],
 			},
+			]]
 			frame = {
 				type = "group",
 				order = 5,
@@ -318,6 +313,7 @@ local function loadOptions()
 								name = L["Text color"],
 								width = "full",
 							},
+							--[[
 							petBarColor = {
 								order = 2,
 								type = "color",
@@ -328,6 +324,7 @@ local function loadOptions()
 								type = "color",
 								name = L["Minion bar color"],
 							},
+							]]
 						},
 					},
 				},

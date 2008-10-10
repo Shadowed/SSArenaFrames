@@ -3,41 +3,10 @@ local L = SSAFLocals
 
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
-local SML, enemies, nameGUIDMap, partyTargetUnit, partyTargets, partyUnit
-local previousUnits = {}
+local SML
 
 function Frame:OnInitialize()
 	SML = SSAF.SML
-	enemies = SSAF.enemies
-	nameGUIDMap = SSAF.nameGUIDMap
-	partyTargetUnit = SSAF.partyTargetUnit
-	partyUnit = SSAF.partyUnit
-	partyTargets = SSAF.partyTargets
-end
-
--- Update health/party yargets
-local timeElapsed = 0
-local function updateFrame(self, elapsed)
-	timeElapsed = timeElapsed + elapsed
-	if( timeElapsed >= 0.20 ) then
-		timeElapsed = 0
-
-		for i=1, GetNumPartyMembers() do
-			local unit = partyTargetUnit[i]
-			local guid = UnitGUID(unit)
-			local enemy = enemies[guid]
-			
-			if( enemy ) then
-				partyTargets[unit].guid = guid
-				partyTargets[unit].class = select(2, UnitClass(partyUnit[i]))
-			
-				SSAF:UpdateHealth(enemy, unit)
-				SSAF:UpdateMana(enemy, unit)
-			end
-		end
-		
-		SSAF:UpdateAFData()
-	end
 end
 
 -- Create the master frame to hold everything
@@ -176,7 +145,6 @@ function Frame:CreateRow(id)
 	
 	healthText:SetShadowOffset(1, -1)
 	healthText:SetShadowColor(0, 0, 0, 1)
-	
 
 	-- Class icon
 	local classTexture = row:CreateTexture(nil, "OVERLAY")
@@ -197,6 +165,7 @@ function Frame:CreateRow(id)
 	button:SetPoint("LEFT", row, "LEFT", 1, 0)
 	button:EnableMouse(true)
 	button:RegisterForClicks("AnyUp")
+	--button:SetAttribute("unit", "arena" .. id)
 		
 	-- Add the "whos targeting us" buttons
 	local targets = {}
@@ -249,15 +218,7 @@ function Frame:CreateRow(id)
 	row.petTexture = petTexture
 	row.button = button
 	row.healthText = healthText
-
-	-- Add key bindings
-	local bindKey = GetBindingKey("ARENATAR" .. id)
-
-	if( bindKey ) then
-		SetOverrideBindingClick(row.button, false, bindKey, row.button:GetName())	
-	else
-		ClearOverrideBindings(row.button)
-	end
+	row.id = id
 	
 	return row
 end
