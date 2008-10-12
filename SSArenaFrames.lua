@@ -15,19 +15,16 @@ function SSAF:OnInitialize()
 		profile = {
 			scale = 1.0,
 			locked = true,
-			showTargets = true,
+			flashIdentify = true,
 			barTexture = "Minimalist",
+			manaBarHeight = 3,
+			showTargets = true,
 			showID = false,
 			showIcon = false,
-			showMinions = true,
-			showPets = false,
 			showGuess = true,
 			showMana = true,
-			manaBarHeight = 3,
 			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
-			petBarColor = { r = 0.20, g = 1.0, b = 0.20 },
-			minionBarColor = { r = 0.30, g = 1.0, b = 0.30 },
 			attributes = {
 				-- Valid modifiers: shift, ctrl, alt
 				-- LeftButton/RightButton/MiddleButton/Button4/Button5
@@ -41,6 +38,11 @@ function SSAF:OnInitialize()
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("SSAFDB", self.defaults)
 	self.revision = tonumber(string.match("$Revision$", "(%d+)") or 1)
 	
+	-- Setup attribute defaults for 3-10
+	for i=3, 10 do
+		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/target *name"})
+	end
+
 	-- Check if we entered an arena
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
@@ -53,11 +55,6 @@ function SSAF:OnInitialize()
 	self.talents:RegisterCallback(SSAF, "OnTalentData")
 	
 	self.rows = {}
-	
-	-- Setup attribute defaults for 3-10
-	for i=3, 10 do
-		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/target *name"})
-	end
 	
 	-- Default party units
 	for i=1, MAX_PARTY_MEMBERS do
@@ -74,6 +71,9 @@ function SSAF:OnInitialize()
 end
 
 function SSAF:JoinedArena()
+	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	self:RegisterEvent("PLAYER_REGEN_DISABLED")
+
 	self:RegisterEvent("UNIT_HEALTH")
 	self:RegisterEvent("UNIT_MAXHEALTH", "UNIT_HEALTH")
 
@@ -90,8 +90,6 @@ function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_MAXRUNIC_POWER", "UNIT_POWER")
 
 	self:RegisterEvent("UNIT_DISPLAYPOWER", "UNIT_POWERTYPE")
-
-	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 	-- Enable talent guessing
 	if( self.db.profile.showGuess ) then
@@ -116,16 +114,14 @@ function SSAF:JoinedArena()
 			row = self.modules.Frame:CreateRow(i)
 			self.rows[unit] = row
 		end
-		
-		-- Set the default attribute
-		for _, macro in pairs(self.defaults.profile.attributes) do
-			if( macro.enabled ) then
-				row.button:SetAttribute("type" .. macro.button, "macro")
-				row.button:SetAttribute("macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
-			end
+
+		-- Reset current tots
+		for i=1, 4 do
+			row.targets[i]:Hide()
 		end
-		
+				
 		row.isDead = nil
+		row.isSetup = nil
 		row:SetAlpha(1.0)
 		row:Show()
 		
@@ -163,11 +159,12 @@ function SSAF:LeftArena()
 	if( InCombatLockdown() ) then
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	else
-		self.frame:Hide()
-		
 		for _, row in pairs(self.rows) do
+			self:StopFlashing(row)
 			row:Hide()
 		end
+
+		self.frame:Hide()
 	end
 end
 
@@ -226,6 +223,11 @@ function SSAF:EnemyDied(guid)
 		if( UnitGUID(unit) == guid ) then
 			local row = self.rows[unit]
 			
+			-- Reset current tots
+			for i=1, 4 do
+				row.targets[i]:Hide()
+			end
+
 			row.healthText:SetText("0%")
 			row.manaBar:SetValue(0)
 			
@@ -238,16 +240,11 @@ function SSAF:EnemyDied(guid)
 end
 
 -- ENEMY DEATH
--- We use this still for accuracy reasons
+-- We use this still for accuracy reasons, slain will always be 100% accurate, if they add arenas above 5 players we're fucked however
 local COMBATLOG_OBJECT_REACTION_HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE
 function SSAF:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags)
-	-- Slain will always be accurate, and we sync it just to be safe
 	if( eventType == "PARTY_KILL" and bit.band(destFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == COMBATLOG_OBJECT_REACTION_HOSTILE ) then
 		self:EnemyDied(destGUID)
-	
-	-- Don't accept UNIT_DIED except for elementals, because Hunters can throw things off
-	--elseif( eventType == "UNIT_DIED" and bit.band(destFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == COMBATLOG_OBJECT_REACTION_HOSTILE and destName == L["Water Elemental"] ) then
-	--	self:EnemyDied(destGUID)
 	end
 end
 
@@ -259,7 +256,7 @@ function SSAF:UpdateToT()
 	
 	for unit, row in pairs(self.rows) do
 		if( UnitExists(unit) ) then
-			-- Reset
+			-- Reset currents
 			for i=1, 4 do
 				row.targets[i]:Hide()
 			end
@@ -340,7 +337,7 @@ function SSAF:UpdateRow(unit, row)
 	-- Unit doesn't exist yet, just show unknown
 	if( not UnitExists(unit) ) then
 		row.text:SetText(UNKNOWNOBJECT)
-		row.healthText:SetText("")
+		row.healthText:SetText("0%")
 		row.manaBar:SetValue(0)
 		
 		if( self.db.profile.showIcon ) then
@@ -351,6 +348,16 @@ function SSAF:UpdateRow(unit, row)
 		row:SetMinMaxValues(0, 100)
 		row:SetValue(100)
 		row:SetStatusBarColor(0.50, 0.50, 0.50, 0.50)
+
+		-- Setup what we know as being generic, things that run for all classes
+		if( not InCombatLockdown() ) then
+			for _, macro in pairs(self.db.profile.attributes) do
+				if( macro.modifier and macro.button and macro.enabled and macro.classes.ALL ) then
+					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
+				end
+			end
+		end
 		return
 	end
 	
@@ -378,21 +385,20 @@ function SSAF:UpdateRow(unit, row)
 	end
 	
 	-- Set up all the macro things to class specific if we can
-	--[[
-	if( not InCombatLockdown() ) then
+	if( not InCombatLockdown() and not row.isSetup ) then
 		for _, macro in pairs(self.db.profile.attributes) do
 			if( macro.modifier and macro.button ) then
 				if( macro.enabled and ( macro.classes.ALL or macro.classes[class] ) ) then
 					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
 					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
-				else
-					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, nil)
-					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, nil)
 				end
 			end
 		end
+		
+		-- Start flashing it so we know it's been "locked"
+		self:StartFlashing(row)
+		row.isSetup = true
 	end
-	]]
 	
 	-- Update health/mana/power
 	self:UNIT_HEALTH(nil, unit)
@@ -482,6 +488,7 @@ function SSAF:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99SSAF|r: " .. msg)
 end
 
+-- Handle scanning
 local timeElapsed = 0
 local frame = CreateFrame("Frame")
 frame:Hide()
@@ -517,3 +524,60 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 end)
 
 SSAF.scanFrame = frame
+
+-- Handle flashing
+function SSAF:PLAYER_REGEN_DISABLED()
+	for _, row in pairs(self.rows) do
+		if( row.isFlashing ) then
+			self:StopFlashing(row)
+		end
+	end
+end
+
+local fadeTime = 1.85
+local function flashFrame(self, elapsed)
+	self.fadeElapsed = self.fadeElapsed + elapsed
+	
+	if( self.fadeMode == "in" ) then
+		local alpha = (self.fadeElapsed / fadeTime) / 1.0
+		self:SetAlpha(alpha)
+		
+		if( alpha >= 0.90 ) then
+			self.fadeElapsed = 0
+			self.fadeMode = "out"
+		end
+		
+	elseif( self.fadeMode == "out" ) then
+		local alpha = ((fadeTime - self.fadeElapsed) / fadeTime) * 1.0
+		self:SetAlpha(alpha)
+
+		if( alpha <= 0.25 ) then
+			self.fadeElapsed = 0.50
+			self.fadeMode = "in"
+		end
+	end
+end
+
+function SSAF:StartFlashing(frame)
+	if( not self.db.profile.flashIdentify ) then
+		return
+	end
+	
+	frame.isFlashing = true
+	frame.originalAlpha = frame:GetAlpha()
+	
+	frame.fadeElapsed = 0
+	frame.fadeMode = "out"
+	
+	frame:SetScript("OnUpdate", flashFrame)
+end
+
+function SSAF:StopFlashing(frame)
+	if( not frame.isFlashing ) then
+		return
+	end
+	
+	frame.isFlashing = nil
+	frame:SetAlpha(frame.originalAlpha)
+	frame:SetScript("OnUpdate", nil)
+end

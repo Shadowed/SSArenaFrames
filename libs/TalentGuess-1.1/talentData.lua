@@ -1,7 +1,5 @@
-if( not IS_WRATH_BUILD ) then return end
-
 local major = "TalentGuessData-1.1"
-local minor = tonumber(string.match("$Revision: 703$", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 956 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -9,8 +7,88 @@ local Data = LibStub:NewLibrary(major, minor)
 if( not Data ) then return end
 
 -- The format is pretty simple
--- [spellID] = "tree #:points required:checkBuffs:isCastOnly:isInstantOnly"
+-- [spellID] = "tree #:points required:checkBuffs:isCast"
 Data.Spells = {
+	-- DEATH KNIGHTS
+	--[[ Blood ]]--
+	-- Scent of Blood
+	[50421] = "1:8",
+	-- Rune Tap
+	[48982] = "1:11:nil:true",
+	-- Vendetta
+	[50181] = "1:18",
+	-- Mark of Blood
+	[49005] = "1:21:nil:true",
+	-- Bloody Vengeance
+	[50447] = "1:26",
+	[50448] = "1:27",
+	[50449] = "1:28",
+	-- Hysteria
+	[49016] = "1:31:nil:true",
+	-- Vampiric Blood
+	[55233] = "1:36:nil:true",
+	-- Heart Strike
+	[55050] = "1:41:nil:true",
+	[55258] = "1:41:nil:true",
+	[55259] = "1:41:nil:true",
+	[55260] = "1:41:nil:true",
+	[55261] = "1:41:nil:true",
+	[55262] = "1:41:nil:true",
+	-- Dancing Rune Weapon
+	[49028] = "1:51:nil:true",
+	
+	--[[ Frost ]]--
+	-- Lichborne
+	[49039] = "2:11:true",
+	-- Killing Machine
+	[51124] = "2:20",
+	-- Howling Blast
+	[49184] = "2:31:nil:true",
+	[51408] = "2:31:nil:true",
+	[51409] = "2:31:nil:true",
+	[51410] = "2:31:nil:true",
+	[51411] = "2:31:nil:true",
+	-- Unbreakable Armor
+	[51271] = "2:36:nil:true",
+	-- Frost Strike
+	[49143] = "2:41:nil:true",
+	[51416] = "2:41:nil:true",
+	[51417] = "2:41:nil:true",
+	[51418] = "2:41:nil:true",
+	[51419] = "2:41:nil:true",
+	[55268] = "2:41:nil:true",
+	-- Hungering Cold
+	[49203] = "2:51:nil:true",
+	
+	--[[ Unholy ]]--
+	-- Corpse Explosion
+	[49158] = "3:11:nil:true",
+	[51325] = "3:11:nil:true",
+	[51326] = "3:11:nil:true",
+	[51327] = "3:11:nil:true",
+	[51328] = "3:11:nil:true",
+	-- Blood-caked Strike
+	[50463] = "3:18",
+	-- Summon Gargoyle
+	[49206] = "3:21:nil:true",
+	-- Anti-Magic Zone
+	[51052] = "3:31:nil:true",
+	-- Bone Shield
+	[49222] = "3:36:true",
+	-- Night of the Dead
+	[55744] = "3:36:true",
+	[55621] = "3:37:true",
+	-- Scourge Strike
+	[55090] = "3:41:nil:true",
+	[55265] = "3:41:nil:true",
+	[55270] = "3:41:nil:true",
+	[55271] = "3:41:nil:true",
+	-- Unholy Blight
+	[49194] = "3:51:nil:true",
+	[51376] = "3:51:nil:true",
+	[51378] = "3:51:nil:true",
+	[51379] = "3:51:nil:true",
+
 	-- ROGUES
 
 	--[[ Assassination ]]--
@@ -118,8 +196,9 @@ Data.Spells = {
 	-- Primal Fury
 	[16959] = "2:17",	
 	[16953] = "2:17",
-	-- Feral Charge
+	-- Feral Charge - Bear
 	[16979] = "2:21",
+	-- Feral Charge - Cat
 	[49376] = "2:21",
 	-- Mangle (Cat/Bear)
 	[33878] = "2:41",
@@ -229,13 +308,7 @@ Data.Spells = {
 	-- Clearcasting
 	[12536] = "1:10",
 	-- Focus Magic
-	[54646] = "1:11",
-	[54648] = "1:11",
-	[54650] = "1:11",
-	[54652] = "1:11",
-	[54653] = "1:11",
-	[54654] = "1:11",
-	[54655] = "1:11",
+	[54646] = "1:11:nil:true",
 	-- Presence of Mind
 	[12043] = "1:21",
 	-- Improved Blink
@@ -300,16 +373,11 @@ Data.Spells = {
 	[27134] = "3:31",
 	[33405] = "3:31",
 	[43038] = "3:31",
-	[43039] = "3;31",
+	[43039] = "3:31",
 	-- Summon Water Element
 	[31687] = "3:41",
-	-- Brain Freeze
-	[57761] = "3:44",
 	-- Deep Freeze
 	[44572] = "3:51",
-	[54776] = "3:51",
-	[54777] = "3:51",
-	[54778] = "3:51",
 	
 	-- PALADINS
 	

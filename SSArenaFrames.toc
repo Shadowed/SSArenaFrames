@@ -4,7 +4,7 @@
 ## Author: Mayen
 ## Notes: Unit frames for arenas
 ## SavedVariables: SSAFDB
-## OptionalDeps: LibStub, Ace3, LibSharedMedia-3.0
+## OptionalDeps: LibStub, Ace3, TalentGuess-1.1, LibSharedMedia-3.0
 
 libs\LibStub-1.0\LibStub-1.0.xml
 libs\CallbackHandler-1.0\CallbackHandler-1.0.xml

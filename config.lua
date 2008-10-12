@@ -22,8 +22,6 @@ function Config:OnInitialize()
 	
 	-- Compile class list
 	classes["ALL"] = L["All"]
-	--classes["PET"] = L["Pet"]
-	--classes["MINION"] = L["Minion"]
 	
 	for k, v in pairs(L["CLASSES"]) do
 		classes[k] = v
@@ -182,9 +180,6 @@ local function createAttributeOptions(number)
 	
 	-- Force ordering quickly
 	attribute.args.classes.args.ALL.order = 2
-	--attribute.args.classes.args.PET.order = 3
-	--attribute.args.classes.args.MINION.order = 4
-	
 	
 	return attribute
 end
@@ -204,30 +199,9 @@ local function loadOptions()
 		set = set,
 		handler = Config,
 		args = {
-			showGuess = {
-				order = 1,
-				type = "toggle",
-				name = L["Show talent guess"],
-				desc = L["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."],
-				width = "full",
-			},
-			--[[
-			showMinions = {
-				order = 3,
-				type = "toggle",
-				name = L["Show minions"],
-				desc = L["Shows summoned minions in the arena frame."],
-			},
-			showPets = {
-				order = 4,
-				type = "toggle",
-				name = L["Show pets"],
-				desc = L["Shows tamed pets in the arena frames."],
-			},
-			]]
 			frame = {
 				type = "group",
-				order = 5,
+				order = 1,
 				inline = true,
 				name = L["Frame"],
 				args = {
@@ -255,32 +229,48 @@ local function loadOptions()
 			},
 			display = {
 				type = "group",
-				order = 6,
+				order = 2,
 				inline = true,
 				name = L["Display"],
 				args = {
-					showID = {
+					fontColor = {
 						order = 1,
+						type = "color",
+						name = L["Text color"],
+					},
+					flashIdentify = {
+						order = 2,
+						type = "toggle",
+						name = L["Flash rows on click action set"],
+						desc = L["Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first."],
+					},
+					showGuess = {
+						order = 3,
+						type = "toggle",
+						name = L["Show talent guess"],
+						desc = L["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."],
+					},
+					showID = {
+						order = 4,
 						type = "toggle",
 						name = L["Show row number"],
 						desc = L["Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name."],
-						width = "full",
 					},
 					showIcon = {
-						order = 2,
+						order = 5,
 						type = "toggle",
 						name = L["Show class icon"],
 						desc = L["Adds the class icon, or the pet icon to the left of the frame row."],
 					},
 					showTargets = {
-						order = 3,
+						order = 6,
 						type = "toggle",
 						name = L["Show target icons"],
 						desc = L["Adds mini icons to the right of the arena frames with the class of the person targeting an enemy."],
 					},
 					mana = {
 						type = "group",
-						order = 4,
+						order = 7,
 						inline = true,
 						name = L["Mana"],
 						args = {
@@ -289,7 +279,6 @@ local function loadOptions()
 								type = "toggle",
 								name = L["Show power bars"],
 								desc = L["Adds bars for the enemies power below the row, color is based on power type."],
-								width = "full",
 							},
 							manaBarHeight = {
 								order = 2,
@@ -297,34 +286,6 @@ local function loadOptions()
 								name = L["Power bar height"],
 								min = 1, max = 30, step = 1,
 							},
-						},
-					},
-					color = {
-						type = "group",
-						order = 5,
-						inline = true,
-						name = L["Color"],
-						set = setColor,
-						get = getColor,
-						args = {
-							fontColor = {
-								order = 1,
-								type = "color",
-								name = L["Text color"],
-								width = "full",
-							},
-							--[[
-							petBarColor = {
-								order = 2,
-								type = "color",
-								name = L["Pet bar color"],
-							},
-							minionBarColor = {
-								order = 3,
-								type = "color",
-								name = L["Minion bar color"],
-							},
-							]]
 						},
 					},
 				},
@@ -337,9 +298,7 @@ local function loadOptions()
 		type = "group",
 		order = 2,
 		name = L["Click Actions"],
-		args = {
-		
-		},
+		args = {},
 	}
 	
 	for i=1, 10 do
@@ -363,7 +322,7 @@ SlashCmdList["SSAF"] = function()
 		end
 
 		config:RegisterOptionsTable("SSArena Frames", options)
-		dialog:SetDefaultSize("SSArena Frames", 625, 590)
+		dialog:SetDefaultSize("SSArena Frames", 635, 525)
 	end
 
 	dialog:Open("SSArena Frames")

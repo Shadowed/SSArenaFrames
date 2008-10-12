@@ -1,24 +1,10 @@
 SSAFLocals = {
 	["SSArena Frames"] = "SSArena Frames",
-	
-	["The Arena battle has begun!"] = "The Arena battle has begun!",
-	
-	["%s's pet, %s %s"] = "%s's pet, %s %s",
-	["%s's pet, %s"] = "%s's pet, %s",
-
-	["%s's %s"] = "%s's %s",
-	["(.+)%'s Minion"] = "(.+)%'s Minion",
-	["(.+)%'s Pet"] = "(.+)%'s Pet",
-	
-	["Pet"] = "Pet",
-	["Minion"] = "Minion",
-
-	["Water Elemental"] = "Water Elemental",
+	["ALT + Drag to move the frame anchor."] = "ALT + Drag to move the frame anchor.",
 	
 	["Arena Preparation"] = "Arena Preparation",
-	["ALT + Drag to move the frame anchor."] = "ALT + Drag to move the frame anchor.",
-
-	-- For syncing and display and such
+	
+	-- Class list for display
 	["CLASSES"] = {
 		["MAGE"] = "Mage",
 		["WARRIOR"] = "Warrior",
@@ -29,8 +15,9 @@ SSAFLocals = {
 		["ROGUE"] = "Rogue",
 		["HUNTER"] = "Hunter",
 		["WARLOCK"] = "Warlock",
+		["DEATHKNIGHT"] = "Death Knight",
 	},
-		
+	
 	-- GUI
 	["All"] = "All",
 	["CTRL"] = "CTRL",
@@ -49,9 +36,6 @@ SSAFLocals = {
 	
 	-- Color
 	["Color"] = "Color",
-	
-	["Minion bar color"] = "Minion bar color",
-	["Pet bar color"] = "Pet bar color",
 	["Text color"] = "Text color",
 	
 	-- Mana
@@ -72,6 +56,9 @@ SSAFLocals = {
 	["Show row number"] = "Show row number",
 	["Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name."] = "Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name.",	
 	
+	["Flash rows on click action set"] = "Flash rows on click action set",
+	["Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first."] = "Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first.",
+	
 	-- Frame
 	["Frame"] = "Frame",
 	
@@ -86,15 +73,6 @@ SSAFLocals = {
 	["Show talent guess"] = "Show talent guess",
 	["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."] = "Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close.",
 
-	["Report enemies to battleground chat"] = "Report enemies to battleground chat",
-	["Sends information on the enemy when you notice them for the first time in the match."] = "Sends information on the enemy when you notice them for the first time in the match.",
-
-	["Show minions"] = "Show minions",
-	["Shows summoned minions in the arena frame."] = "Shows summoned minions in the arena frame.",
-
-	["Show pets"] = "Show pets",
-	["Shows tamed pets in the arena frames."] = "Shows tamed pets in the arena frames.",
-	
 	-- Click Actions
 	["Click Actions"] = "Click Actions",
 	
@@ -113,11 +91,6 @@ SSAFLocals = {
 	["Macro text"] = "Macro text",
 	["Macro script to run when the specific modifier key and mouse button combination are used."] = "Macro script to run when the specific modifier key and mouse button combination are used.",
 }
-
--- Add DKs if it's WoTLK
-if( select(4, GetBuildInfo()) >= 30000 ) then
-	SSAFLocals["CLASSES"]["DEATHKNIGHT"] = "Death Knight"
-end
 
 BINDING_HEADER_SSAF = "SSArena Frames"
 BINDING_NAME_ARENATAR1 = "Target enemy #1"
