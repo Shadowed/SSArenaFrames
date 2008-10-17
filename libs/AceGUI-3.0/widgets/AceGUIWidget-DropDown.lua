@@ -1,4 +1,4 @@
---[[ $Id: AceGUIWidget-DropDown.lua 81438 2008-09-06 13:44:36Z nevcairiel $ ]]--
+--[[ $Id: AceGUIWidget-DropDown.lua 679 2008-09-06 12:51:18Z nargiddley $ ]]--
 local min, max, floor = math.min, math.max, math.floor
 
 local AceGUI = LibStub("AceGUI-3.0")

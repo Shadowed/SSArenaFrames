@@ -1,5 +1,5 @@
 local major = "TalentGuess-1.1"
-local minor = tonumber(string.match("$Revision: 957 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 970 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -23,11 +23,13 @@ Talents.callbacks = Talents.callbacks or {}
 Talents.enemySpellRecords = Talents.enemySpellRecords or {}
 Talents.totalRegistered = Talents.totalRegistered or 0
 Talents.registeredObjs = Talents.registeredObjs or {}
+Talents.guidNameMap = Talents.guidNameMap or {}
 Talents.frame = Talents.frame or CreateFrame("Frame")
 
 local enemySpellRecords = Talents.enemySpellRecords
 local registeredObjs = Talents.registeredObjs
 local callbacks = Talents.callbacks
+local guidNameMap = Talents.guidNameMap
 local talentPoints, checkBuffs, castOnly = {}, {}, {}
 local methods = {"EnableCollection", "DisableCollection", "GetTalents", "GetUsed", "RegisterCallback", "UnregisterCallback"}
 
@@ -135,6 +137,7 @@ function Talents.GetTalents(self, guid)
 	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "GetTalents", major))
 	argcheck(guid, 2, "string")
 	
+	guid = guidNameMap[guid] or guid
 	if( not enemySpellRecords[guid] ) then
 		return nil
 	end
@@ -165,6 +168,7 @@ function Talents.GetUsed(self, guid)
 	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "GetUsed", major))
 	argcheck(name, 2, "string")
 	
+	guid = guidNameMap[guid] or guid
 	if( not enemySpellRecords[guid] ) then
 		return nil
 	end
@@ -187,23 +191,24 @@ end
 
 -- PRIVATE METHODS
 -- Add a new spell record for this person
-local function addSpell(spellID, guid)
+local function addSpell(spellID, guid, name)
 	if( not enemySpellRecords[guid] ) then
 		enemySpellRecords[guid] = {}
 	elseif( enemySpellRecords[guid][spellID] ) then
 		return
 	end
 	
+	guidNameMap[name] = guid
 	enemySpellRecords[guid][spellID] = true
 
 	-- New spellID added, trigger callbacks
 	for handler, func in pairs(callbacks) do
 		if( type(handler) == "table" ) then
-			handler[func](handler, guid, spellID)
+			handler[func](handler, guid, name, spellID)
 		elseif( type(handler) == "string" ) then
-			getglobal(handler)(guid, spellID)
+			getglobal(handler)(guid, name, spellID)
 		elseif( type(handler) == "function" ) then
-			handler(guid, spellID)
+			handler(guid, name, spellID)
 		end
 	end
 end
@@ -215,6 +220,12 @@ local function PLAYER_TARGET_CHANGED()
 		return
 	end
 	
+	local fullName, server = UnitName("target")
+	if( server and server ~= "" ) then
+		fullName = string.format("%s-%s", fullName, server)
+	end
+
+
 	local buffID = 1
 	while( true ) do
 		local name, rank = UnitAura("target", buffID, "HARMFUL")
@@ -223,7 +234,7 @@ local function PLAYER_TARGET_CHANGED()
 		
 		local spellID = checkBuffs[name .. (rank or "")]
 		if( spellID ) then
-			addSpell(spellID, UnitGUID("target"))
+			addSpell(spellID, UnitGUID("target"), fullName)
 		end
 	end
 end
@@ -248,12 +259,12 @@ local function COMBAT_LOG_EVENT_UNFILTERED(timestamp, eventType, sourceGUID, sou
 	-- Enemy gained a buff, have to see destFlags and a special check
 	if( eventType == "SPELL_AURA_APPLIED" ) then
 		if( not castOnly[spellID] and bit.band(destFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION and select(4, ...) == "BUFF" ) then
-			addSpell(spellID, destGUID)
+			addSpell(spellID, destGUID, destName)
 		end
 
 	-- Everything else shares the same sourceFlags check, and we use eventsRegistered to make sure it's one we want, soo small optimization
 	elseif( bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
-		addSpell(spellID, sourceGUID)
+		addSpell(spellID, sourceGUID, sourceName)
 	end
 end
 

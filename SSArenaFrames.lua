@@ -50,6 +50,9 @@ function SSAF:OnInitialize()
 	-- SML
 	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 	
+	-- CC/Cast data
+	self.spellCC = SSAFSpellCC
+	
 	-- TalentGuess
 	self.talents = LibStub:GetLibrary("TalentGuess-1.1"):Register()
 	self.talents:RegisterCallback(SSAF, "OnTalentData")

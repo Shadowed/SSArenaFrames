@@ -1,4 +1,4 @@
---[[ $Id: AceGUI-3.0.lua 81438 2008-09-06 13:44:36Z nevcairiel $ ]]
+--[[ $Id: AceGUI-3.0.lua 681 2008-09-06 13:01:59Z nargiddley $ ]]
 local ACEGUI_MAJOR, ACEGUI_MINOR = "AceGUI-3.0", 16
 local AceGUI, oldminor = LibStub:NewLibrary(ACEGUI_MAJOR, ACEGUI_MINOR)
 

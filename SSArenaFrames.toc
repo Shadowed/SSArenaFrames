@@ -23,6 +23,7 @@ localization.frFR.lua
 localization.zhTW.lua
 localization.zhCN.lua
 
+spellData.lua
 SSArenaFrames.lua
 frame.lua
 config.lua
