@@ -24,4 +24,7 @@ SSAFSpellCC = {
 	[(GetSpellInfo(2637))] = 5,
 	-- Blind
 	[(GetSpellInfo(2094))] = 10,
+	
+	-- Freezing Trap
+	[(GetSpellInfo(1499))] = 10,
 }

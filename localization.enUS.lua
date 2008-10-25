@@ -72,6 +72,11 @@ SSAFLocals = {
 	-- General
 	["Show talent guess"] = "Show talent guess",
 	["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."] = "Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close.",
+	["Show enemy casts"] = "Show enemy casts",
+	["Shows cast time on an enemies spell, this is not 100% accurate unless they are your current target, or focus."] = "Shows cast time on an enemies spell, this is not 100% accurate unless they are your current target, or focus.",
+	
+	["Show enemy CCs"] = "Show enemy CCs",
+	["Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps"] = "Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps",
 
 	-- Click Actions
 	["Click Actions"] = "Click Actions",

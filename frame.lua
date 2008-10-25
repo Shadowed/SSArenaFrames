@@ -6,8 +6,28 @@ local DOT_SECONDROW = 20
 local SML
 
 function Frame:OnInitialize()
-	SML = SSAF.SML
+	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 end
+
+local function castOnUpdate(self, elapsed)
+	local time = GetTime()
+	self.elapsed = self.elapsed + (time - self.lastUpdate)
+	self.lastUpdate = time
+	
+	self:SetValue(self.elapsed)
+	self.castTime:SetFormattedText("%.1f", self.elapsed)
+
+	-- Cast finished
+	if( self.elapsed >= self.endSeconds ) then
+		self:Hide()
+	end
+end
+
+--[[
+	row.cast = cast
+	row.castName = castName
+	row.castTime = castTime
+]]
 
 -- Create the master frame to hold everything
 local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -21,9 +41,6 @@ function Frame:CreateFrame()
 	end
 	
 	self.frame = CreateFrame("Frame", nil, UIParent)
-	self.frame:SetBackdrop(backdrop)
-	self.frame:SetBackdropColor(0, 0, 0, 1.0)
-	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.frame:SetScale(self.db.profile.scale)
 	self.frame:SetWidth(180)
 	self.frame:SetHeight(18)
@@ -31,10 +48,16 @@ function Frame:CreateFrame()
 	self.frame:EnableMouse(false)
 	self.frame:SetClampedToScreen(true)
 	self.frame:Hide()
+	
+	self.borderFrame = CreateFrame("Frame", nil, self.frame)
+	self.borderFrame:SetClampedToScreen(true)
+	self.borderFrame:SetBackdrop(backdrop)
+	self.borderFrame:SetBackdropColor(0, 0, 0, 1.0)
+	self.borderFrame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 
 	-- Create our anchor for moving the frame
 	self.anchor = CreateFrame("Frame", nil, UIParent)
-	self.anchor:SetWidth(180)
+	self.anchor:SetWidth(182)
 	self.anchor:SetHeight(12)
 	self.anchor:SetBackdrop(backdrop)
 	self.anchor:SetBackdropColor(0, 0, 0, 1.0)
@@ -42,7 +65,8 @@ function Frame:CreateFrame()
 	self.anchor:SetClampedToScreen(true)
 	self.anchor:SetScale(self.db.profile.scale)
 	self.anchor:EnableMouse(true)
-	self.anchor:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 0, 14)
+	self.anchor:ClearAllPoints()
+	self.anchor:SetPoint("TOPLEFT", self.borderFrame, "TOPLEFT", 0, 20)
 	self.anchor:SetScript("OnMouseDown", function(self)
 		if( not SSAF.db.profile.locked and IsAltKeyDown() ) then
 			self.isMoving = true
@@ -97,31 +121,86 @@ function Frame:CreateRow(id)
 		Frame:CreateFrame()
 	end
 		
-	-- Health bar
-	local row = CreateFrame("StatusBar", nil, self.frame)
-	row:SetHeight(16)
-	row:SetWidth(178)
-	row:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
-	row:SetMinMaxValues(0, 100)
+	-- So we can actually run macro text
+	local row = CreateFrame("Button", "SSArenaButton" .. id, self.frame, "SecureActionButtonTemplate")
+	row:SetHeight(16) --16
+	row:SetWidth(180)
+	row:EnableMouse(true)
+	row:RegisterForClicks("AnyUp")
 	row:Hide()
+
+	-- Health bar
+	local health = CreateFrame("StatusBar", nil, row)
+	health:SetHeight(18)
+	health:SetWidth(1)
+	health:SetPoint("TOPLEFT", row)
+	health:SetPoint("TOPRIGHT", row)
+	health:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
+	health:SetMinMaxValues(0, 100)
 	
 	-- Mana bar
 	local mana = CreateFrame("StatusBar", nil, row)
-	mana:SetWidth(178)
+	mana:SetWidth(1)
 	mana:SetHeight(self.db.profile.manaBarHeight)
+	mana:SetPoint("BOTTOMLEFT", health, 0, -self.db.profile.manaBarHeight)
+	mana:SetPoint("BOTTOMRIGHT", health, 0, -self.db.profile.manaBarHeight)
 	mana:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
-	mana:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, -self.db.profile.manaBarHeight)
 	mana:SetMinMaxValues(0, 100)
 	
 	if( not self.db.profile.showMana ) then
 		mana:Hide()
 	end
 
+	-- Cast bar
+	local offset = -10
+	if( self.db.profile.showMana ) then
+		offset = -self.db.profile.manaBarHeight - 10
+	end
+	
+	local cast = CreateFrame("StatusBar", nil, row)
+	cast:SetWidth(1)
+	cast:SetHeight(10)
+	cast:SetPoint("BOTTOMLEFT", health, 0, offset)
+	cast:SetPoint("BOTTOMRIGHT", health, 0, offset)
+	cast:SetScript("OnUpdate", castOnUpdate)
+	cast:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
+	cast:SetStatusBarColor(1.0, 0.7, 0.0);
+	cast:Hide()
+	
+	if( self.db.profile.showCast ) then
+		row:SetHeight(27)
+	end
+	
 	local path, size = GameFontNormalSmall:GetFont()
 
+	-- Spell name text
+	local castName = cast:CreateFontString(nil, "OVERLAY")
+	castName:SetPoint("LEFT", cast, "LEFT", 0, 0)
+	castName:SetJustifyH("LEFT")
+	castName:SetFont(path, 9)
+	castName:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+	castName:SetShadowOffset(1, -1)
+	castName:SetShadowColor(0, 0, 0, 1)
+	castName:SetText("*")
+	castName:SetWidth(145)
+	castName:SetHeight(castName:GetStringHeight())
+	
+	-- Cast time
+	local castTime = cast:CreateFontString(nil, "OVERLAY")
+	castTime:SetPoint("RIGHT", cast, "RIGHT", 0, 0)
+	castTime:SetJustifyH("RIGHT")
+	castTime:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+	castTime:SetFont(path, 9)
+	castTime:SetShadowOffset(1, -1)
+	castTime:SetShadowColor(0, 0, 0, 1)
+	
+	-- So we can access it from the OnUpdate easier
+	cast.castName = castName
+	cast.castTime = castTime
+
 	-- Player name text
-	local text = row:CreateFontString(nil, "OVERLAY")
-	text:SetPoint("LEFT", row, "LEFT", 1, 0)
+	local text = health:CreateFontString(nil, "OVERLAY")
+	text:SetPoint("LEFT", health, "LEFT", 1, 0)
 	text:SetJustifyH("LEFT")
 	
 	text:SetFont(path, size)
@@ -136,8 +215,8 @@ function Frame:CreateRow(id)
 	text:SetHeight(text:GetStringHeight())
 	
 	-- Health percent text
-	local healthText = row:CreateFontString(nil, "OVERLAY")
-	healthText:SetPoint("RIGHT", row, "RIGHT", -1, 0)
+	local healthText = health:CreateFontString(nil, "OVERLAY")
+	healthText:SetPoint("RIGHT", health, "RIGHT", -1, 0)
 	healthText:SetJustifyH("RIGHT")
 	
 	healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
@@ -150,22 +229,13 @@ function Frame:CreateRow(id)
 	local classTexture = row:CreateTexture(nil, "OVERLAY")
 	classTexture:SetHeight(16)
 	classTexture:SetWidth(16)
-	classTexture:SetPoint("CENTER", row, "LEFT", -12, 0)
+	classTexture:SetPoint("CENTER", health, "LEFT", -14, (id > 1 and -1 or 0))
 
 	-- Pet icon
 	local petTexture = row:CreateTexture(nil, "OVERLAY")
 	petTexture:SetHeight(16)
 	petTexture:SetWidth(16)
-	petTexture:SetPoint("CENTER", row, "LEFT", -12, 0)
-	
-	-- So we can actually run macro text
-	local button = CreateFrame("Button", "SSArenaButton" .. id, row, "SecureActionButtonTemplate")
-	button:SetHeight(16)
-	button:SetWidth(179)
-	button:SetPoint("LEFT", row, "LEFT", 1, 0)
-	button:EnableMouse(true)
-	button:RegisterForClicks("AnyUp")
-	--button:SetAttribute("unit", "arena" .. id)
+	petTexture:SetPoint("CENTER", health, "LEFT", -14, (id > 1 and -1 or 0))
 		
 	-- Add the "whos targeting us" buttons
 	local targets = {}
@@ -174,7 +244,7 @@ function Frame:CreateRow(id)
 	local texture = row:CreateTexture(nil, "OVERLAY")
 	texture:SetHeight(8)
 	texture:SetWidth(8)
-	texture:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+	texture:SetPoint("CENTER", health, "RIGHT", DOT_FIRSTROW, 4)
 	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 	
@@ -184,7 +254,7 @@ function Frame:CreateRow(id)
 	local texture = row:CreateTexture(nil, "OVERLAY")
 	texture:SetHeight(8)
 	texture:SetWidth(8)
-	texture:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 4)
+	texture:SetPoint("CENTER", health, "RIGHT", DOT_SECONDROW, 4)
 	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 
@@ -194,7 +264,7 @@ function Frame:CreateRow(id)
 	local texture = row:CreateTexture(nil, "OVERLAY")
 	texture:SetHeight(8)
 	texture:SetWidth(8)
-	texture:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
+	texture:SetPoint("CENTER", health, "RIGHT", DOT_FIRSTROW, -4)
 	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 	
@@ -204,7 +274,7 @@ function Frame:CreateRow(id)
 	local texture = row:CreateTexture(nil, "OVERLAY")
 	texture:SetHeight(8)
 	texture:SetWidth(8)
-	texture:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, -4)
+	texture:SetPoint("CENTER", health, "RIGHT", DOT_SECONDROW, -4)
 	texture:SetTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
 	texture:Hide()
 	
@@ -213,12 +283,15 @@ function Frame:CreateRow(id)
 	-- So we can access it else where
 	row.targets = targets
 	row.text = text
-	row.manaBar = mana
+	row.mana = mana
 	row.classTexture = classTexture
 	row.petTexture = petTexture
-	row.button = button
+	row.health = health
 	row.healthText = healthText
 	row.id = id
+	row.cast = cast
+	row.castName = castName
+	row.castTime = castTime
 	
 	return row
 end
@@ -232,45 +305,45 @@ function Frame:UpdateToTTextures(row, totalTargets)
 	if( totalTargets == 1 ) then
 		row.targets[1]:SetHeight(16)
 		row.targets[1]:SetWidth(16)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 0)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
 
 	-- 2 dots
 	elseif( totalTargets == 2 ) then
 		row.targets[1]:SetHeight(8)
 		row.targets[1]:SetWidth(16)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 4)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", 15, 8)
 
 		row.targets[2]:SetHeight(8)
 		row.targets[2]:SetWidth(16)
-		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, -4)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", 15, 0)
 	
 	-- 3 dots
 	elseif( totalTargets == 3 ) then
 		row.targets[1]:SetWidth(8)
 		row.targets[1]:SetHeight(8)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 8)
 
 		row.targets[2]:SetWidth(8)
 		row.targets[2]:SetHeight(8)
-		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 0)
 
 		row.targets[3]:SetWidth(8)
 		row.targets[3]:SetHeight(16)
-		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 0)
+		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 4)
 	
 	-- 4 dots
 	else
 		row.targets[1]:SetWidth(8)
 		row.targets[1]:SetHeight(8)
-		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 4)
+		row.targets[1]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 8)
 
 		row.targets[2]:SetWidth(8)
 		row.targets[2]:SetHeight(8)
-		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, -4)
+		row.targets[2]:SetPoint("CENTER", row, "RIGHT", DOT_FIRSTROW, 0)
 
 		row.targets[3]:SetWidth(8)
 		row.targets[3]:SetHeight(8)
-		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, -4)
+		row.targets[3]:SetPoint("CENTER", row, "RIGHT", DOT_SECONDROW, 0)
 	end
 
 	row.currentStyle = totalTargets

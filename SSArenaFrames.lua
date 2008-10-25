@@ -7,14 +7,15 @@ SSAF = LibStub("AceAddon-3.0"):NewAddon("SSAF", "AceEvent-3.0")
 local L = SSAFLocals
 
 local enemies = {}
-local partyUnits, partyTargetUnits, partyTargets, arenaUnits, arenaPetUnits, identifyUnits = {}, {}, {}, {}, {}, {}
-local instanceType, currentBracket
+local partyUnits, partyTargetUnits, partyTargets, arenaUnits, arenaPetUnits, identifyUnits = {}, {}, {}, {}, {}, {}, {}
+local instanceType, currentBracket, SML
 
 function SSAF:OnInitialize()
 	self.defaults = {
 		profile = {
 			scale = 1.0,
 			locked = true,
+			growUp = false,
 			flashIdentify = true,
 			barTexture = "Minimalist",
 			manaBarHeight = 3,
@@ -23,6 +24,8 @@ function SSAF:OnInitialize()
 			showIcon = false,
 			showGuess = true,
 			showMana = true,
+			showCast = true,
+			showCC = true,
 			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
 			attributes = {
@@ -48,7 +51,7 @@ function SSAF:OnInitialize()
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	
 	-- SML
-	self.SML = LibStub:GetLibrary("LibSharedMedia-3.0")
+	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 	
 	-- CC/Cast data
 	self.spellCC = SSAFSpellCC
@@ -71,6 +74,8 @@ function SSAF:OnInitialize()
 		arenaUnits[i] = "arena" .. i
 		arenaUnits[arenaUnits[i]] = true
 	end
+	
+	self.arenaUnits = arenaUnits
 end
 
 function SSAF:JoinedArena()
@@ -97,6 +102,11 @@ function SSAF:JoinedArena()
 	-- Enable talent guessing
 	if( self.db.profile.showGuess ) then
 		self.talents:EnableCollection()
+	end
+	
+	-- Enable casting or CCing
+	if( self.db.profile.showCast or self.db.profile.showCC ) then
+		self.modules.Cast:Enable()
 	end
 	
 	-- Figure out arena bracket
@@ -148,7 +158,10 @@ function SSAF:LeftArena()
 	self:UnregisterAllEvents()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
-
+	
+	-- Disable cast/cc
+	self.modules.Cast:Disable()
+	
 	-- Disable guessing
 	self.talents:DisableCollection()
 	
@@ -192,8 +205,8 @@ function SSAF:UNIT_HEALTH(event, unit)
 	local maxHealth = UnitHealthMax(unit)
 	
 	row.healthText:SetFormattedText("%d%%", math.floor((health / maxHealth) * 100 + 0.5))
-	row:SetMinMaxValues(0, maxHealth)
-	row:SetValue(health)
+	row.health:SetMinMaxValues(0, maxHealth)
+	row.health:SetValue(health)
 end
 
 -- POWER UPDATE
@@ -203,8 +216,8 @@ function SSAF:UNIT_POWER(event, unit)
 	end
 	
 	local row = self.rows[unit]
-	row.manaBar:SetMinMaxValues(0, UnitPowerMax(unit, row.powerType))
-	row.manaBar:SetValue(UnitPower(unit, row.powerType))
+	row.mana:SetMinMaxValues(0, UnitPowerMax(unit, row.powerType))
+	row.mana:SetValue(UnitPower(unit, row.powerType))
 end
 
 -- POWER TYPE CHANGED
@@ -215,7 +228,7 @@ function SSAF:UNIT_POWERTYPE(event, unit)
 
 	local row = self.rows[unit]
 	row.powerType = UnitPowerType(unit)
-	row.manaBar:SetStatusBarColor(PowerBarColor[row.powerType].r, PowerBarColor[row.powerType].g, PowerBarColor[row.powerType].b)
+	row.mana:SetStatusBarColor(PowerBarColor[row.powerType].r, PowerBarColor[row.powerType].g, PowerBarColor[row.powerType].b)
 	self:UNIT_POWER(nil, unit)
 end
 
@@ -232,9 +245,9 @@ function SSAF:EnemyDied(guid)
 			end
 
 			row.healthText:SetText("0%")
-			row.manaBar:SetValue(0)
+			row.mana:SetValue(0)
+			row.health:SetValue(0)
 			
-			row:SetValue(0)
 			row:SetAlpha(0.70)
 			row.isDead = true
 			break
@@ -303,27 +316,39 @@ function SSAF:OnTalentData(guid)
 end
 
 function SSAF:UpdatePositioning()
-	-- Sort out how much space is between each row + mana bar if included
-	local heightUsed = 0
-	local manaBar = 0
+	local barHeight = 2
 	if( self.db.profile.showMana ) then
-		manaBar = self.db.profile.manaBarHeight
+		barHeight = self.db.profile.manaBarHeight + 2
 	end
 	
 	for i=1, currentBracket do
 		local row = self.rows[arenaUnits[i]]
-		
-		heightUsed = heightUsed + 18 + manaBar
-		
+
 		if( i > 1 ) then
-			row:SetPoint("TOPLEFT", self.rows[arenaUnits[i - 1]], "BOTTOMLEFT", 0, -2 - manaBar)
+			if( not self.db.profile.growUp ) then
+				row:SetPoint("TOPLEFT", self.rows[arenaUnits[i - 1]], "BOTTOMLEFT", 0, -2 - barHeight)
+			else
+				row:SetPoint("BOTTOMLEFT", self.rows[arenaUnits[i - 1]], "TOPLEFT", 0, 2 + barHeight)
+			end
+		elseif( self.db.profile.growUp ) then
+			row:SetPoint("BOTTOMLEFT", self.frame, "TOPLEFT", 0, 0)
 		else
-			row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1, -1)
+			row:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 0, 0)
 		end
 	end
-	
+
 	-- Update size
-	self.frame:SetHeight(heightUsed)
+	self.borderFrame:ClearAllPoints()
+	self.borderFrame:SetPoint("TOPLEFT", self.rows[arenaUnits[(self.db.profile.growUp and currentBracket or 1)]], -1, 2)
+	self.borderFrame:SetPoint("BOTTOMRIGHT", self.rows[arenaUnits[(self.db.profile.growUp and 1 or currentBracket)]], 1, -1 - barHeight)
+
+	-- Position anchor
+	self.anchor:ClearAllPoints()
+	if( not self.db.profile.growUp ) then
+		self.anchor:SetPoint("TOPLEFT", self.borderFrame, "TOPLEFT", 0, 20)
+	else
+		self.anchor:SetPoint("BOTTOMLEFT", self.borderFrame, "BOTTOMLEFT", 0, -16)
+	end
 end
 
 -- Update frame
@@ -341,29 +366,30 @@ function SSAF:UpdateRow(unit, row)
 	if( not UnitExists(unit) ) then
 		row.text:SetText(UNKNOWNOBJECT)
 		row.healthText:SetText("0%")
-		row.manaBar:SetValue(0)
+		row.mana:SetValue(100)
+		row.mana:SetStatusBarColor(0.50, 0.50, 0.50, 0.50)
 		
 		if( self.db.profile.showIcon ) then
 			row.petTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
 			row.petTexture:Show()
 		end
-		
-		row:SetMinMaxValues(0, 100)
-		row:SetValue(100)
-		row:SetStatusBarColor(0.50, 0.50, 0.50, 0.50)
+				
+		row.health:SetMinMaxValues(0, 100)
+		row.health:SetValue(100)
+		row.health:SetStatusBarColor(0.75, 0.75, 0.75, 0.50)
 
 		-- Setup what we know as being generic, things that run for all classes
 		if( not InCombatLockdown() ) then
 			for _, macro in pairs(self.db.profile.attributes) do
 				if( macro.modifier and macro.button and macro.enabled and macro.classes.ALL ) then
-					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
+					row:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+					row:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
 				end
 			end
 		end
 		return
 	end
-	
+		
 	-- Pull from talent guess if available
 	row.talentGuess = ""
 	if( self.db.profile.showGuess ) then
@@ -377,7 +403,7 @@ function SSAF:UpdateRow(unit, row)
 	
 	-- Finally update
 	row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, UnitName(unit))
-	row:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
+	row.health:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
 	
 	-- Class icon
 	if( self.db.profile.showIcon ) then
@@ -392,8 +418,8 @@ function SSAF:UpdateRow(unit, row)
 		for _, macro in pairs(self.db.profile.attributes) do
 			if( macro.modifier and macro.button ) then
 				if( macro.enabled and ( macro.classes.ALL or macro.classes[class] ) ) then
-					row.button:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
-					row.button:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
+					row:SetAttribute(macro.modifier .. "type" .. macro.button, "macro")
+					row:SetAttribute(macro.modifier .. "macrotext" .. macro.button, string.gsub(macro.text, "*name", unit))
 				end
 			end
 		end
@@ -438,9 +464,9 @@ function SSAF:UPDATE_BINDINGS()
 		for unit, row in pairs(self.rows) do
 			local bindKey = GetBindingKey("ARENATAR" .. row.id)
 			if( bindKey ) then
-				SetOverrideBindingClick(row.button, false, bindKey, row.button:GetName())	
+				SetOverrideBindingClick(row, false, bindKey, row:GetName())	
 			else
-				ClearOverrideBindings(row.button)
+				ClearOverrideBindings(row)
 			end
 		end
 	end
@@ -448,6 +474,31 @@ end
 
 -- Something in configuration changed
 function SSAF:Reload()
+	-- Example
+	if( instanceType ~= "arena" and not self.db.profile.locked ) then
+		currentBracket = 2
+		for i=1, 2 do
+			-- Create it if needed
+			local unit = arenaUnits[i]
+			local row = self.rows[unit]
+			if( not row ) then
+				row = self.modules.Frame:CreateRow(i)
+				self.rows[unit] = row
+			end
+
+			row.isDead = nil
+			row.isSetup = nil
+			row:SetAlpha(1.0)
+			row:Show()
+		end
+
+		self.frame:Show()
+		self:UpdateRows()
+		self:UpdatePositioning()
+	elseif( self.frame and instanceType ~= "arena" ) then
+		self.frame:Hide()
+	end
+	
 	if( self.frame ) then
 		self.frame:SetScale(self.db.profile.scale)
 		self.anchor:SetScale(self.db.profile.scale)
@@ -459,13 +510,27 @@ function SSAF:Reload()
 			self.anchor:Show()
 		end
 	end
+	
+	local texture = SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture)
 		
 	-- Update all the rows to the current settings
 	for unit, row in pairs(self.rows) do
-		-- Texture/mana bar height
-		row:SetStatusBarTexture(self.db.profile.barTexture)
-		row.manaBar:SetStatusBarTexture(self.db.profile.barTexture)
-		row.manaBar:SetHeight(self.db.profile.manaBarHeight)
+		-- Textures
+		row.health:SetStatusBarTexture(texture)
+		row.cast:SetStatusBarTexture(texture)
+		row.mana:SetStatusBarTexture(texture)
+		
+		-- Mana bar
+		row.mana:ClearAllPoints()
+		row.mana:SetPoint("BOTTOMLEFT", row.health, 0, -self.db.profile.manaBarHeight)
+		row.mana:SetPoint("BOTTOMRIGHT", row.health, 0, -self.db.profile.manaBarHeight)
+		row.mana:SetHeight(self.db.profile.manaBarHeight)
+		
+		if( not self.db.profile.showMana ) then
+			row.mana:Hide()
+		else
+			row.mana:Show()
+		end
 		
 		-- Update ToT textures
 		for _, texture in pairs(row.targets) do
@@ -475,15 +540,36 @@ function SSAF:Reload()
 				texture:Hide()
 			end
 		end
+		
+		-- Cast bar
+		local offset = -10
+		if( self.db.profile.showMana ) then
+			offset = -self.db.profile.manaBarHeight - 10
+		end
+	
+		row.cast:ClearAllPoints()
+		row.cast:SetPoint("BOTTOMLEFT", row.health, 0, offset)
+		row.cast:SetPoint("BOTTOMRIGHT", row.health, 0, offset)
+
+		if( self.db.profile.showCast ) then
+			row:SetHeight(27)
+		else
+			row:SetHeight(16)
+			row.cast:Hide()
+		end
 	
 		-- Update text color
 		row.text:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 		row.healthText:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+
+		row.castName:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
+		row.castTime:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	end
 	
 	-- Update frame
 	if( self.frame and self.frame:IsVisible() ) then
 		self:UpdateRows()
+		self:UpdatePositioning()
 	end
 end
 
@@ -537,7 +623,7 @@ function SSAF:PLAYER_REGEN_DISABLED()
 	end
 end
 
-local fadeTime = 1.85
+local fadeTime = 2.0
 local function flashFrame(self, elapsed)
 	self.fadeElapsed = self.fadeElapsed + elapsed
 	
@@ -546,6 +632,11 @@ local function flashFrame(self, elapsed)
 		self:SetAlpha(alpha)
 		
 		if( alpha >= 0.90 ) then
+			if( self.totalPulses >= 3 ) then
+				SSAF:StopFlashing(self)
+				return
+			end
+
 			self.fadeElapsed = 0
 			self.fadeMode = "out"
 		end
@@ -557,6 +648,7 @@ local function flashFrame(self, elapsed)
 		if( alpha <= 0.25 ) then
 			self.fadeElapsed = 0.50
 			self.fadeMode = "in"
+			self.totalPulses = self.totalPulses + 1
 		end
 	end
 end
@@ -569,6 +661,7 @@ function SSAF:StartFlashing(frame)
 	frame.isFlashing = true
 	frame.originalAlpha = frame:GetAlpha()
 	
+	frame.totalPulses = 0
 	frame.fadeElapsed = 0
 	frame.fadeMode = "out"
 	

@@ -8,8 +8,7 @@ local registered, options, config, dialog, SML
 local classes = {}
 
 function Config:OnInitialize()
-	SML = SSAF.SML
-
+	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 	SML:Register(SML.MediaType.STATUSBAR, "BantoBar", "Interface\\Addons\\SSArenaFrames\\images\\banto")
 	SML:Register(SML.MediaType.STATUSBAR, "Smooth", "Interface\\Addons\\SSArenaFrames\\images\\smooth")
 	SML:Register(SML.MediaType.STATUSBAR, "Perl", "Interface\\Addons\\SSArenaFrames\\images\\perl")
@@ -225,6 +224,26 @@ local function loadOptions()
 						dialogControl = "LSM30_Statusbar",
 						values = "GetTextures",
 					},
+					mana = {
+						type = "group",
+						order = 4,
+						inline = true,
+						name = L["Mana"],
+						args = {
+							showMana = {
+								order = 1,
+								type = "toggle",
+								name = L["Show power bars"],
+								desc = L["Adds bars for the enemies power below the row, color is based on power type."],
+							},
+							manaBarHeight = {
+								order = 2,
+								type = "range",
+								name = L["Power bar height"],
+								min = 1, max = 30, step = 1,
+							},
+						},
+					},
 				},
 			},
 			display = {
@@ -237,6 +256,7 @@ local function loadOptions()
 						order = 1,
 						type = "color",
 						name = L["Text color"],
+						width = "full",
 					},
 					flashIdentify = {
 						order = 2,
@@ -268,26 +288,20 @@ local function loadOptions()
 						name = L["Show target icons"],
 						desc = L["Adds mini icons to the right of the arena frames with the class of the person targeting an enemy."],
 					},
-					mana = {
-						type = "group",
+					showCast = {
 						order = 7,
-						inline = true,
-						name = L["Mana"],
-						args = {
-							showMana = {
-								order = 1,
-								type = "toggle",
-								name = L["Show power bars"],
-								desc = L["Adds bars for the enemies power below the row, color is based on power type."],
-							},
-							manaBarHeight = {
-								order = 2,
-								type = "range",
-								name = L["Power bar height"],
-								min = 1, max = 30, step = 1,
-							},
-						},
+						type = "toggle",
+						name = L["Show enemy casts"],
+						desc = L["Shows cast time on an enemies spell, this is not 100% accurate unless they are your current target, or focus."],
 					},
+					--[[
+					showCC = {
+						order = 8,
+						type = "toggle",
+						name = L["Show enemy CCs"],
+						desc = L["Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps"],
+					},
+					]]
 				},
 			},
 		},
