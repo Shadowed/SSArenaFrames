@@ -45,6 +45,11 @@ function SSAF:OnInitialize()
 	for i=3, 10 do
 		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/target *name"})
 	end
+	
+	-- Quick fix for those who had colors messing up
+	if( type(self.db.profile.fontColor) ~= "table" ) then
+		self.db.proifle.fontColor = nil
+	end
 
 	-- Check if we entered an arena
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")

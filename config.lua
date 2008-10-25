@@ -257,6 +257,8 @@ local function loadOptions()
 						type = "color",
 						name = L["Text color"],
 						width = "full",
+						set = setColor,
+						get = getColor,
 					},
 					flashIdentify = {
 						order = 2,
