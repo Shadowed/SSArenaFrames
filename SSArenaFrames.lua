@@ -25,7 +25,7 @@ function SSAF:OnInitialize()
 			showGuess = true,
 			showMana = true,
 			showCast = true,
-			showCC = true,
+			showCC = false,
 			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
 			attributes = {
@@ -110,7 +110,7 @@ function SSAF:JoinedArena()
 	end
 	
 	-- Enable casting or CCing
-	if( self.db.profile.showCast or self.db.profile.showCC ) then
+	if( self.db.profile.showCast ) then
 		self.modules.Cast:Enable()
 	end
 	
@@ -234,7 +234,8 @@ function SSAF:UNIT_POWERTYPE(event, unit)
 	local row = self.rows[unit]
 	row.powerType = UnitPowerType(unit)
 	row.mana:SetStatusBarColor(PowerBarColor[row.powerType].r, PowerBarColor[row.powerType].g, PowerBarColor[row.powerType].b)
-	self:UNIT_POWER(nil, unit)
+	row.mana:SetMinMaxValues(0, UnitPowerMax(unit, row.powerType))
+	row.mana:SetValue(UnitPower(unit, row.powerType))
 end
 
 -- ENEMY DIED
