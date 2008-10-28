@@ -253,7 +253,7 @@ local function loadOptions()
 				name = L["Display"],
 				args = {
 					fontColor = {
-						order = 1,
+						order = 0,
 						type = "color",
 						name = L["Text color"],
 						width = "full",
@@ -261,10 +261,16 @@ local function loadOptions()
 						get = getColor,
 					},
 					flashIdentify = {
-						order = 2,
+						order = 1,
 						type = "toggle",
 						name = L["Flash rows on click action set"],
 						desc = L["Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first."],
+					},
+					growUp = {
+						order = 2,
+						type = "toggle",
+						name = L["Grow frame up"],
+						desc = L["Grows the arena frame to the bottom -> top instead of top -> bottom."],
 					},
 					showGuess = {
 						order = 3,

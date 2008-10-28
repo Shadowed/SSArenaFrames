@@ -59,6 +59,9 @@ SSAFLocals = {
 	["Flash rows on click action set"] = "Flash rows on click action set",
 	["Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first."] = "Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first.",
 	
+	["Grow frame up"] = "Grow frame up",
+	["Grows the arena frame to the bottom -> top instead of top -> bottom."] = "Grows the arena frame to the bottom -> top instead of top -> bottom.",
+	
 	-- Frame
 	["Frame"] = "Frame",
 	

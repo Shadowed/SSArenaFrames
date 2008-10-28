@@ -329,7 +329,8 @@ function SSAF:UpdatePositioning()
 	
 	for i=1, currentBracket do
 		local row = self.rows[arenaUnits[i]]
-
+		row:ClearAllPoints()
+		
 		if( i > 1 ) then
 			if( not self.db.profile.growUp ) then
 				row:SetPoint("TOPLEFT", self.rows[arenaUnits[i - 1]], "BOTTOMLEFT", 0, -2 - barHeight)
