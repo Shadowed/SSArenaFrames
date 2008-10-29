@@ -26,7 +26,7 @@ function Cast:EventUpdateCast(event, unit)
 	if( arenaUnits[unit] ) then
 		local spell, rank, _, _, startTime, endTime = castFuncs[event](unit)
 		if( endTime ) then
-			self:UpdateCast(unit, spell, rank, (endTime / 1000) - GetTime(), event == "UNIT_SPELLCAST_DELAYED" and true or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" and true or nil)
+			self:UpdateCast(unit, spell, rank, (endTime / 1000) - GetTime(), event)
 		end
 	end
 end
@@ -37,12 +37,24 @@ function Cast:EventStopCast(event, unit)
 	end
 end
 
-function Cast:UpdateCast(unit, spell, rank, secondsLeft, isDelayed)
+function Cast:UpdateCast(unit, spell, rank, secondsLeft, event)
 	local row = SSAF.rows[unit]
-	if( isDelayed ) then
-		if( row.cast:IsVisible() ) then
-			row.cast.endSeconds = row.cast.endSeconds - secondsLeft
-			row.cast.lastUpdate = GetTime()
+	local cast = row.cast
+	
+	if( event == "UNIT_SPELLCAST_DELAYED" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" ) then
+		if( cast:IsVisible() ) then
+			if( not cast.isChannelled ) then
+				cast.endSeconds = cast.endSeconds + secondsLeft
+				cast.pushbackSeconds = cast.pushbackSeconds + secondsLeft
+				cast.pushback = "+" .. cast.pushbackSeconds
+				cast:SetMinMaxValues(0, cast.endSeconds)
+			else
+				cast.elapsed = cast.elapsed - secondsLeft
+				cast.pushbackSeconds = cast.pushbackSeconds - secondsLeft
+				cast.pushback = cast.pushbackSeconds
+			end
+
+			cast.lastUpdate = GetTime()
 		end
 		return
 	end
@@ -55,17 +67,28 @@ function Cast:UpdateCast(unit, spell, rank, secondsLeft, isDelayed)
 	end
 
 	-- Setup cast info
-	row.cast.elapsed = 0
-	row.cast.endSeconds = secondsLeft
-	row.cast.spellName = spell
-	row.cast.spellRank = rank
-	row.cast.lastUpdate = GetTime()
-	row.cast:SetMinMaxValues(0, secondsLeft)
-	row.cast:SetValue(0)
-	row.cast:Show()
+	cast.isChannelled = (event == "UNIT_SPELLCAST_CHANNEL_START")
+	SSAF.modules.Frame:SetOnUpdate(cast)
+
+	cast.elapsed = cast.isChannelled and secondsLeft or 0
+	cast.endSeconds = secondsLeft
+	cast.spellName = spell
+	cast.spellRank = rank
+	cast.pushback = ""
+	cast.pushbackSeconds = 0
+	cast.lastUpdate = GetTime()
+	cast:SetMinMaxValues(0, cast.endSeconds)
+	cast:SetValue(cast.elapsed)
+	cast:SetAlpha(1.0)
+	cast:Show()
+	
+	if( cast.isChannelled ) then
+		cast:SetStatusBarColor(0.25, 0.25, 1.0)
+	else
+		cast:SetStatusBarColor(1.0, 0.7, 0.30)
+	end
 end
 
 function Cast:StopCast(unit)
-	local row = SSAF.rows[unit]
-	row.cast:Hide()
+	SSAF.rows[unit].cast:Hide()
 end

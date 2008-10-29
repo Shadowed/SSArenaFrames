@@ -322,9 +322,9 @@ function SSAF:OnTalentData(guid)
 end
 
 function SSAF:UpdatePositioning()
-	local barHeight = 2
+	local barHeight = 3
 	if( self.db.profile.showMana ) then
-		barHeight = self.db.profile.manaBarHeight + 2
+		barHeight = self.db.profile.manaBarHeight + 3
 	end
 	
 	for i=1, currentBracket do
@@ -549,9 +549,9 @@ function SSAF:Reload()
 		end
 		
 		-- Cast bar
-		local offset = -10
+		local offset = -12
 		if( self.db.profile.showMana ) then
-			offset = -self.db.profile.manaBarHeight - 10
+			offset = -self.db.profile.manaBarHeight - 12
 		end
 	
 		row.cast:ClearAllPoints()

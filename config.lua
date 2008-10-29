@@ -240,7 +240,7 @@ local function loadOptions()
 								order = 2,
 								type = "range",
 								name = L["Power bar height"],
-								min = 1, max = 30, step = 1,
+								min = 1, max = 10, step = 1,
 							},
 						},
 					},

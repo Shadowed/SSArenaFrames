@@ -3,31 +3,59 @@ local L = SSAFLocals
 
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
+local FADE_TIME = 0.20
 local SML
 
 function Frame:OnInitialize()
 	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 end
 
-local function castOnUpdate(self, elapsed)
-	local time = GetTime()
-	self.elapsed = self.elapsed + (time - self.lastUpdate)
-	self.lastUpdate = time
+local function fadeOnUpdate(self, elapsed)
+	self.fadeElapsed = self.fadeElapsed - elapsed
+	self:SetAlpha(self.fadeElapsed / FADE_TIME)
 	
-	self:SetValue(self.elapsed)
-	self.castTime:SetFormattedText("%.1f", self.elapsed)
-
-	-- Cast finished
-	if( self.elapsed >= self.endSeconds ) then
+	if( self.fadeElapsed <= 0 ) then
 		self:Hide()
 	end
 end
 
---[[
-	row.cast = cast
-	row.castName = castName
-	row.castTime = castTime
-]]
+local function castOnUpdate(self, elapsed)
+	local time = GetTime()
+	self.elapsed = self.elapsed + (time - self.lastUpdate)
+	self.lastUpdate = time
+	self:SetValue(self.elapsed)
+	self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, self.endSeconds - self.elapsed)
+
+	-- Cast finished, do a quick fade
+	if( self.elapsed >= self.endSeconds ) then
+		self.fadeElapsed = FADE_TIME
+		self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, 0)
+		self:SetScript("OnUpdate", fadeOnUpdate)
+	end
+end
+
+local function channelOnUpdate(self, elapsed)
+	local time = GetTime()
+	self.elapsed = self.elapsed - (time - self.lastUpdate)
+	self.lastUpdate = time
+	self:SetValue(self.elapsed)
+	self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, self.elapsed)
+
+	-- Channel finished, do a quick fade
+	if( self.elapsed <= 0 ) then
+		self.fadeElapsed = FADE_TIME
+		self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, 0)
+		self:SetScript("OnUpdate", fadeOnUpdate)
+	end
+end
+
+function Frame:SetOnUpdate(frame)
+	if( frame.isChannelled ) then
+		frame:SetScript("OnUpdate", channelOnUpdate)
+	else
+		frame:SetScript("OnUpdate", castOnUpdate)
+	end
+end
 
 -- Create the master frame to hold everything
 local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -152,19 +180,19 @@ function Frame:CreateRow(id)
 	end
 
 	-- Cast bar
-	local offset = -10
+	local offset = -9
 	if( self.db.profile.showMana ) then
-		offset = -self.db.profile.manaBarHeight - 10
+		offset = -self.db.profile.manaBarHeight - 9
 	end
 	
 	local cast = CreateFrame("StatusBar", nil, row)
 	cast:SetWidth(1)
-	cast:SetHeight(10)
+	cast:SetHeight(12)
 	cast:SetPoint("BOTTOMLEFT", health, 0, offset)
 	cast:SetPoint("BOTTOMRIGHT", health, 0, offset)
 	cast:SetScript("OnUpdate", castOnUpdate)
 	cast:SetStatusBarTexture(SML:Fetch(SML.MediaType.STATUSBAR, self.db.profile.barTexture))
-	cast:SetStatusBarColor(1.0, 0.7, 0.0);
+	cast:SetStatusBarColor(1.0, 0.7, 0.0)
 	cast:Hide()
 	
 	if( self.db.profile.showCast ) then
@@ -175,9 +203,9 @@ function Frame:CreateRow(id)
 
 	-- Spell name text
 	local castName = cast:CreateFontString(nil, "OVERLAY")
-	castName:SetPoint("LEFT", cast, "LEFT", 0, 0)
+	castName:SetPoint("LEFT", cast, "LEFT", 1, 0)
 	castName:SetJustifyH("LEFT")
-	castName:SetFont(path, 9)
+	castName:SetFont(path, 10)
 	castName:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
 	castName:SetShadowOffset(1, -1)
 	castName:SetShadowColor(0, 0, 0, 1)
@@ -187,10 +215,10 @@ function Frame:CreateRow(id)
 	
 	-- Cast time
 	local castTime = cast:CreateFontString(nil, "OVERLAY")
-	castTime:SetPoint("RIGHT", cast, "RIGHT", 0, 0)
+	castTime:SetPoint("RIGHT", cast, "RIGHT", -1, 0)
 	castTime:SetJustifyH("RIGHT")
 	castTime:SetTextColor(self.db.profile.fontColor.r, self.db.profile.fontColor.g, self.db.profile.fontColor.b)
-	castTime:SetFont(path, 9)
+	castTime:SetFont(path, 10)
 	castTime:SetShadowOffset(1, -1)
 	castTime:SetShadowColor(0, 0, 0, 1)
 	
