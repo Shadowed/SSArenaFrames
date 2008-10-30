@@ -59,12 +59,23 @@ local function channelOnUpdate(self, elapsed)
 	end
 end
 
-function Frame:SetOnUpdate(frame)
-	if( frame.isChannelled ) then
-		frame:SetScript("OnUpdate", channelOnUpdate)
+function Frame:SetCastType(cast)
+	if( cast.isChannelled ) then
+		cast:SetStatusBarColor(0.25, 0.25, 1.0)
+		cast:SetScript("OnUpdate", channelOnUpdate)
 	else
-		frame:SetScript("OnUpdate", castOnUpdate)
+		cast:SetScript("OnUpdate", castOnUpdate)
+		cast:SetStatusBarColor(1.0, 0.7, 0.30)
 	end
+end
+
+function Frame:SetInterrupted(cast)
+	cast.fadeElapsed = FADE_TIME + 0.10
+
+	cast:SetScript("OnUpdate", fadeOnUpdate)
+	cast:SetStatusBarColor(1.0, 0.0, 0.0)
+	cast:SetMinMaxValues(0, 1)
+	cast:SetValue(1)
 end
 
 -- Create the master frame to hold everything

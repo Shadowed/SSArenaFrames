@@ -77,19 +77,13 @@ function Cast:UpdateCast(unit, spell, rank, startTime, endTime, event)
 	cast.pushback = 0
 	cast.lastUpdate = GetTime()
 	
-	SSAF.modules.Frame:SetOnUpdate(cast)
+	SSAF.modules.Frame:SetCastType(cast)
 	cast:SetMinMaxValues(0, cast.endSeconds)
 	cast:SetValue(cast.elapsed)
 	cast:SetAlpha(1.0)
 	cast:Show()
-	
-	if( cast.isChannelled ) then
-		cast:SetStatusBarColor(0.25, 0.25, 1.0)
-	else
-		cast:SetStatusBarColor(1.0, 0.7, 0.30)
-	end
 end
 
 function Cast:StopCast(unit)
-	SSAF.rows[unit].cast:Hide()
+	SSAF.modules.Frame:SetInterrupted(SSAF.rows[unit].cast)
 end
