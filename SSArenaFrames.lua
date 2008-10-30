@@ -373,17 +373,18 @@ function SSAF:UpdateRow(unit, row)
 	if( not UnitExists(unit) ) then
 		row.text:SetText(UNKNOWNOBJECT)
 		row.healthText:SetText("0%")
-		row.mana:SetValue(100)
 		row.mana:SetStatusBarColor(0.50, 0.50, 0.50, 0.50)
+		row.mana:SetMinMaxValues(0, 100)
+		row.mana:SetValue(100)
 		
 		if( self.db.profile.showIcon ) then
 			row.petTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
 			row.petTexture:Show()
 		end
 				
+		row.health:SetStatusBarColor(0.75, 0.75, 0.75, 0.50)
 		row.health:SetMinMaxValues(0, 100)
 		row.health:SetValue(100)
-		row.health:SetStatusBarColor(0.75, 0.75, 0.75, 0.50)
 
 		-- Setup what we know as being generic, things that run for all classes
 		if( not InCombatLockdown() ) then

@@ -26,7 +26,7 @@ function Cast:EventUpdateCast(event, unit)
 	if( arenaUnits[unit] ) then
 		local spell, rank, _, _, startTime, endTime = castFuncs[event](unit)
 		if( endTime ) then
-			self:UpdateCast(unit, spell, rank, (endTime / 1000) - GetTime(), event)
+			self:UpdateCast(unit, spell, rank, startTime, endTime, event)
 		end
 	end
 end
@@ -37,23 +37,22 @@ function Cast:EventStopCast(event, unit)
 	end
 end
 
-function Cast:UpdateCast(unit, spell, rank, secondsLeft, event)
+function Cast:UpdateCast(unit, spell, rank, startTime, endTime, event)
 	local row = SSAF.rows[unit]
 	local cast = row.cast
 	
 	if( event == "UNIT_SPELLCAST_DELAYED" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" ) then
 		if( cast:IsVisible() ) then
+			-- For a channel, delay is a negative value so using plus is fine here
+			local delay = ( startTime - cast.startTime ) / 1000
 			if( not cast.isChannelled ) then
-				cast.endSeconds = cast.endSeconds + secondsLeft
-				cast.pushbackSeconds = cast.pushbackSeconds + secondsLeft
-				cast.pushback = "+" .. cast.pushbackSeconds
+				cast.endSeconds = cast.endSeconds + delay
 				cast:SetMinMaxValues(0, cast.endSeconds)
 			else
-				cast.elapsed = cast.elapsed - secondsLeft
-				cast.pushbackSeconds = cast.pushbackSeconds - secondsLeft
-				cast.pushback = cast.pushbackSeconds
+				cast.elapsed = cast.elapsed + delay
 			end
 
+			cast.pushback = cast.pushback + delay
 			cast.lastUpdate = GetTime()
 		end
 		return
@@ -65,18 +64,20 @@ function Cast:UpdateCast(unit, spell, rank, secondsLeft, event)
 	else
 		row.castName:SetText(spell)
 	end
-
+	
+	local secondsLeft = (endTime / 1000) - GetTime()
+	
 	-- Setup cast info
 	cast.isChannelled = (event == "UNIT_SPELLCAST_CHANNEL_START")
-	SSAF.modules.Frame:SetOnUpdate(cast)
-
+	cast.startTime = startTime
 	cast.elapsed = cast.isChannelled and secondsLeft or 0
 	cast.endSeconds = secondsLeft
 	cast.spellName = spell
 	cast.spellRank = rank
-	cast.pushback = ""
-	cast.pushbackSeconds = 0
+	cast.pushback = 0
 	cast.lastUpdate = GetTime()
+	
+	SSAF.modules.Frame:SetOnUpdate(cast)
 	cast:SetMinMaxValues(0, cast.endSeconds)
 	cast:SetValue(cast.elapsed)
 	cast:SetAlpha(1.0)

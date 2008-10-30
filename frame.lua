@@ -24,7 +24,12 @@ local function castOnUpdate(self, elapsed)
 	self.elapsed = self.elapsed + (time - self.lastUpdate)
 	self.lastUpdate = time
 	self:SetValue(self.elapsed)
-	self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, self.endSeconds - self.elapsed)
+	
+	if( self.pushback == 0 ) then
+		self.castTime:SetFormattedText("%.1f", self.endSeconds - self.elapsed)
+	else
+		self.castTime:SetFormattedText("|cffff0000%.1f|r %.1f", self.pushback, self.endSeconds - self.elapsed)
+	end
 
 	-- Cast finished, do a quick fade
 	if( self.elapsed >= self.endSeconds ) then
@@ -39,7 +44,12 @@ local function channelOnUpdate(self, elapsed)
 	self.elapsed = self.elapsed - (time - self.lastUpdate)
 	self.lastUpdate = time
 	self:SetValue(self.elapsed)
-	self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, self.elapsed)
+
+	if( self.pushback == 0 ) then
+		self.castTime:SetFormattedText("%.1f", self.elapsed)
+	else
+		self.castTime:SetFormattedText("|cffff0000%.1f|r %.1f", self.pushback, self.elapsed)
+	end
 
 	-- Channel finished, do a quick fade
 	if( self.elapsed <= 0 ) then
@@ -180,9 +190,9 @@ function Frame:CreateRow(id)
 	end
 
 	-- Cast bar
-	local offset = -9
+	local offset = -12
 	if( self.db.profile.showMana ) then
-		offset = -self.db.profile.manaBarHeight - 9
+		offset = -self.db.profile.manaBarHeight - 12
 	end
 	
 	local cast = CreateFrame("StatusBar", nil, row)
