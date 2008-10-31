@@ -302,14 +302,12 @@ local function loadOptions()
 						name = L["Show enemy casts"],
 						desc = L["Shows cast time on an enemies spell, this is not 100% accurate unless they are your current target, or focus."],
 					},
-					--[[
-					showCC = {
+					showAura = {
 						order = 8,
 						type = "toggle",
 						name = L["Show enemy CCs"],
 						desc = L["Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps"],
 					},
-					]]
 				},
 			},
 		},

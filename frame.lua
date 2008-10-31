@@ -10,6 +10,7 @@ function Frame:OnInitialize()
 	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 end
 
+-- CAST RELATED FUNCTIONS
 local function fadeOnUpdate(self, elapsed)
 	self.fadeElapsed = self.fadeElapsed - elapsed
 	self:SetAlpha(self.fadeElapsed / FADE_TIME)
@@ -25,6 +26,10 @@ local function castOnUpdate(self, elapsed)
 	self.lastUpdate = time
 	self:SetValue(self.elapsed)
 	
+	if( self.elapsed <= 0 ) then
+		self.elapsed = 0
+	end
+	
 	if( self.pushback == 0 ) then
 		self.castTime:SetFormattedText("%.1f", self.endSeconds - self.elapsed)
 	else
@@ -34,7 +39,6 @@ local function castOnUpdate(self, elapsed)
 	-- Cast finished, do a quick fade
 	if( self.elapsed >= self.endSeconds ) then
 		self.fadeElapsed = FADE_TIME
-		self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, 0)
 		self:SetScript("OnUpdate", fadeOnUpdate)
 	end
 end
@@ -45,6 +49,10 @@ local function channelOnUpdate(self, elapsed)
 	self.lastUpdate = time
 	self:SetValue(self.elapsed)
 
+	if( self.elapsed <= 0 ) then
+		self.elapsed = 0
+	end
+
 	if( self.pushback == 0 ) then
 		self.castTime:SetFormattedText("%.1f", self.elapsed)
 	else
@@ -54,7 +62,6 @@ local function channelOnUpdate(self, elapsed)
 	-- Channel finished, do a quick fade
 	if( self.elapsed <= 0 ) then
 		self.fadeElapsed = FADE_TIME
-		self.castTime:SetFormattedText("|cffff0000%s|r %.1f", self.pushback, 0)
 		self:SetScript("OnUpdate", fadeOnUpdate)
 	end
 end
@@ -64,18 +71,54 @@ function Frame:SetCastType(cast)
 		cast:SetStatusBarColor(0.25, 0.25, 1.0)
 		cast:SetScript("OnUpdate", channelOnUpdate)
 	else
-		cast:SetScript("OnUpdate", castOnUpdate)
 		cast:SetStatusBarColor(1.0, 0.7, 0.30)
+		cast:SetScript("OnUpdate", castOnUpdate)
 	end
 end
 
-function Frame:SetInterrupted(cast)
-	cast.fadeElapsed = FADE_TIME + 0.10
-
+function Frame:SetCastFinished(cast, interrupted)
+	cast.fadeElapsed = FADE_TIME
+	
+	if( interrupted ) then
+		cast.fadeElapsed = cast.fadeElapsed + 0.10
+		cast:SetStatusBarColor(1.0, 0.0, 0.0)
+	end
+	
 	cast:SetScript("OnUpdate", fadeOnUpdate)
-	cast:SetStatusBarColor(1.0, 0.0, 0.0)
 	cast:SetMinMaxValues(0, 1)
 	cast:SetValue(1)
+end
+
+-- AURA RELATED FUNCTIONS
+local function auraOnUpdate(self, elapsed)
+	local time = GetTime()
+	self.secondsLeft = self.secondsLeft - (time - self.lastUpdate)
+	self.lastUpdate = time
+	
+	if( self.secondsLeft <= 9.9 ) then
+		self.auraTime:SetFormattedText("%.1f", self.secondsLeft)
+	else
+		self.auraTime:SetFormattedText("%d", self.secondsLeft)
+	end
+	
+	-- Aura ran out, reset icon
+	if( self.secondsLeft <= 0 ) then
+		self.auraTime:Hide()
+		self:SetScript("OnUpdate", nil)
+		SSAF:SetCustomIcon(self, nil)
+	end
+end
+
+function Frame:SetIconTimer(row, startSeconds, secondsLeft)
+	row.lastUpdate = GetTime()
+	row.secondsLeft = secondsLeft
+	row.auraTime:Show()
+	row:SetScript("OnUpdate", auraOnUpdate)
+end
+
+function Frame:StopIconTimer(row)
+	row.auraTime:Hide()
+	row:SetScript("OnUpdate", nil)
 end
 
 -- Create the master frame to hold everything
@@ -221,7 +264,7 @@ function Frame:CreateRow(id)
 	end
 	
 	local path, size = GameFontNormalSmall:GetFont()
-
+	
 	-- Spell name text
 	local castName = cast:CreateFontString(nil, "OVERLAY")
 	castName:SetPoint("LEFT", cast, "LEFT", 1, 0)
@@ -276,15 +319,23 @@ function Frame:CreateRow(id)
 
 	-- Class icon
 	local classTexture = row:CreateTexture(nil, "OVERLAY")
-	classTexture:SetHeight(16)
-	classTexture:SetWidth(16)
+	classTexture:SetHeight(20)
+	classTexture:SetWidth(20)
 	classTexture:SetPoint("CENTER", health, "LEFT", -14, (id > 1 and -1 or 0))
 
-	-- Pet icon
-	local petTexture = row:CreateTexture(nil, "OVERLAY")
-	petTexture:SetHeight(16)
-	petTexture:SetWidth(16)
-	petTexture:SetPoint("CENTER", health, "LEFT", -14, (id > 1 and -1 or 0))
+	-- Misc icon
+	local miscTexture = row:CreateTexture(nil, "OVERLAY")
+	miscTexture:SetHeight(20)
+	miscTexture:SetWidth(20)
+	miscTexture:SetPoint("CENTER", health, "LEFT", -14, (id > 1 and -1 or 0))
+
+	-- Aura time
+	local auraTime = row:CreateFontString(nil, "OVERLAY")
+	auraTime:SetPoint("CENTER", miscTexture, "CENTER")
+	auraTime:SetFont(path, size)
+	auraTime:SetTextColor(1, 1, 1)
+	auraTime:SetShadowOffset(1, -1)
+	auraTime:SetShadowColor(0, 0, 0, 1)	
 		
 	-- Add the "whos targeting us" buttons
 	local targets = {}
@@ -330,11 +381,12 @@ function Frame:CreateRow(id)
 	targets[3] = texture
 	
 	-- So we can access it else where
+	row.auraTime = auraTime
 	row.targets = targets
 	row.text = text
 	row.mana = mana
 	row.classTexture = classTexture
-	row.petTexture = petTexture
+	row.miscTexture = miscTexture
 	row.health = health
 	row.healthText = healthText
 	row.id = id

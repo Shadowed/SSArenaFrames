@@ -28,4 +28,5 @@ spellData.lua
 SSArenaFrames.lua
 frame.lua
 casts.lua
+auras.lua
 config.lua

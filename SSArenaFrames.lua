@@ -25,7 +25,7 @@ function SSAF:OnInitialize()
 			showGuess = true,
 			showMana = true,
 			showCast = true,
-			showCC = false,
+			showAura = false,
 			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
 			attributes = {
@@ -46,21 +46,13 @@ function SSAF:OnInitialize()
 		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/target *name"})
 	end
 	
-	-- Quick fix for those who had colors messing up
-	if( type(self.db.profile.fontColor) ~= "table" ) then
-		self.db.proifle.fontColor = nil
-	end
-
 	-- Check if we entered an arena
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	
 	-- SML
 	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
-	
-	-- CC/Cast data
-	self.spellCC = SSAFSpellCC
-	
+		
 	-- TalentGuess
 	self.talents = LibStub:GetLibrary("TalentGuess-1.1"):Register()
 	self.talents:RegisterCallback(SSAF, "OnTalentData")
@@ -109,9 +101,14 @@ function SSAF:JoinedArena()
 		self.talents:EnableCollection()
 	end
 	
-	-- Enable casting or CCing
+	-- Enable casting module
 	if( self.db.profile.showCast ) then
 		self.modules.Cast:Enable()
+	end
+	
+	-- Enable aura module
+	if( self.db.profile.showAura ) then
+		self.modules.Aura:Enable()
 	end
 	
 	-- Figure out arena bracket
@@ -140,6 +137,7 @@ function SSAF:JoinedArena()
 				
 		row.isDead = nil
 		row.isSetup = nil
+		row.classSet = nil
 		row:SetAlpha(1.0)
 		row:Show()
 		
@@ -164,15 +162,16 @@ function SSAF:LeftArena()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	
-	-- Disable cast/cc
+	-- Disable modules
 	self.modules.Cast:Disable()
+	self.modules.Aura:Disable()
 	
 	-- Disable guessing
 	self.talents:DisableCollection()
 	
 	-- Stop scanning
 	self.scanFrame:Hide()
-
+	
 	-- Reset
 	for k in pairs(partyTargets) do partyTargets[k] = "" end
 	for i=#(identifyUnits), 1, -1 do table.remove(identifyUnits, i) end
@@ -358,6 +357,22 @@ function SSAF:UpdatePositioning()
 	end
 end
 
+-- Update an icon
+function SSAF:SetCustomIcon(row, icon)
+	if( icon ) then
+		row.miscTexture:SetTexture(icon)
+		row.miscTexture:Show()
+		row.classTexture:Hide()	
+	elseif( not row.classSet ) then
+		row.miscTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+		row.miscTexture:Show()
+		row.classTexture:Hide()
+	else
+		row.miscTexture:Hide()
+		row.classTexture:Show()
+	end
+end
+
 -- Update frame
 function SSAF:UpdateRow(unit, row)
 	-- Set ID to make it easier to identify people if needed
@@ -367,7 +382,7 @@ function SSAF:UpdateRow(unit, row)
 	end
 	
 	row.classTexture:Hide()
-	row.petTexture:Hide()
+	row.miscTexture:Hide()
 	
 	-- Unit doesn't exist yet, just show unknown
 	if( not UnitExists(unit) ) then
@@ -378,8 +393,8 @@ function SSAF:UpdateRow(unit, row)
 		row.mana:SetValue(100)
 		
 		if( self.db.profile.showIcon ) then
-			row.petTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-			row.petTexture:Show()
+			row.miscTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+			row.miscTexture:Show()
 		end
 				
 		row.health:SetStatusBarColor(0.75, 0.75, 0.75, 0.50)
@@ -414,8 +429,9 @@ function SSAF:UpdateRow(unit, row)
 	row.health:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
 	
 	-- Class icon
-	if( self.db.profile.showIcon ) then
+	if( self.db.profile.showIcon and not row.classSet ) then
 		local coords = CLASS_BUTTONS[class]
+		row.classSet = true
 		row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
 		row.classTexture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 		row.classTexture:Show()

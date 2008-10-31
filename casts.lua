@@ -9,12 +9,12 @@ function Cast:Enable()
 	self:RegisterEvent("UNIT_SPELLCAST_START", "EventUpdateCast")
 	self:RegisterEvent("UNIT_SPELLCAST_STOP", "EventStopCast")
 	self:RegisterEvent("UNIT_SPELLCAST_FAILED", "EventStopCast")
-	self:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", "EventStopCast")
+	self:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", "EventInterruptCast")
 	self:RegisterEvent("UNIT_SPELLCAST_DELAYED", "EventUpdateCast")
 
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", "EventUpdateCast")
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", "EventStopCast")
-	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_INTERRUPTED", "EventStopCast")
+	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_INTERRUPTED", "EventInterruptCast")
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", "EventUpdateCast")
 end
 
@@ -33,7 +33,13 @@ end
 
 function Cast:EventStopCast(event, unit)
 	if( arenaUnits[unit] ) then
-		self:StopCast(unit)
+		SSAF.modules.Frame:SetCastFinished(SSAF.rows[unit].cast)
+	end
+end
+
+function Cast:EventInterruptCast(event, unit)
+	if( arenaUnits[unit] ) then
+		SSAF.modules.Frame:SetCastFinished(SSAF.rows[unit].cast, true)
 	end
 end
 
@@ -82,8 +88,4 @@ function Cast:UpdateCast(unit, spell, rank, startTime, endTime, event)
 	cast:SetValue(cast.elapsed)
 	cast:SetAlpha(1.0)
 	cast:Show()
-end
-
-function Cast:StopCast(unit)
-	SSAF.modules.Frame:SetInterrupted(SSAF.rows[unit].cast)
 end
