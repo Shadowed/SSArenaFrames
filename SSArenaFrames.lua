@@ -16,8 +16,8 @@ function SSAF:OnInitialize()
 			scale = 1.0,
 			locked = true,
 			growUp = false,
-			flashIdentify = true,
 			barTexture = "Minimalist",
+			healthType = "percent",
 			manaBarHeight = 3,
 			showTargets = true,
 			showID = false,
@@ -57,8 +57,6 @@ function SSAF:OnInitialize()
 	self.talents = LibStub:GetLibrary("TalentGuess-1.1"):Register()
 	self.talents:RegisterCallback(SSAF, "OnTalentData")
 	
-	self.rows = {}
-	
 	-- Default party units
 	for i=1, MAX_PARTY_MEMBERS do
 		partyUnits[i] = "party" .. i
@@ -73,11 +71,11 @@ function SSAF:OnInitialize()
 	end
 	
 	self.arenaUnits = arenaUnits
+	self.rows = {}
 end
 
 function SSAF:JoinedArena()
 	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	self:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 	self:RegisterEvent("UNIT_HEALTH")
 	self:RegisterEvent("UNIT_MAXHEALTH", "UNIT_HEALTH")
@@ -180,7 +178,6 @@ function SSAF:LeftArena()
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	else
 		for _, row in pairs(self.rows) do
-			self:StopFlashing(row)
 			row:Hide()
 		end
 
@@ -199,6 +196,12 @@ function SSAF:PLAYER_REGEN_ENABLED()
 end
 
 -- HEALTH UPDATES
+local healthFormats = {
+	["percent"] = function(text, current, max) text:SetFormattedText("%d%%", math.floor((current / max) * 100 + 0.5)) end,
+	["current"] = function(text, current, max) text:SetFormattedText("%d", current) end,
+	["currentmax"] = function(text, current, max) text:SetFormattedText("%d/%d", current, max) end,
+}
+
 function SSAF:UNIT_HEALTH(event, unit)
 	if( not arenaUnits[unit] or self.rows[unit].isDead ) then
 		return
@@ -208,7 +211,7 @@ function SSAF:UNIT_HEALTH(event, unit)
 	local health = UnitHealth(unit)
 	local maxHealth = UnitHealthMax(unit)
 	
-	row.healthText:SetFormattedText("%d%%", math.floor((health / maxHealth) * 100 + 0.5))
+	healthFormats[self.db.profile.healthType](row.healthText, health, maxHealth)
 	row.health:SetMinMaxValues(0, maxHealth)
 	row.health:SetValue(health)
 end
@@ -249,7 +252,7 @@ function SSAF:EnemyDied(guid)
 				row.targets[i]:Hide()
 			end
 
-			row.healthText:SetText("0%")
+			healthFormats[self.db.profile.healthType](row.healthText, 0, UnitHealthMax(unit))
 			row.mana:SetValue(0)
 			row.health:SetValue(0)
 			
@@ -387,7 +390,7 @@ function SSAF:UpdateRow(unit, row)
 	-- Unit doesn't exist yet, just show unknown
 	if( not UnitExists(unit) ) then
 		row.text:SetText(UNKNOWNOBJECT)
-		row.healthText:SetText("0%")
+		healthFormats[self.db.profile.healthType](row.healthText, 0, 100)
 		row.mana:SetStatusBarColor(0.50, 0.50, 0.50, 0.50)
 		row.mana:SetMinMaxValues(0, 100)
 		row.mana:SetValue(100)
@@ -448,8 +451,6 @@ function SSAF:UpdateRow(unit, row)
 			end
 		end
 		
-		-- Start flashing it so we know it's been "locked"
-		self:StartFlashing(row)
 		row.isSetup = true
 	end
 	
@@ -637,67 +638,3 @@ frame:SetScript("OnUpdate", function(self, elapsed)
 end)
 
 SSAF.scanFrame = frame
-
--- Handle flashing
-function SSAF:PLAYER_REGEN_DISABLED()
-	for _, row in pairs(self.rows) do
-		if( row.isFlashing ) then
-			self:StopFlashing(row)
-		end
-	end
-end
-
-local fadeTime = 2.0
-local function flashFrame(self, elapsed)
-	self.fadeElapsed = self.fadeElapsed + elapsed
-	
-	if( self.fadeMode == "in" ) then
-		local alpha = (self.fadeElapsed / fadeTime) / 1.0
-		self:SetAlpha(alpha)
-		
-		if( alpha >= 0.90 ) then
-			if( self.totalPulses >= 3 ) then
-				SSAF:StopFlashing(self)
-				return
-			end
-
-			self.fadeElapsed = 0
-			self.fadeMode = "out"
-		end
-		
-	elseif( self.fadeMode == "out" ) then
-		local alpha = ((fadeTime - self.fadeElapsed) / fadeTime) * 1.0
-		self:SetAlpha(alpha)
-
-		if( alpha <= 0.25 ) then
-			self.fadeElapsed = 0.50
-			self.fadeMode = "in"
-			self.totalPulses = self.totalPulses + 1
-		end
-	end
-end
-
-function SSAF:StartFlashing(frame)
-	if( not self.db.profile.flashIdentify ) then
-		return
-	end
-	
-	frame.isFlashing = true
-	frame.originalAlpha = frame:GetAlpha()
-	
-	frame.totalPulses = 0
-	frame.fadeElapsed = 0
-	frame.fadeMode = "out"
-	
-	frame:SetScript("OnUpdate", flashFrame)
-end
-
-function SSAF:StopFlashing(frame)
-	if( not frame.isFlashing ) then
-		return
-	end
-	
-	frame.isFlashing = nil
-	frame:SetAlpha(frame.originalAlpha)
-	frame:SetScript("OnUpdate", nil)
-end

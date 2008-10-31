@@ -209,40 +209,38 @@ local function loadOptions()
 						type = "toggle",
 						name = L["Lock frames"],
 						desc = L["Prevents the arena frame from being moved."],
-						width = "full",
 					},
-					scale = {
+					showMana = {
 						order = 2,
-						type = "range",
-						name = L["Scale"],
-						min = 0, max = 2, step = 0.1,
+						type = "toggle",
+						name = L["Show power bars"],
+						desc = L["Adds bars for the enemies power below the row, color is based on power type."],
+					},
+					fontColor = {
+						order = 3,
+						type = "color",
+						name = L["Text color"],
+						set = setColor,
+						get = getColor,
 					},
 					barTexture = {
-						order = 3,
+						order = 4,
 						type = "select",
 						name = L["Bar texture"],
 						dialogControl = "LSM30_Statusbar",
 						values = "GetTextures",
 					},
-					mana = {
-						type = "group",
-						order = 4,
-						inline = true,
-						name = L["Mana"],
-						args = {
-							showMana = {
-								order = 1,
-								type = "toggle",
-								name = L["Show power bars"],
-								desc = L["Adds bars for the enemies power below the row, color is based on power type."],
-							},
-							manaBarHeight = {
-								order = 2,
-								type = "range",
-								name = L["Power bar height"],
-								min = 1, max = 10, step = 1,
-							},
-						},
+					scale = {
+						order = 5,
+						type = "range",
+						name = L["Scale"],
+						min = 0, max = 2, step = 0.1,
+					},
+					manaBarHeight = {
+						order = 6,
+						type = "range",
+						name = L["Power bar height"],
+						min = 1, max = 10, step = 1,
 					},
 				},
 			},
@@ -252,19 +250,16 @@ local function loadOptions()
 				inline = true,
 				name = L["Display"],
 				args = {
-					fontColor = {
+					healthType = {
 						order = 0,
-						type = "color",
-						name = L["Text color"],
-						width = "full",
-						set = setColor,
-						get = getColor,
+						name = L["Health display"],
+						type = "select",
+						values = {["percent"] = L["Percentage"], ["current"] = L["Current health"], ["currentmax"] = L["Current / Max"]},
 					},
-					flashIdentify = {
+					sep = {
 						order = 1,
-						type = "toggle",
-						name = L["Flash rows on click action set"],
-						desc = L["Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first."],
+						name = "",
+						type = "description",
 					},
 					growUp = {
 						order = 2,

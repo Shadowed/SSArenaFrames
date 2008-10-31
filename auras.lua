@@ -32,6 +32,7 @@ function Aura:UNIT_AURA(event, unit)
 	local priority = -1
 	local row = SSAF.rows[unit]
 	
+	-- Scan debuffs
 	local id = 1
 	while( true ) do
 		local name, rank, texture, count, debuffType, duration, endTime, isMine, isStealable = UnitDebuff(unit, id)
@@ -57,7 +58,7 @@ function Aura:UNIT_AURA(event, unit)
 		unitAuras[unit].endTime = secondsLeft
 		unitAuras[unit].startSeconds = startSeconds
 		
-	elseif( not icon ) then
+	elseif( not icon and unitAuras[unit].icon ) then
 		SSAF:SetCustomIcon(row, nil)
 		SSAF.modules.Frame:StopIconTimer(row)
 

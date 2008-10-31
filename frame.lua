@@ -332,7 +332,7 @@ function Frame:CreateRow(id)
 	-- Aura time
 	local auraTime = row:CreateFontString(nil, "OVERLAY")
 	auraTime:SetPoint("CENTER", miscTexture, "CENTER")
-	auraTime:SetFont(path, size)
+	auraTime:SetFont(path, size, "OUTLINE")
 	auraTime:SetTextColor(1, 1, 1)
 	auraTime:SetShadowOffset(1, -1)
 	auraTime:SetShadowColor(0, 0, 0, 1)	

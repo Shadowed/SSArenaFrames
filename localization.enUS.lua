@@ -56,13 +56,9 @@ SSAFLocals = {
 	["Show row number"] = "Show row number",
 	["Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name."] = "Adds the row number to the left of the name, this can be used as a quick way of identifying people rather then full name.",	
 	
-	["Flash rows on click action set"] = "Flash rows on click action set",
-	["Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first."] = "Flashs the arena frame rows that have had the click actions successfully setup for this class, as soon as you enter combat all flashing is stopped completely for that match.\nThis only applies to custom attributes, you will be able to use default ones (Ones that apply to ALL classes) even if the frame didn't flash first.",
-	
 	["Grow frame up"] = "Grow frame up",
 	["Grows the arena frame to the bottom -> top instead of top -> bottom."] = "Grows the arena frame to the bottom -> top instead of top -> bottom.",
 	
-	-- Frame
 	["Frame"] = "Frame",
 	
 	["Bar texture"] = "Bar texture",
@@ -72,7 +68,6 @@ SSAFLocals = {
 	["Lock frames"] = "Lock frames",
 	["Prevents the arena frame from being moved."] = "Prevents the arena frame from being moved.",
 	
-	-- General
 	["Show talent guess"] = "Show talent guess",
 	["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."] = "Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close.",
 	["Show enemy casts"] = "Show enemy casts",
@@ -81,6 +76,11 @@ SSAFLocals = {
 	["Show enemy CCs"] = "Show enemy CCs",
 	["Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps"] = "Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps",
 
+	["Health display"] = "Health display",
+	["Percentage"] = "Percentage",
+	["Current health"] = "Current health",
+	["Current / Max"] = "Current / Max",
+	
 	-- Click Actions
 	["Click Actions"] = "Click Actions",
 	
