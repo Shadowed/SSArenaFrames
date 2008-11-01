@@ -4,6 +4,8 @@ local arenaUnits
 local unitAuras = {}
 
 function Aura:Enable()
+	self:RegisterEvent("UNIT_AURA")
+
 	arenaUnits = SSAF.arenaUnits
 	
 	-- Reset data
@@ -12,9 +14,6 @@ function Aura:Enable()
 			data[k] = nil
 		end
 	end
-		
-	self.spells = SSAFSpellCC
-	self:RegisterEvent("UNIT_AURA")
 end
 
 function Aura:Disable()
@@ -66,3 +65,31 @@ function Aura:UNIT_AURA(event, unit)
 		unitAuras[unit].endTime = nil
 	end
 end
+
+-- Spells to track
+-- The number is the priority, higher priority spells are shown over lower priority
+Aura.spells = {
+	-- Psychic Scream
+	[(GetSpellInfo(8122))] = 10,
+	-- Fear
+	[(GetSpellInfo(5782))] = 10,
+	-- Howl of Terror
+	[(GetSpellInfo(5484))] = 10,
+	-- Scare Beast
+	[(GetSpellInfo(1513))] = 10,
+
+	-- Polymorph
+	[(GetSpellInfo(118))] = 5,
+
+	-- Freezing Trap
+	[(GetSpellInfo(1499))] = 10,
+
+	-- Sap
+	[(GetSpellInfo(6770))] = 5,
+	-- Cyclone
+	[(GetSpellInfo(33786))] = 10,
+	-- Hibernate
+	[(GetSpellInfo(2637))] = 5,
+	-- Blind
+	[(GetSpellInfo(2094))] = 10,
+}

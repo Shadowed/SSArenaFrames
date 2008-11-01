@@ -25,6 +25,7 @@ function SSAF:OnInitialize()
 			showGuess = true,
 			showMana = true,
 			showCast = true,
+			showTrinket = true,
 			showAura = false,
 			position = { x = 300, y = 600 },
 			fontColor = { r = 1.0, g = 1.0, b = 1.0 },
@@ -72,6 +73,12 @@ function SSAF:OnInitialize()
 	
 	self.arenaUnits = arenaUnits
 	self.rows = {}
+	
+	--[[
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+		SSAF:Reload()
+	end)
+	]]
 end
 
 function SSAF:JoinedArena()
@@ -136,6 +143,7 @@ function SSAF:JoinedArena()
 		row.isDead = nil
 		row.isSetup = nil
 		row.classSet = nil
+		row.nameExtra = ""
 		row:SetAlpha(1.0)
 		row:Show()
 		
@@ -143,6 +151,11 @@ function SSAF:JoinedArena()
 		table.insert(identifyUnits, unit)
 	end
 	
+	-- Enable trinket module
+	if( self.db.profile.showTrinket ) then
+		self.modules.Trinket:Enable()
+	end
+
 	-- Update bindings
 	self:UPDATE_BINDINGS()
 	
@@ -163,6 +176,7 @@ function SSAF:LeftArena()
 	-- Disable modules
 	self.modules.Cast:Disable()
 	self.modules.Aura:Disable()
+	self.modules.Trinket:Disable()
 	
 	-- Disable guessing
 	self.talents:DisableCollection()
@@ -174,14 +188,14 @@ function SSAF:LeftArena()
 	for k in pairs(partyTargets) do partyTargets[k] = "" end
 	for i=#(identifyUnits), 1, -1 do table.remove(identifyUnits, i) end
 	
+	-- If we're in combat, wait until we leave it to hide the frame, otherwise do so now
 	if( InCombatLockdown() ) then
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	else
+		self.frame:Hide()
 		for _, row in pairs(self.rows) do
 			row:Hide()
 		end
-
-		self.frame:Hide()
 	end
 end
 
@@ -305,7 +319,7 @@ function SSAF:UpdateToT()
 	end
 end
 
--- New talent data found, do a quick update of everyones talents
+-- New talent data found, do a quick update of the persons talents
 function SSAF:OnTalentData(guid)
 	if( not self.db.profile.showGuess ) then
 		return
@@ -318,7 +332,7 @@ function SSAF:OnTalentData(guid)
 			if( firstPoints and secondPoints and thirdPoints ) then
 				row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
 			end
-			row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, UnitName(unit))
+			row.text:SetFormattedText("%s%s%s%s", row.nameID, row.talentGuess, row.nameExtra, UnitName(unit))
 		end
 	end
 end
@@ -428,7 +442,7 @@ function SSAF:UpdateRow(unit, row)
 	local class = select(2, UnitClass(unit))
 	
 	-- Finally update
-	row.text:SetFormattedText("%s%s%s", row.nameID, row.talentGuess, UnitName(unit))
+	row.text:SetFormattedText("%s%s%s%s", row.nameID, row.talentGuess, row.nameExtra, UnitName(unit))
 	row.health:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
 	
 	-- Class icon
@@ -502,7 +516,7 @@ function SSAF:Reload()
 	-- Example
 	if( instanceType ~= "arena" and not self.db.profile.locked ) then
 		currentBracket = 2
-		for i=1, 2 do
+		for i=1, currentBracket do
 			-- Create it if needed
 			local unit = arenaUnits[i]
 			local row = self.rows[unit]

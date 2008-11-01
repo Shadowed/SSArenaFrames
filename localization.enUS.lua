@@ -81,6 +81,9 @@ SSAFLocals = {
 	["Current health"] = "Current health",
 	["Current / Max"] = "Current / Max",
 	
+	["Show PvP trinket status next to name"] = "Show PvP trinket status next to name",
+	["Displays a PvP trinket icon next to enemies names when the trinket is up, once it's been used the icon is removed until it's back up."] = "Displays a PvP trinket icon next to enemies names when the trinket is up, once it's been used the icon is removed until it's back up.",
+	
 	-- Click Actions
 	["Click Actions"] = "Click Actions",
 	

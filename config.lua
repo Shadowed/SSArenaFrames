@@ -303,6 +303,12 @@ local function loadOptions()
 						name = L["Show enemy CCs"],
 						desc = L["Show duration on basic CCs that the enemy is in.\nCurrently this is Polymorph, Fears, Cyclone, Sap, Blind, Traps"],
 					},
+					showTrinket = {
+						order = 9,
+						type = "toggle",
+						name = L["Show PvP trinket status next to name"],
+						desc = L["Displays a PvP trinket icon next to enemies names when the trinket is up, once it's been used the icon is removed until it's back up."],
+					},
 				},
 			},
 		},
