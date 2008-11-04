@@ -20,6 +20,28 @@ function Aura:Disable()
 	self:UnregisterAllEvents()
 end
 
+-- Monitor time left on an aura before hiding it
+local function onUpdate(self, elapsed)
+	local time = GetTime()
+	self.secondsLeft = self.secondsLeft - (time - self.lastUpdate)
+	self.lastUpdate = time
+	
+	if( self.secondsLeft <= 9.9 ) then
+		self.auraTime:SetFormattedText("%.1f", self.secondsLeft)
+	else
+		self.auraTime:SetFormattedText("%d", self.secondsLeft)
+	end
+	
+	-- Aura ran out, reset icon
+	if( self.secondsLeft <= 0 ) then
+		self.auraTime:Hide()
+		self:SetScript("OnUpdate", nil)
+		
+		SSAF:SetCustomIcon(self, nil)
+	end
+end
+
+-- Arena unit aura updated
 function Aura:UNIT_AURA(event, unit)
 	if( not arenaUnits[unit] ) then
 		return
@@ -51,16 +73,24 @@ function Aura:UNIT_AURA(event, unit)
 	-- Do we have a new timer?
 	if( icon and ( unitAuras[unit].icon ~= icon or unitAuras[unit].endTime ~= secondsLeft ) ) then
 		SSAF:SetCustomIcon(row, icon)
-		SSAF.modules.Frame:SetIconTimer(row, startSeconds, secondsLeft - GetTime())
 
 		unitAuras[unit].icon = icon
 		unitAuras[unit].endTime = secondsLeft
 		unitAuras[unit].startSeconds = startSeconds
+
+		-- Start the OnUpdate to monitor debuff
+		local time = GetTime()
+		row.lastUpdate = time
+		row.secondsLeft = secondsLeft - GetTime()
+		row.auraTime:Show()
+		row:SetScript("OnUpdate", onUpdate)
 		
 	elseif( not icon and unitAuras[unit].icon ) then
-		SSAF:SetCustomIcon(row, nil)
-		SSAF.modules.Frame:StopIconTimer(row)
+		-- Hide the timer
+		row.auraTime:Hide()
+		row:SetScript("OnUpdate", nil)
 
+		SSAF:SetCustomIcon(row, nil)
 		unitAuras[unit].icon = nil
 		unitAuras[unit].endTime = nil
 	end

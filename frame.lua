@@ -3,122 +3,10 @@ local L = SSAFLocals
 
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
-local FADE_TIME = 0.20
 local SML
 
 function Frame:OnInitialize()
 	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
-end
-
--- CAST RELATED FUNCTIONS
-local function fadeOnUpdate(self, elapsed)
-	self.fadeElapsed = self.fadeElapsed - elapsed
-	self:SetAlpha(self.fadeElapsed / FADE_TIME)
-	
-	if( self.fadeElapsed <= 0 ) then
-		self:Hide()
-	end
-end
-
-local function castOnUpdate(self, elapsed)
-	local time = GetTime()
-	self.elapsed = self.elapsed + (time - self.lastUpdate)
-	self.lastUpdate = time
-	self:SetValue(self.elapsed)
-	
-	if( self.elapsed <= 0 ) then
-		self.elapsed = 0
-	end
-	
-	if( self.pushback == 0 ) then
-		self.castTime:SetFormattedText("%.1f", self.endSeconds - self.elapsed)
-	else
-		self.castTime:SetFormattedText("|cffff0000%.1f|r %.1f", self.pushback, self.endSeconds - self.elapsed)
-	end
-
-	-- Cast finished, do a quick fade
-	if( self.elapsed >= self.endSeconds ) then
-		self.fadeElapsed = FADE_TIME
-		self:SetScript("OnUpdate", fadeOnUpdate)
-	end
-end
-
-local function channelOnUpdate(self, elapsed)
-	local time = GetTime()
-	self.elapsed = self.elapsed - (time - self.lastUpdate)
-	self.lastUpdate = time
-	self:SetValue(self.elapsed)
-
-	if( self.elapsed <= 0 ) then
-		self.elapsed = 0
-	end
-
-	if( self.pushback == 0 ) then
-		self.castTime:SetFormattedText("%.1f", self.elapsed)
-	else
-		self.castTime:SetFormattedText("|cffff0000%.1f|r %.1f", self.pushback, self.elapsed)
-	end
-
-	-- Channel finished, do a quick fade
-	if( self.elapsed <= 0 ) then
-		self.fadeElapsed = FADE_TIME
-		self:SetScript("OnUpdate", fadeOnUpdate)
-	end
-end
-
-function Frame:SetCastType(cast)
-	if( cast.isChannelled ) then
-		cast:SetStatusBarColor(0.25, 0.25, 1.0)
-		cast:SetScript("OnUpdate", channelOnUpdate)
-	else
-		cast:SetStatusBarColor(1.0, 0.7, 0.30)
-		cast:SetScript("OnUpdate", castOnUpdate)
-	end
-end
-
-function Frame:SetCastFinished(cast, interrupted)
-	cast.fadeElapsed = FADE_TIME
-	
-	if( interrupted ) then
-		cast.fadeElapsed = cast.fadeElapsed + 0.10
-		cast:SetStatusBarColor(1.0, 0.0, 0.0)
-	end
-	
-	cast:SetScript("OnUpdate", fadeOnUpdate)
-	cast:SetMinMaxValues(0, 1)
-	cast:SetValue(1)
-end
-
--- AURA RELATED FUNCTIONS
-local function auraOnUpdate(self, elapsed)
-	local time = GetTime()
-	self.secondsLeft = self.secondsLeft - (time - self.lastUpdate)
-	self.lastUpdate = time
-	
-	if( self.secondsLeft <= 9.9 ) then
-		self.auraTime:SetFormattedText("%.1f", self.secondsLeft)
-	else
-		self.auraTime:SetFormattedText("%d", self.secondsLeft)
-	end
-	
-	-- Aura ran out, reset icon
-	if( self.secondsLeft <= 0 ) then
-		self.auraTime:Hide()
-		self:SetScript("OnUpdate", nil)
-		SSAF:SetCustomIcon(self, nil)
-	end
-end
-
-function Frame:SetIconTimer(row, startSeconds, secondsLeft)
-	row.lastUpdate = GetTime()
-	row.secondsLeft = secondsLeft
-	row.auraTime:Show()
-	row:SetScript("OnUpdate", auraOnUpdate)
-end
-
-function Frame:StopIconTimer(row)
-	row.auraTime:Hide()
-	row:SetScript("OnUpdate", nil)
 end
 
 -- Create the master frame to hold everything
@@ -393,6 +281,7 @@ function Frame:CreateRow(id)
 	row.cast = cast
 	row.castName = castName
 	row.castTime = castTime
+	row.unitid = "arena" .. id
 	
 	return row
 end
