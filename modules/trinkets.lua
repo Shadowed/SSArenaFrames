@@ -58,10 +58,15 @@ end
 -- Check for PvP trinkets being used
 local COMBATLOG_OBJECT_REACTION_HOSTILE	= COMBATLOG_OBJECT_REACTION_HOSTILE
 function Trinket:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, spellID, spellName, spellSchool)
-	if( eventType ~= "SPELL_CAST_SUCCESS" or (bit.band(sourceFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) ~= COMBATLOG_OBJECT_REACTION_HOSTILE) or spellID ~= 42292 ) then
+	if( eventType ~= "SPELL_CAST_SUCCESS" or (bit.band(sourceFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) ~= COMBATLOG_OBJECT_REACTION_HOSTILE) ) then
 		return
 	end
-		
+	
+	-- Human Racial / PvP Trinket
+	if( spellID ~= 59752 and spellID ~= 42292 ) then
+		return
+	end
+	
 	-- Find valid row + hide trinket icon
 	for unit, row in pairs(SSAF.rows) do
 		if( UnitGUID(unit) == sourceGUID ) then
