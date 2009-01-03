@@ -8,8 +8,8 @@ function Trinket:OnInitialize()
 	else
 		trinketIcon = UnitLevel("player") == 80 and "Interface\\Icons\\INV_Jewelry_Necklace_37" or "Interface\\Icons\\INV_Jewelry_TrinketPVP_01"
 	end
-	
-	trinketIcon = string.format("|T%s:25:25:0:0|t", trinketIcon)
+		
+	trinketIcon = string.format("|T%s:26:26:0:0|t", trinketIcon)
 end
 
 local function onUpdate(self, elapsed)
@@ -21,7 +21,7 @@ local function onUpdate(self, elapsed)
 			
 			if( self.readyTime <= GetTime() ) then
 				self.timeElapsed = nil
-				Trinket:UpdateIcon(self, true)
+				Trinket:UpdateIcon(self:GetParent(), true)
 			end
 		end
 	end
