@@ -12,6 +12,20 @@ function Trinket:OnInitialize()
 	trinketIcon = string.format("|T%s:26:26:0:0|t", trinketIcon)
 end
 
+--[[
+function Trinket:Test()
+	SSAF.modules.Trinket:Enable()
+	local row = SSAF.rows["arena1"]
+	row.trinket.readyTime = GetTime() + 5
+	row.trinket.timeElapsed = 0
+	row.nameID = ""
+	row.unitid = "player"
+	row.talentGuess = ""
+
+	SSAF.modules.Trinket:UpdateIcon(row, nil)
+end
+]]
+
 local function onUpdate(self, elapsed)
 	if( self.readyTime ) then
 		self.timeElapsed = self.timeElapsed + elapsed
@@ -20,7 +34,8 @@ local function onUpdate(self, elapsed)
 			self.timeElapsed = 0
 			
 			if( self.readyTime <= GetTime() ) then
-				self.timeElapsed = nil
+				self.timeElapsed = 0
+				self.readyTime = nil
 				Trinket:UpdateIcon(self:GetParent(), true)
 			end
 		end
@@ -54,6 +69,7 @@ function Trinket:UpdateIcon(row, trinketUp)
 	row.nameExtra = trinketUp and trinketIcon or ""
 	row.text:SetFormattedText("%s%s%s%s", row.nameID, row.talentGuess, row.nameExtra, UnitName(row.unitid))
 end
+
 
 -- Check for PvP trinkets being used
 local COMBATLOG_OBJECT_REACTION_HOSTILE	= COMBATLOG_OBJECT_REACTION_HOSTILE
