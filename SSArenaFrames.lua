@@ -1,5 +1,5 @@
 --[[ 
-	SSArena Frames By Amarand (Horde) / Mayen (Horde) from Icecrown (US) PvE
+	SSArena Frames By Selari (Horde) / Mayen (Horde) from Illidan (US) PvP
 ]]
 
 SSAF = LibStub("AceAddon-3.0"):NewAddon("SSAF", "AceEvent-3.0")

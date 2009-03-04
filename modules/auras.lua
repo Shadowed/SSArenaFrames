@@ -110,6 +110,8 @@ Aura.spells = {
 
 	-- Polymorph
 	[(GetSpellInfo(118))] = 5,
+	-- Hex
+	[(GetSpellInfo(51514))] = 5,
 
 	-- Freezing Trap
 	[(GetSpellInfo(1499))] = 10,
