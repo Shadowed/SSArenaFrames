@@ -1,10 +1,10 @@
-## Interface: 30000
+## Interface: 30100
 ## Title: SSArena Frames
 ## Version: $Revision$
 ## Author: Mayen
 ## Notes: Unit frames for arenas
 ## SavedVariables: SSAFDB
-## OptionalDeps: LibStub, Ace3, TalentGuess-1.1, LibSharedMedia-3.0
+## OptionalDeps: LibStub, Ace3, LibSharedMedia-3.0
 
 libs\LibStub-1.0\LibStub-1.0.xml
 libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
@@ -16,7 +16,6 @@ libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
 libs\AceGUI-3.0\AceGUI-3.0.xml
 libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
 libs\AceConfig-3.0\AceConfig-3.0.xml
-libs\TalentGuess-1.1\TalentGuess-1.1.xml
 
 localization.enUS.lua
 localization.deDE.lua

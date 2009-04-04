@@ -267,12 +267,6 @@ local function loadOptions()
 						name = L["Grow frame up"],
 						desc = L["Grows the arena frame to the bottom -> top instead of top -> bottom."],
 					},
-					showGuess = {
-						order = 3,
-						type = "toggle",
-						name = L["Show talent guess"],
-						desc = L["Shows the enemies talents using the spells that they use, this is not completely accurate but for most specializations it'll be fairly close."],
-					},
 					showID = {
 						order = 4,
 						type = "toggle",

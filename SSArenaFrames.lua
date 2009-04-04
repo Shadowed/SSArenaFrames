@@ -54,10 +54,6 @@ function SSAF:OnInitialize()
 	-- SML
 	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 		
-	-- TalentGuess
-	self.talents = LibStub:GetLibrary("TalentGuess-1.1"):Register()
-	self.talents:RegisterCallback(SSAF, "OnTalentData")
-	
 	-- Default party units
 	for i=1, MAX_PARTY_MEMBERS do
 		partyUnits[i] = "party" .. i
@@ -100,11 +96,6 @@ function SSAF:JoinedArena()
 	self:RegisterEvent("UNIT_MAXRUNIC_POWER", "UNIT_POWER")
 
 	self:RegisterEvent("UNIT_DISPLAYPOWER", "UNIT_POWERTYPE")
-
-	-- Enable talent guessing
-	if( self.db.profile.showGuess ) then
-		self.talents:EnableCollection()
-	end
 	
 	-- Enable casting module
 	if( self.db.profile.showCast ) then
@@ -177,10 +168,7 @@ function SSAF:LeftArena()
 	self.modules.Cast:Disable()
 	self.modules.Aura:Disable()
 	self.modules.Trinket:Disable()
-	
-	-- Disable guessing
-	self.talents:DisableCollection()
-	
+		
 	-- Stop scanning
 	self.scanFrame:Hide()
 	
@@ -319,24 +307,6 @@ function SSAF:UpdateToT()
 	end
 end
 
--- New talent data found, do a quick update of the persons talents
-function SSAF:OnTalentData(guid)
-	if( not self.db.profile.showGuess ) then
-		return
-	end
-	
-	for unit, row in pairs(self.rows) do
-		if( UnitGUID(unit) == guid ) then
-			row.talentGuess = ""
-			local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(guid)
-			if( firstPoints and secondPoints and thirdPoints ) then
-				row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
-			end
-			row.text:SetFormattedText("%s%s%s%s", row.nameID, row.talentGuess, row.nameExtra, UnitName(unit))
-		end
-	end
-end
-
 function SSAF:UpdatePositioning()
 	local barHeight = 3
 	if( self.db.profile.showMana ) then
@@ -429,20 +399,11 @@ function SSAF:UpdateRow(unit, row)
 		end
 		return
 	end
-		
-	-- Pull from talent guess if available
-	row.talentGuess = ""
-	if( self.db.profile.showGuess ) then
-		local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(UnitGUID(unit))
-		if( firstPoints and secondPoints and thirdPoints ) then
-			row.talentGuess = string.format("[%d/%d/%d] ", firstPoints, secondPoints, thirdPoints)
-		end
-	end
-	
+			
 	local class = select(2, UnitClass(unit))
 	
 	-- Finally update
-	row.text:SetFormattedText("%s%s%s%s", row.nameID, row.talentGuess, row.nameExtra, UnitName(unit))
+	row.text:SetFormattedText("%s%s%s", row.nameID, row.nameExtra, UnitName(unit))
 	row.health:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
 	
 	-- Class icon
