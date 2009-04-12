@@ -1,8 +1,8 @@
 --- AceDBOptions-3.0 provides a universal AceConfig options screen for managing AceDB-3.0 profiles.
 -- @class file
 -- @name AceDBOptions-3.0
--- @release $Id: AceDBOptions-3.0.lua 715 2008-12-31 00:50:06Z nevcairiel $
-local ACEDBO_MAJOR, ACEDBO_MINOR = "AceDBOptions-3.0", 9
+-- @release $Id: AceDBOptions-3.0.lua 765 2009-04-03 19:14:41Z nevcairiel $
+local ACEDBO_MAJOR, ACEDBO_MINOR = "AceDBOptions-3.0", 10
 local AceDBOptions, oldminor = LibStub:NewLibrary(ACEDBO_MAJOR, ACEDBO_MINOR)
 
 if not AceDBOptions then return end -- No upgrade needed
@@ -248,6 +248,11 @@ function OptionsHandlerPrototype:ListProfiles(info)
 	return profiles
 end
 
+function OptionsHandlerPrototype:HasNoProfiles(info)
+	local profiles = self:ListProfiles(info)
+	return ((not next(profiles)) and true or false)
+end
+
 --[[ Copy a profile ]]
 function OptionsHandlerPrototype:CopyProfile(info, value)
 	self.db:CopyProfile(value)
@@ -341,6 +346,7 @@ local optionsTable = {
 		get = false,
 		set = "CopyProfile",
 		values = "ListProfiles",
+		disabled = "HasNoProfiles",
 		arg = "nocurrent",
 	},
 	deldesc = {
@@ -356,6 +362,7 @@ local optionsTable = {
 		get = false,
 		set = "DeleteProfile",
 		values = "ListProfiles",
+		disabled = "HasNoProfiles",
 		arg = "nocurrent",
 		confirm = true,
 		confirmText = L["delete_confirm"],
@@ -365,8 +372,9 @@ local optionsTable = {
 --- Get/Create a option table that you can use in your addon to control the profiles of AceDB-3.0.
 -- @param db The database object to create the options table for.
 -- @return The options table to be used in AceConfig-3.0
--- @usage Assuming ''options'' is your top-level options table and ''self.db'' is your database:<br/>
--- <tt>options.args.profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)</tt>
+-- @usage 
+-- -- Assuming `options` is your top-level options table and `self.db` is your database:
+-- options.args.profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
 function AceDBOptions:GetOptionsTable(db, noDefaultProfiles)
 	local tbl = AceDBOptions.optionTables[db] or {
 			type = "group",
