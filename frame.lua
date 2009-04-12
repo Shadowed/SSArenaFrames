@@ -12,7 +12,7 @@ end
 -- Create the master frame to hold everything
 local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 		edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
-		edgeSize = 0.6,
+		edgeSize = 1,
 		insets = {left = 1, right = 1, top = 1, bottom = 1}}
 function Frame:CreateFrame()
 	local self = SSAF

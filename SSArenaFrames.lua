@@ -7,7 +7,7 @@ SSAF = LibStub("AceAddon-3.0"):NewAddon("SSAF", "AceEvent-3.0")
 local L = SSAFLocals
 
 local enemies = {}
-local partyUnits, partyTargetUnits, partyTargets, arenaUnits, arenaPetUnits, identifyUnits = {}, {}, {}, {}, {}, {}, {}
+local partyUnits, partyTargetUnits, partyTargets, arenaUnits, arenaPetUnits = {}, {}, {}, {}, {}, {}
 local instanceType, currentBracket, SML
 
 function SSAF:OnInitialize()
@@ -39,17 +39,13 @@ function SSAF:OnInitialize()
 		}
 	}
 
-	self.db = LibStub:GetLibrary("AceDB-3.0"):New("SSAFDB", self.defaults)
-	self.revision = tonumber(string.match("$Revision$", "(%d+)") or 1)
-	
 	-- Setup attribute defaults for 3-10
 	for i=3, 10 do
 		table.insert(self.defaults.profile.attributes, {name = string.format(L["Action #%d"], i), enabled = false, classes = {["ALL"] = true}, modifier = "", button = "", text = "/target *name"})
 	end
-	
-	-- Check if we entered an arena
-	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
+
+	self.db = LibStub:GetLibrary("AceDB-3.0"):New("SSAFDB", self.defaults)
+	self.revision = tonumber(string.match("$Revision$", "(%d+)") or 1)
 	
 	-- SML
 	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
@@ -57,6 +53,7 @@ function SSAF:OnInitialize()
 	-- Default party units
 	for i=1, MAX_PARTY_MEMBERS do
 		partyUnits[i] = "party" .. i
+		partyUnits[partyUnits[i]] = i
 		partyTargetUnits[i] = "party" .. i .. "target"
 		partyTargets["party" .. i] = ""
 	end
@@ -69,19 +66,16 @@ function SSAF:OnInitialize()
 	
 	self.arenaUnits = arenaUnits
 	self.rows = {}
-	
-	--[[
-	self:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-		SSAF:Reload()
-	end)
-	]]
+
+	-- Check if we entered an arena
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 end
 
 function SSAF:JoinedArena()
-	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-
+	self:RegisterEvent("UNIT_TARGET")
 	self:RegisterEvent("UNIT_HEALTH")
 	self:RegisterEvent("UNIT_MAXHEALTH", "UNIT_HEALTH")
+	self:RegisterEvent("UNIT_NAME_UPDATE")
 
 	self:RegisterEvent("UNIT_MANA", "UNIT_POWER")
 	self:RegisterEvent("UNIT_RAGE", "UNIT_POWER")
@@ -97,6 +91,10 @@ function SSAF:JoinedArena()
 
 	self:RegisterEvent("UNIT_DISPLAYPOWER", "UNIT_POWERTYPE")
 	
+	self:RegisterEvent("ARENA_OPPONENT_UPDATE")
+	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	
+
 	-- Enable casting module
 	if( self.db.profile.showCast ) then
 		self.modules.Cast:Enable()
@@ -137,9 +135,6 @@ function SSAF:JoinedArena()
 		row.nameExtra = ""
 		row:SetAlpha(1.0)
 		row:Show()
-		
-		-- Add this unit to the list to search for
-		table.insert(identifyUnits, unit)
 	end
 	
 	-- Enable trinket module
@@ -152,7 +147,6 @@ function SSAF:JoinedArena()
 	
 	-- Show base frame + scanning
 	self.frame:Show()
-	self.scanFrame:Show()
 	
 	-- Update positioning + who we know
 	self:UpdatePositioning()
@@ -162,19 +156,14 @@ end
 function SSAF:LeftArena()
 	self:UnregisterAllEvents()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	
 	-- Disable modules
 	self.modules.Cast:Disable()
 	self.modules.Aura:Disable()
 	self.modules.Trinket:Disable()
-		
-	-- Stop scanning
-	self.scanFrame:Hide()
-	
+			
 	-- Reset
 	for k in pairs(partyTargets) do partyTargets[k] = "" end
-	for i=#(identifyUnits), 1, -1 do table.remove(identifyUnits, i) end
 	
 	-- If we're in combat, wait until we leave it to hide the frame, otherwise do so now
 	if( InCombatLockdown() ) then
@@ -187,6 +176,14 @@ function SSAF:LeftArena()
 	end
 end
 
+function SSAF:UNIT_TARGET(event, unit)
+	local id = partyUnits[unit]
+	if( id ) then
+		partyTargets[partyUnits[id]] = UnitGUID(partyTargetUnits[id])
+		self:UpdateToT()
+	end
+end
+
 -- Hide the frame
 function SSAF:PLAYER_REGEN_ENABLED()
 	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
@@ -194,6 +191,17 @@ function SSAF:PLAYER_REGEN_ENABLED()
 	self.frame:Hide()
 	for _, row in pairs(self.rows) do
 		row:Hide()
+	end
+end
+
+-- unitids updated
+function SSAF:ARENA_OPPONENT_UPDATE(event, unit, type)
+	-- seen = We saw the unitid (arena# or arenapet#) for the first time
+	-- destroyed = Only seem to be used for pets, the pet died (Also called if the owner of the pet dies I think)
+	-- unseen = No idea, it's "used" in Blizzard code, but not seen it fire
+	-- cleared = Unit is no longer available, arena ended basically
+	if( type == "seen" and arenaUnits[unit] ) then
+		self:UpdateRow(unit, self.rows[unit])
 	end
 end
 
@@ -360,6 +368,13 @@ function SSAF:SetCustomIcon(row, icon)
 	end
 end
 
+-- Name updated, update the row (if it's an arena unit)
+function SSAF:UNIT_NAME_UPDATE(event, unit)
+	if( arenaUnits[unit] ) then
+		self:UpdateRow(unit, self.rows[unit])
+	end
+end
+
 -- Update frame
 function SSAF:UpdateRow(unit, row)
 	-- Set ID to make it easier to identify people if needed
@@ -454,7 +469,7 @@ function SSAF:ZONE_CHANGED_NEW_AREA()
 	elseif( type ~= "arena" and instanceType == "arena" ) then
 		self:LeftArena()
 	end
-	
+
 	instanceType = type
 end
 
@@ -576,40 +591,3 @@ end
 function SSAF:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99SSAF|r: " .. msg)
 end
-
--- Handle scanning
-local timeElapsed = 0
-local frame = CreateFrame("Frame")
-frame:Hide()
-
-frame:SetScript("OnUpdate", function(self, elapsed)
-	timeElapsed = timeElapsed + elapsed
-	if( timeElapsed >= 0.50 ) then
-		timeElapsed = 0
-		
-		-- Setup a new unit?
-		for i=#(identifyUnits), 1, -1 do
-			local unit = identifyUnits[i]
-			if( UnitExists(unit) and UnitName(unit) ~= UNKNOWNOBJECT ) then
-				SSAF:UpdateRow(unit, SSAF.rows[unit])
-				table.remove(identifyUnits, i)
-			end
-		end
-	
-		-- Update ToT
-		local updateToT
-		for i=1, GetNumPartyMembers() do
-			local guid = UnitGUID(partyTargetUnits[i])
-			if( guid ~= partyTargets[partyUnits[i]] ) then
-				partyTargets[partyUnits[i]] = guid
-				updateToT = true
-			end
-		end
-	
-		if( updateToT ) then
-			SSAF:UpdateToT()
-		end
-	end
-end)
-
-SSAF.scanFrame = frame

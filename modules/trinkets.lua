@@ -67,7 +67,7 @@ end
 -- Update trinket icon (If any)
 function Trinket:UpdateIcon(row, trinketUp)
 	row.nameExtra = trinketUp and trinketIcon or ""
-	row.text:SetFormattedText("%s%s%s%s", row.nameID, row.talentGuess, row.nameExtra, UnitName(row.unitid))
+	row.text:SetFormattedText("%s%s%s", row.nameID, row.nameExtra, UnitName(row.unitid))
 end
 
 

@@ -266,6 +266,7 @@ local function loadOptions()
 						type = "toggle",
 						name = L["Grow frame up"],
 						desc = L["Grows the arena frame to the bottom -> top instead of top -> bottom."],
+						width = "full",
 					},
 					showID = {
 						order = 4,
