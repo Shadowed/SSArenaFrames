@@ -104,16 +104,7 @@ function SSAF:JoinedArena()
 	if( self.db.profile.showAura ) then
 		self.modules.Aura:Enable()
 	end
-	
-	-- Figure out arena bracket
-	for i=1, MAX_BATTLEFIELD_QUEUES do
-		local status, _, _, _, _, teamSize = GetBattlefieldStatus(i)
-		if( status == "active" and teamSize > 0 ) then
-			currentBracket = teamSize
-			break
-		end
-	end
-	
+		
 	-- Update/show rows
 	for i=1, currentBracket do
 		-- Create it if needed
@@ -458,11 +449,36 @@ function SSAF:UpdateRows()
 	self:UpdateToT()
 end
 
+function SSAF:SaveArenaBracket()
+	currentBracket = nil
+	for i=1, MAX_BATTLEFIELD_QUEUES do
+		local status, _, _, _, _, teamSize = GetBattlefieldStatus(i)
+		if( status == "active" and teamSize > 0 ) then
+			currentBracket = teamSize
+		end
+	end
+end
+
+function SSAF:UPDATE_BATTLEFIELD_STATUS()
+	self:SaveArenaBracket()
+	if( not currentBracket ) then return end
+	self:UnregisterEvent("UPDATE_BATTLEFIELD_STATUS")
+	self:JoinedArena()
+end
+
 -- Enabling/Disabling SSAF
 function SSAF:ZONE_CHANGED_NEW_AREA()
 	local type = select(2, IsInInstance())
 	-- Inside an arena, but wasn't already
 	if( type == "arena" and type ~= instanceType ) then
+		-- Odd bug, foir some reason we can't always get the team siuze on ZCNA anymore, meaning we need to check here first
+		-- if we don't have the bracket, then we delay creation until UBS says we have the data.
+		self:SaveArenaBracket()
+		if( not currentBracket ) then
+			self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
+			return
+		end
+		
 		self:JoinedArena()
 
 	-- Was in an arena, but left it

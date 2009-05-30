@@ -100,28 +100,34 @@ end
 -- The number is the priority, higher priority spells are shown over lower priority
 Aura.spells = {
 	-- Psychic Scream
-	[(GetSpellInfo(8122))] = 10,
+	[GetSpellInfo(8122)] = 10,
 	-- Fear
-	[(GetSpellInfo(5782))] = 10,
+	[GetSpellInfo(5782)] = 10,
 	-- Howl of Terror
-	[(GetSpellInfo(5484))] = 10,
+	[GetSpellInfo(5484)] = 10,
 	-- Scare Beast
-	[(GetSpellInfo(1513))] = 10,
+	[GetSpellInfo(1513)] = 10,
+	
+	-- Hammer of Justice
+	[GetSpellInfo(10308)] = 5,
+	
+	-- Repentance
+	[GetSpellInfo(20066)] = 10,
 
 	-- Polymorph
-	[(GetSpellInfo(118))] = 5,
+	[GetSpellInfo(118)] = 5,
 	-- Hex
-	[(GetSpellInfo(51514))] = 5,
+	[GetSpellInfo(51514)] = 5,
 
 	-- Freezing Trap
-	[(GetSpellInfo(1499))] = 10,
+	[GetSpellInfo(1499)] = 10,
 
 	-- Sap
-	[(GetSpellInfo(6770))] = 5,
+	[GetSpellInfo(6770)] = 5,
 	-- Cyclone
-	[(GetSpellInfo(33786))] = 10,
+	[GetSpellInfo(33786)] = 10,
 	-- Hibernate
-	[(GetSpellInfo(2637))] = 5,
+	[GetSpellInfo(2637)] = 5,
 	-- Blind
-	[(GetSpellInfo(2094))] = 10,
+	[GetSpellInfo(2094)] = 10,
 }
