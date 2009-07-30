@@ -3,11 +3,7 @@ local L = SSAFLocals
 
 local DOT_FIRSTROW = 11
 local DOT_SECONDROW = 20
-local SML
-
-function Frame:OnInitialize()
-	SML = LibStub:GetLibrary("LibSharedMedia-3.0")
-end
+local SML = LibStub:GetLibrary("LibSharedMedia-3.0")
 
 -- Create the master frame to hold everything
 local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",

@@ -326,6 +326,9 @@ local function loadOptions()
 	options.args.profile.order = 3
 end
 
+SLASH_SSARENAFRAMES1 = nil
+SlashCmdList["SSARENAFRAMES"] = nil
+
 SLASH_SSAF1 = "/ssaf"
 SLASH_SSAF2 = "/ssarenaframes"
 SlashCmdList["SSAF"] = function()

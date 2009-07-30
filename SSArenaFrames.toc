@@ -1,10 +1,11 @@
 ## Interface: 30100
 ## Title: SSArena Frames
-## Version: $Revision$
 ## Author: Mayen
 ## Notes: Unit frames for arenas
+## LoadManagers: AddonLoader
+## X-LoadOn-Slash: /ssaf, /ssarenaframes
+## X-LoadOn-Arena: true
 ## SavedVariables: SSAFDB
-## OptionalDeps: LibStub, Ace3, LibSharedMedia-3.0
 
 libs\LibStub-1.0\LibStub-1.0.xml
 libs\CallbackHandler-1.0\CallbackHandler-1.0.xml

@@ -68,7 +68,11 @@ function SSAF:OnInitialize()
 	self.rows = {}
 
 	-- Check if we entered an arena
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	
+	-- In case it was loaded through AL
+	self:ZONE_CHANGED_NEW_AREA()
 end
 
 function SSAF:JoinedArena()
@@ -146,6 +150,7 @@ end
 
 function SSAF:LeftArena()
 	self:UnregisterAllEvents()
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	
 	-- Disable modules
@@ -189,7 +194,7 @@ end
 function SSAF:ARENA_OPPONENT_UPDATE(event, unit, type)
 	-- seen = We saw the unitid (arena# or arenapet#) for the first time
 	-- destroyed = Only seem to be used for pets, the pet died (Also called if the owner of the pet dies I think)
-	-- unseen = No idea, it's "used" in Blizzard code, but not seen it fire
+	-- unseen = No idea, it's "used" in Blizzard code, but haven't seen it fire
 	-- cleared = Unit is no longer available, arena ended basically
 	if( type == "seen" and arenaUnits[unit] ) then
 		self:UpdateRow(unit, self.rows[unit])
@@ -409,11 +414,11 @@ function SSAF:UpdateRow(unit, row)
 	local class = select(2, UnitClass(unit))
 	
 	-- Finally update
-	row.text:SetFormattedText("%s%s%s", row.nameID, row.nameExtra, UnitName(unit))
+	row.text:SetFormattedText("%s%s%s", row.nameID or "", row.nameExtra or "", UnitName(unit) or UNKNOWN)
 	row.health:SetStatusBarColor(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1.0)
 	
 	-- Class icon
-	if( self.db.profile.showIcon and not row.classSet ) then
+	if( self.db.profile.showIcon ) then
 		local coords = CLASS_BUTTONS[class]
 		row.classSet = true
 		row.classTexture:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")

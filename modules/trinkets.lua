@@ -66,6 +66,7 @@ end
 
 -- Update trinket icon (If any)
 function Trinket:UpdateIcon(row, trinketUp)
+	if( not UnitExists(row.unitid) ) then return end
 	row.nameExtra = trinketUp and trinketIcon or ""
 	row.text:SetFormattedText("%s%s%s", row.nameID, row.nameExtra, UnitName(row.unitid))
 end

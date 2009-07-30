@@ -1,6 +1,6 @@
 ﻿--[[
 Name: LibSharedMedia-3.0
-Revision: $Revision: 63550 $
+Revision: $Revision: 66370 $
 Author: Elkano (elkano@gmx.de)
 Inspired By: SurfaceLib by Haste/Otravi (troeks@gmail.com)
 Website: http://
@@ -11,7 +11,7 @@ Dependencies: LibStub, CallbackHandler-1.0
 License: LGPL v2.1
 ]]
 
-local MAJOR, MINOR = "LibSharedMedia-3.0", "$Revision: 63550 $"
+local MAJOR, MINOR = "LibSharedMedia-3.0", "$Revision: 66370 $"
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not lib then return end
